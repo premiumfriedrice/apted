@@ -1,0 +1,192 @@
+:root {
+  --bg: #0e0f12;
+  --panel: #16181d;
+  --panel-2: #1c1f26;
+  --border: #2a2e38;
+  --text: #e7e9ee;
+  --muted: #9098a8;
+  --accent: #7aa2f7;
+  --accent-fg: #0b0d12;
+  --danger: #f7768e;
+  --ok: #9ece6a;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --panel-2: #f0f2f6;
+    --border: #d9dde4;
+    --text: #1a1d23;
+    --muted: #5c6473;
+    --accent: #2563eb;
+    --accent-fg: #ffffff;
+    --danger: #b91c1c;
+    --ok: #15803d;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  /* Sized for popup context. In a Chrome side panel the container width
+     overrides this; in a popup, browsers cap at ~800x600 and we want as
+     much room as possible. */
+  width: 480px;
+  min-height: 600px;
+}
+
+h1, h2, h3 { margin: 0; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.brand { font-weight: 700; letter-spacing: 0.02em; }
+.connection { font-size: 11px; color: var(--muted); }
+.spacer { flex: 1; }
+
+.panel {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel);
+}
+
+.row { display: flex; align-items: center; gap: 8px; }
+.row.two { display: grid; grid-template-columns: 1fr 1fr; }
+
+input, textarea, select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  width: 100%;
+  outline: none;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 80px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+button.ghost:hover { color: var(--text); }
+
+.preview { flex: 1; min-height: 280px; }
+.preview-body {
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow: auto;
+  max-height: 60vh;
+}
+.preview-body .empty { color: var(--muted); text-align: center; padding: 24px 0; }
+
+.resume { font-family: "Times New Roman", Georgia, serif; color: var(--text); }
+.resume header { text-align: center; margin-bottom: 10px; }
+.resume header h1 { font-size: 20px; letter-spacing: 0.02em; }
+.resume header .contact { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.resume header .contact a { color: var(--accent); text-decoration: none; }
+.resume h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
+  margin: 10px 0 4px;
+  color: var(--text);
+  font-weight: 700;
+}
+.resume .entry { margin: 6px 0 8px; }
+.resume .entry-head, .resume .entry-sub {
+  display: flex; justify-content: space-between; gap: 12px;
+}
+.resume .entry-title { font-weight: 600; }
+.resume .entry-dates { color: var(--muted); font-size: 11px; }
+.resume .entry-sub { font-style: italic; font-size: 12px; color: var(--muted); }
+.resume ul { margin: 4px 0 0 18px; padding: 0; }
+.resume ul li { margin: 1px 0; font-size: 12px; }
+.resume .stack { color: var(--muted); font-weight: 400; }
+.resume .skills .cat { font-weight: 600; }
+
+.chat { background: var(--panel); }
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+  padding: 2px 0;
+}
+.chat-log .turn {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.chat-log .turn.you { border-color: var(--accent); }
+.chat-log .turn .who { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 6px; }
+.chat-form { display: flex; gap: 8px; }
+.chat-form input { flex: 1; }
+
+.status {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  min-height: 22px;
+}
+.status.error { color: var(--danger); }
+.status.ok { color: var(--ok); }
+
+dialog {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 280px;
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+dialog label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+dialog .dialog-actions { margin-top: 8px; }
+
+.pdf-affordance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 4px 0;
+  font-size: 12px;
+}
+.pdf-stale { color: #b45309; font-size: 11px; }

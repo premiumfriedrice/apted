@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>apted</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">apted</div>
+      <div class="spacer"></div>
+      <span id="connection" class="connection" title="API base"></span>
+      <button id="new-tailor" class="ghost" title="Clear the current session and start a new tailor">New</button>
+      <button id="open-options" class="ghost">Settings</button>
+    </header>
+
+    <section class="jd panel">
+      <div class="row">
+        <h2>Job description</h2>
+        <div class="spacer"></div>
+        <button id="rescrape">Scrape tab</button>
+      </div>
+      <div class="row two">
+        <input id="jd-company" placeholder="Company" />
+        <input id="jd-role" placeholder="Role" />
+      </div>
+      <textarea
+        id="jd-text"
+        rows="6"
+        placeholder="Paste a job description, or click Scrape tab."
+      ></textarea>
+      <div class="row">
+        <div class="spacer"></div>
+        <button id="tailor" class="primary">Tailor</button>
+      </div>
+    </section>
+
+    <section class="preview panel">
+      <div class="row">
+        <h2>Preview</h2>
+        <div class="spacer"></div>
+        <button id="download-pdf" disabled>Download PDF</button>
+        <button id="undo" disabled>Undo</button>
+        <button id="save-version" disabled>Save as version</button>
+      </div>
+      <div id="pdf-affordance" class="pdf-affordance" hidden>
+        <span id="pdf-stale" class="pdf-stale" hidden>stale — regenerate</span>
+        <span id="pdf-drag-slot"></span>
+      </div>
+      <div id="preview" class="preview-body">
+        <div class="empty">No draft yet. Tailor a JD to get started.</div>
+      </div>
+    </section>
+
+    <section class="chat panel">
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <input
+          id="chat-input"
+          placeholder="lead with the AI project · cut the GPA · strengthen bullet 3"
+          autocomplete="off"
+          disabled
+        />
+        <button id="chat-send" type="submit" class="primary" disabled>Send</button>
+      </form>
+    </section>
+
+    <dialog id="save-dialog">
+      <form method="dialog" id="save-form">
+        <h3>Save as version</h3>
+        <label>Company<input id="save-company" required /></label>
+        <label>Role<input id="save-role" required /></label>
+        <label>
+          Outcome
+          <select id="save-outcome">
+            <option value="draft">draft</option>
+            <option value="applied">applied</option>
+            <option value="interview">interview</option>
+            <option value="offer">offer</option>
+            <option value="rejected">rejected</option>
+          </select>
+        </label>
+        <div class="row dialog-actions">
+          <button value="cancel" type="reset">Cancel</button>
+          <div class="spacer"></div>
+          <button id="save-confirm" value="confirm" class="primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="status" class="status" aria-live="polite"></div>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

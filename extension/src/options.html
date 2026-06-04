@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>apted — settings</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+    <style>
+      body { padding: 24px; max-width: 560px; }
+      form { display: flex; flex-direction: column; gap: 14px; }
+      label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
+      .hint { color: var(--muted); font-size: 11px; }
+      .actions { display: flex; gap: 8px; align-items: center; }
+      h1 { font-size: 18px; margin-bottom: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>apted — settings</h1>
+    <form id="form">
+      <label>
+        API_BASE
+        <input id="apiBase" placeholder="https://apted.yourdomain.com" required />
+        <span class="hint">Base URL of your apted web app. No trailing slash.</span>
+      </label>
+      <label>
+        Auth token
+        <input id="authToken" placeholder="opaque token your server validates" />
+        <span class="hint">Sent as <code>Authorization: Bearer &lt;token&gt;</code> on every API call. Optional if your server uses cookies.</span>
+      </label>
+      <label style="flex-direction: row; align-items: center; gap: 8px;">
+        <input id="openModeWindow" type="checkbox" style="width: auto;" />
+        <span style="color: var(--text);">Open as detached window</span>
+      </label>
+      <span class="hint" style="margin-top: -10px;">
+        Recommended for Arc, which doesn't render the toolbar popup reliably. In Chrome, leave this off for the anchored popover.
+      </span>
+      <div class="actions">
+        <button id="save" class="primary" type="submit">Save</button>
+        <span id="status" class="hint" aria-live="polite"></span>
+      </div>
+    </form>
+    <script src="options.js"></script>
+  </body>
+</html>

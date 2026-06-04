@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "apted",
+  "version": "0.1.0",
+  "description": "Tailor your resume to the job posting in your active tab. Thin client for the apted web app.",
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "contextMenus", "clipboardWrite"],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://boards.greenhouse.io/*",
+    "https://job-boards.greenhouse.io/*",
+    "https://*.greenhouse.io/*",
+    "https://jobs.lever.co/*",
+    "https://*.myworkdayjobs.com/*"
+  ],
+  "optional_host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "apted",
+    "default_popup": "sidepanel.html"
+  },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "options_page": "options.html",
+  "commands": {
+    "open-apted": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
+      },
+      "description": "Open apted"
+    }
+  },
+  "omnibox": { "keyword": "apted" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/jobs/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*"
+      ],
+      "js": ["inject.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

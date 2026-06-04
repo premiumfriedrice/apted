@@ -1,0 +1,164 @@
+// Helpers around the Anthropic client. Three public generators:
+//   - generateResume(userPrompt)         → Resume   (tailor / edit pipeline)
+//   - generateResumeFromText(userPrompt) → Resume   (import / paste pipeline)
+//   - generateItemsFromProse(kind, ...)  → Item[]   (parse-prose pipeline)
+//
+// All three share a single retry-with-backoff call + "repair on bad JSON" loop.
+import type Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import { anthropic, MODEL } from "./anthropic";
+import {
+  EducationItem,
+  ExperienceItem,
+  ProjectItem,
+  Resume,
+} from "./resume";
+import {
+  buildExtractionSystemPrompt,
+  buildSystemPrompt,
+} from "./prompts/system";
+
+function extractJson(text: string): string {
+  // Tolerate accidental code fences even though we told the model not to.
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) return fenced[1].trim();
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first === -1 || last === -1) return text.trim();
+  return text.slice(first, last + 1);
+}
+
+// Defensively normalize `tags` on every item so the schema parse never trips
+// on a model that dropped or nulled the field. The schema already accepts
+// nullish, this just keeps malformed shapes (e.g. tags: "string") from
+// erroring downstream.
+function normalizeResumeShape(j: unknown): unknown {
+  if (!j || typeof j !== "object") return j;
+  const sections = (j as { sections?: unknown }).sections;
+  if (!Array.isArray(sections)) return j;
+  for (const sec of sections) {
+    if (!sec || typeof sec !== "object") continue;
+    const items = (sec as { items?: unknown }).items;
+    if (!Array.isArray(items)) continue;
+    for (const it of items) normalizeItemTags(it);
+  }
+  return j;
+}
+
+function normalizeItemTags(it: unknown): void {
+  if (!it || typeof it !== "object") return;
+  const t = (it as { tags?: unknown }).tags;
+  if (!Array.isArray(t)) (it as { tags: string[] }).tags = [];
+}
+
+const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504, 529]);
+const MAX_ATTEMPTS = 4;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// Single shared call site with exponential backoff on transient Anthropic
+// errors. Returns the concatenated text content of the assistant message.
+async function callAnthropic(
+  systemPrompt: string,
+  userPrompt: string,
+  extraSystem = "",
+): Promise<string> {
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    try {
+      const res = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 4096,
+        system: systemPrompt + extraSystem,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      return res.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n");
+    } catch (e: unknown) {
+      const status = (e as { status?: number })?.status;
+      const last = i === MAX_ATTEMPTS - 1;
+      if (last || !status || !TRANSIENT_STATUS.has(status)) throw e;
+      await sleep(500 * 2 ** i + Math.random() * 250);
+    }
+  }
+  throw new Error("unreachable");
+}
+
+// Generic "call Anthropic, parse the response, retry once with a repair prompt
+// if parse fails" wrapper. Takes a parser function so the caller can mix a
+// Zod schema with normalization however they like. (Passing a Zod schema
+// directly here gets noisy because Zod's `.default()` / `.transform()` makes
+// the input type diverge from the output type.)
+async function callAndParse<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  parse: (raw: unknown) => T,
+): Promise<T> {
+  const tryParse = (raw: string): T => parse(JSON.parse(extractJson(raw)));
+  const first = await callAnthropic(systemPrompt, userPrompt);
+  try {
+    return tryParse(first);
+  } catch {
+    const repair = await callAnthropic(
+      systemPrompt,
+      userPrompt,
+      `\n\nYour previous response could not be parsed against the expected schema. ` +
+        `Return ONLY a single valid JSON object matching the schema. No prose, no code fences.`,
+    );
+    return tryParse(repair);
+  }
+}
+
+// --- Public generators -----------------------------------------------------
+
+// Tailor / edit: uses the tailoring system prompt. Existing call sites in
+// /api/tailor and /api/edit go through here.
+export async function generateResume(userPrompt: string): Promise<Resume> {
+  return callAndParse(buildSystemPrompt(), userPrompt, (raw) =>
+    Resume.parse(normalizeResumeShape(raw)),
+  );
+}
+
+// Import / paste-resume: same schema (full Resume), but the extraction system
+// prompt tells Claude to be faithful to the source rather than curate.
+export async function generateResumeFromText(userPrompt: string): Promise<Resume> {
+  return callAndParse(buildExtractionSystemPrompt(), userPrompt, (raw) =>
+    Resume.parse(normalizeResumeShape(raw)),
+  );
+}
+
+// Items-only extraction. The model returns `{ items: [...] }`; we parse the
+// items against the kind-specific schema and return them stripped of the
+// envelope so the caller can just append them to a section.
+export type ParseProseKind = "experience" | "projects" | "education";
+export type ExperienceItemT = z.infer<typeof ExperienceItem>;
+export type ProjectItemT = z.infer<typeof ProjectItem>;
+export type EducationItemT = z.infer<typeof EducationItem>;
+type ItemForKind = {
+  experience: ExperienceItemT;
+  projects: ProjectItemT;
+  education: EducationItemT;
+};
+
+export async function generateItemsFromProse<K extends ParseProseKind>(
+  kind: K,
+  userPrompt: string,
+): Promise<ItemForKind[K][]> {
+  // Pick the kind-specific item schema and wrap it in the `{ items: [...] }`
+  // envelope the prompt asks Claude to return.
+  const itemSchema =
+    kind === "experience" ? ExperienceItem
+    : kind === "projects" ? ProjectItem
+    : EducationItem;
+  const envelope = z.object({ items: z.array(itemSchema) });
+  const parsed = await callAndParse(buildExtractionSystemPrompt(), userPrompt, (raw) => {
+    if (raw && typeof raw === "object" && Array.isArray((raw as { items?: unknown }).items)) {
+      for (const it of (raw as { items: unknown[] }).items) normalizeItemTags(it);
+    }
+    return envelope.parse(raw);
+  });
+  return parsed.items as ItemForKind[K][];
+}
