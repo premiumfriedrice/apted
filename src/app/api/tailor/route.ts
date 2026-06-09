@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateResume } from "@/lib/llm";
+import { rankPriorVersions } from "@/lib/relevance";
 import { tailorUserPrompt } from "@/lib/prompts/user";
 
 export const runtime = "nodejs";
@@ -29,8 +30,13 @@ export async function POST(req: Request) {
       tailored_content: Resume.parse(r.tailored_content),
     }));
 
+    // Send only the prior versions relevant to this JD (by keyword/tag overlap)
+    // rather than all 20 — cheaper, and keeps off-domain resumes from skewing
+    // the framing (e.g. a platform-eng resume on a mobile-dev JD). (APTED-011)
+    const relevantVersions = rankPriorVersions(jobDescription, priorVersions, 5);
+
     const draft = await generateResume(
-      tailorUserPrompt({ master, priorVersions, jobDescription }),
+      tailorUserPrompt({ master, priorVersions: relevantVersions, jobDescription }),
     );
 
     const ins = await client.query(

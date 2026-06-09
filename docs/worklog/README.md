@@ -25,6 +25,11 @@ options that were on the table, which one was chosen, and why the others were no
 | APTED-004 | PDF compile service | [004-pdf-compile-service.md](004-pdf-compile-service.md) |
 | APTED-005 | Next.js web app, API & auth | [005-webapp-api-auth.md](005-webapp-api-auth.md) |
 | APTED-006 | Chrome extension (thin client) | [006-chrome-extension.md](006-chrome-extension.md) |
+| APTED-007 | Provider-agnostic LLM layer | [007-provider-abstraction.md](007-provider-abstraction.md) |
+| APTED-008 | Gemini 2.0 Flash-Lite support | [008-gemini-provider.md](008-gemini-provider.md) |
+| APTED-009 | OpenAI GPT-4.1-nano / 4o-mini support | [009-openai-provider.md](009-openai-provider.md) |
+| APTED-010 | Multi-model benchmark harness | [010-benchmark-harness.md](010-benchmark-harness.md) |
+| APTED-011 | Cost optimizations: caching + relevant prior versions | [011-cost-optimizations.md](011-cost-optimizations.md) |
 
 ## Entry format
 

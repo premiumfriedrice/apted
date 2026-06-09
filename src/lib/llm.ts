@@ -3,10 +3,10 @@
 //   - generateResumeFromText(userPrompt) → Resume   (import / paste pipeline)
 //   - generateItemsFromProse(kind, ...)  → Item[]   (parse-prose pipeline)
 //
-// All three share a single retry-with-backoff call + "repair on bad JSON" loop.
-import type Anthropic from "@anthropic-ai/sdk";
+// All three share a single retry-with-backoff call + "repair on bad JSON" loop,
+// and run against whichever provider is configured (Claude / OpenAI / Gemini).
 import { z } from "zod";
-import { anthropic, MODEL } from "./anthropic";
+import { getProvider, type Provider } from "./providers";
 import {
   EducationItem,
   ExperienceItem,
@@ -53,30 +53,28 @@ function normalizeItemTags(it: unknown): void {
 
 const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504, 529]);
 const MAX_ATTEMPTS = 4;
+const MAX_TOKENS = 4096;
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// Single shared call site with exponential backoff on transient Anthropic
-// errors. Returns the concatenated text content of the assistant message.
-async function callAnthropic(
+// Single shared call site with exponential backoff on transient provider
+// errors (both the Anthropic and OpenAI SDKs surface `.status`). Returns the
+// raw assistant text.
+async function callModel(
+  provider: Provider,
   systemPrompt: string,
   userPrompt: string,
   extraSystem = "",
 ): Promise<string> {
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     try {
-      const res = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 4096,
+      return await provider.complete({
         system: systemPrompt + extraSystem,
-        messages: [{ role: "user", content: userPrompt }],
+        user: userPrompt,
+        maxTokens: MAX_TOKENS,
       });
-      return res.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("\n");
     } catch (e: unknown) {
       const status = (e as { status?: number })?.status;
       const last = i === MAX_ATTEMPTS - 1;
@@ -93,16 +91,18 @@ async function callAnthropic(
 // directly here gets noisy because Zod's `.default()` / `.transform()` makes
 // the input type diverge from the output type.)
 async function callAndParse<T>(
+  provider: Provider,
   systemPrompt: string,
   userPrompt: string,
   parse: (raw: unknown) => T,
 ): Promise<T> {
   const tryParse = (raw: string): T => parse(JSON.parse(extractJson(raw)));
-  const first = await callAnthropic(systemPrompt, userPrompt);
+  const first = await callModel(provider, systemPrompt, userPrompt);
   try {
     return tryParse(first);
   } catch {
-    const repair = await callAnthropic(
+    const repair = await callModel(
+      provider,
       systemPrompt,
       userPrompt,
       `\n\nYour previous response could not be parsed against the expected schema. ` +
@@ -116,16 +116,22 @@ async function callAndParse<T>(
 
 // Tailor / edit: uses the tailoring system prompt. Existing call sites in
 // /api/tailor and /api/edit go through here.
-export async function generateResume(userPrompt: string): Promise<Resume> {
-  return callAndParse(buildSystemPrompt(), userPrompt, (raw) =>
+export async function generateResume(
+  userPrompt: string,
+  provider: Provider = getProvider(),
+): Promise<Resume> {
+  return callAndParse(provider, buildSystemPrompt(), userPrompt, (raw) =>
     Resume.parse(normalizeResumeShape(raw)),
   );
 }
 
 // Import / paste-resume: same schema (full Resume), but the extraction system
-// prompt tells Claude to be faithful to the source rather than curate.
-export async function generateResumeFromText(userPrompt: string): Promise<Resume> {
-  return callAndParse(buildExtractionSystemPrompt(), userPrompt, (raw) =>
+// prompt tells the model to be faithful to the source rather than curate.
+export async function generateResumeFromText(
+  userPrompt: string,
+  provider: Provider = getProvider(),
+): Promise<Resume> {
+  return callAndParse(provider, buildExtractionSystemPrompt(), userPrompt, (raw) =>
     Resume.parse(normalizeResumeShape(raw)),
   );
 }
@@ -146,15 +152,16 @@ type ItemForKind = {
 export async function generateItemsFromProse<K extends ParseProseKind>(
   kind: K,
   userPrompt: string,
+  provider: Provider = getProvider(),
 ): Promise<ItemForKind[K][]> {
   // Pick the kind-specific item schema and wrap it in the `{ items: [...] }`
-  // envelope the prompt asks Claude to return.
+  // envelope the prompt asks the model to return.
   const itemSchema =
     kind === "experience" ? ExperienceItem
     : kind === "projects" ? ProjectItem
     : EducationItem;
   const envelope = z.object({ items: z.array(itemSchema) });
-  const parsed = await callAndParse(buildExtractionSystemPrompt(), userPrompt, (raw) => {
+  const parsed = await callAndParse(provider, buildExtractionSystemPrompt(), userPrompt, (raw) => {
     if (raw && typeof raw === "object" && Array.isArray((raw as { items?: unknown }).items)) {
       for (const it of (raw as { items: unknown[] }).items) normalizeItemTags(it);
     }
