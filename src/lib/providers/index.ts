@@ -70,3 +70,21 @@ export function getProvider(name?: string): Provider {
   }
   return provider;
 }
+
+// Per-flow model routing. Tailoring is quality-sensitive; the simpler flows
+// (edit/import/parse-prose) are schema-bounded and can run on a cheaper model.
+// Each flow can be pinned with its own LLM_PROVIDER_<FLOW> env var; unset flows
+// fall back to the global LLM_PROVIDER (then anthropic). This lets you run e.g.
+// tailor on Claude and the rest on Gemini without code changes.
+export type Flow = "tailor" | "edit" | "import" | "parse-prose";
+
+const FLOW_ENV: Record<Flow, string> = {
+  tailor: "LLM_PROVIDER_TAILOR",
+  edit: "LLM_PROVIDER_EDIT",
+  import: "LLM_PROVIDER_IMPORT",
+  "parse-prose": "LLM_PROVIDER_PARSE_PROSE",
+};
+
+export function getProviderForFlow(flow: Flow): Provider {
+  return getProvider(process.env[FLOW_ENV[flow]] || undefined);
+}

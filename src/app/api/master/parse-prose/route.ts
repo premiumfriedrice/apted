@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { generateItemsFromProse, type ParseProseKind } from "@/lib/llm";
+import { getProviderForFlow } from "@/lib/providers";
 import { parseProseUserPrompt } from "@/lib/prompts/user";
 
 export const runtime = "nodejs";
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
     const items = await generateItemsFromProse(
       kind,
       parseProseUserPrompt({ kind, prose }),
+      getProviderForFlow("parse-prose"),
     );
     return NextResponse.json({ items });
   } catch (e: unknown) {

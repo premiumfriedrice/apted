@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateResume } from "@/lib/llm";
+import { getProviderForFlow } from "@/lib/providers";
 import { rankPriorVersions } from "@/lib/relevance";
 import { tailorUserPrompt } from "@/lib/prompts/user";
 
 export const runtime = "nodejs";
+
+// How many relevant prior versions to send as framing hints (PRE-11).
+// Configurable via env; defaults to 5.
+const RELEVANT_VERSIONS = Number(process.env.TAILOR_RELEVANT_VERSIONS) || 5;
 
 export async function POST(req: Request) {
   const { jobDescription } = (await req.json()) as { jobDescription?: string };
@@ -33,10 +38,11 @@ export async function POST(req: Request) {
     // Send only the prior versions relevant to this JD (by keyword/tag overlap)
     // rather than all 20 — cheaper, and keeps off-domain resumes from skewing
     // the framing (e.g. a platform-eng resume on a mobile-dev JD). (APTED-011)
-    const relevantVersions = rankPriorVersions(jobDescription, priorVersions, 5);
+    const relevantVersions = rankPriorVersions(jobDescription, priorVersions, RELEVANT_VERSIONS);
 
     const draft = await generateResume(
       tailorUserPrompt({ master, priorVersions: relevantVersions, jobDescription }),
+      getProviderForFlow("tailor"),
     );
 
     const ins = await client.query(
