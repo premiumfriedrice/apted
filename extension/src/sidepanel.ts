@@ -231,8 +231,16 @@ function setDraft(draft: Draft | null): void {
     });
     els.dragChipLabel.textContent = filename;
     els.dragChip.hidden = false;
+    // Eagerly prefetch the PDF blob so dragstart always has it ready.
+    void getDraftPdfBlob({
+      draftId: draft.id,
+      draftUpdatedAt: draft.updatedAt,
+    }).then(({ blob }) => {
+      dragBlob = blob;
+    }).catch(() => { /* will retry on next draft change */ });
   } else {
     els.dragChip.hidden = true;
+    dragBlob = null;
   }
 
   schedulePersist();
@@ -526,55 +534,51 @@ els.newTailor.addEventListener("click", () => void newTailor());
 els.previewRetry.addEventListener("click", () => void refreshPdfPreview());
 
 // ── Drag chip: drag PDF out of the sidepanel onto job forms (PRE-43) ────
-// Reuses the pdf.ts cache so we don't re-fetch on every drag attempt.
+// The blob is prefetched eagerly in setDraft() so it's ready before dragstart.
 let dragBlob: Blob | null = null;
-let dragObjectUrl: string | null = null;
 
-els.dragChip.addEventListener("mouseenter", async () => {
-  if (!state.draft) return;
-  try {
-    const { blob } = await getDraftPdfBlob({
-      draftId: state.draft.id,
-      draftUpdatedAt: state.draft.updatedAt,
-    });
-    dragBlob = blob;
-    if (dragObjectUrl) URL.revokeObjectURL(dragObjectUrl);
-    dragObjectUrl = URL.createObjectURL(blob);
-    els.dragChip.style.opacity = "1";
-  } catch {
-    // Silently ignore — dragchip will try again at dragstart.
-  }
-});
+// No need for mouseenter pre-fetch anymore — setDraft handles it.
+// Keep the chip opacity at 1; the chip is already visible when draft exists.
 
 els.dragChip.addEventListener("dragstart", (e: DragEvent) => {
-  if (!dragBlob || !dragObjectUrl || !state.draft) {
+  if (!dragBlob || !state.draft) {
     e.preventDefault();
     return;
   }
+  const dt = e.dataTransfer;
+  if (!dt) return;
+
   const filename = suggestPdfFilename({
     id: state.draft.id,
     company: els.jdCompany.value.trim() || undefined,
     role: els.jdRole.value.trim() || undefined,
   });
-  const file = new File([dragBlob], filename, {
-    type: "application/pdf",
-    lastModified: Date.now(),
-  });
-  if (!e.dataTransfer) return;
-  e.dataTransfer.effectAllowed = "copy";
+
+  dt.effectAllowed = "copy";
+
+  // Chrome extension sidepanels: setData before items gives more reliable
+  // behaviour. Use DownloadURL for desktop drops and text/plain as fallback.
+  dt.setData("DownloadURL", `application/pdf:${filename}:${URL.createObjectURL(dragBlob)}`);
+  dt.setData("text/plain", filename);
+
+  // items.add() makes the blob droppable onto <input type=file> on web pages.
+  // This can fail in some Chrome contexts; wrap in try/catch.
   try {
-    e.dataTransfer.items.add(file);
+    const file = new File([dragBlob], filename, {
+      type: "application/pdf",
+      lastModified: Date.now(),
+    });
+    dt.items.add(file);
   } catch {
-    // Some browsers throw if items.add is called twice.
+    // items.add not supported in this context — user can still download via
+    // DownloadURL if they drop on desktop or file manager.
   }
-  e.dataTransfer.setData("DownloadURL", `application/pdf:${filename}:${dragObjectUrl}`);
-  e.dataTransfer.setData("text/uri-list", dragObjectUrl);
-  e.dataTransfer.setData("text/plain", filename);
-  e.dataTransfer.setDragImage(els.dragChip, 8, 8);
+
+  dt.setDragImage(els.dragChip, 8, 8);
 });
 
 els.dragChip.addEventListener("dragend", () => {
-  // Keep the blob cached; pdf.ts handles the authoritative cache.
+  // Blob stays cached in dragBlob and pdf.ts; no cleanup needed.
 });
 
 // Persist on form-field changes. Debounced inside schedulePersist so we
