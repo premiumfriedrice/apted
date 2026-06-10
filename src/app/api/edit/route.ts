@@ -6,6 +6,7 @@ import { Resume } from "@/lib/resume";
 import { generateResume } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
 import { editUserPrompt } from "@/lib/prompts/user";
+import { redactResume } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
@@ -44,8 +45,12 @@ export async function POST(req: Request) {
       const master = Resume.parse(mr.rows[0].content);
 
       // The draft IS the accumulated state — we do NOT replay chat history.
+      // Redact PII from master + current draft before sending to LLM (PRE-52).
+      const redactedMaster = redactResume(master).redacted;
+      const redactedCurrent = redactResume(current).redacted;
+
       const next = await generateResume(
-        editUserPrompt({ master, current, instruction: parsed.instruction }),
+        editUserPrompt({ master: redactedMaster, current: redactedCurrent, instruction: parsed.instruction }),
         getProviderForFlow("edit"),
       );
 

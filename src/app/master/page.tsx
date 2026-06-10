@@ -17,6 +17,8 @@ import type {
   Section,
   SkillGroup,
 } from "@/lib/resume";
+import { injectResume } from "@/lib/redact";
+import type { RedactionMap } from "@/lib/redact";
 
 type ProseKind = "experience" | "projects" | "education";
 
@@ -79,12 +81,19 @@ export default function MasterPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [proseModal, setProseModal] = useState<ProseModalState | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [piiMap, setPiiMap] = useState<RedactionMap | null>(null);
+  // Per-field visibility toggles for PII masking (PRE-54).
+  const [showField, setShowField] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetch("/api/master").then((r) => r.json()).then((d) => {
-      setResume(d.content);
+      // Reconstruct real resume from redacted content + piiMap (PRE-54).
+      const stored = d.content as Resume;
+      const map = d.piiMap as RedactionMap | null;
+      setPiiMap(map);
+      setResume(map ? injectResume(stored, map) : stored);
       setUpdatedAt(d.updatedAt ?? null);
-      setJsonText(JSON.stringify(d.content, null, 2));
+      setJsonText(JSON.stringify(map ? injectResume(stored, map) : stored, null, 2));
     });
   }, []);
 
@@ -156,9 +165,14 @@ export default function MasterPage() {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setResume(data.content);
+      // Inject PII from returned piiMap so UI shows real data (PRE-54).
+      const savedMap = data.piiMap as RedactionMap | null;
+      const savedContent = savedMap ? injectResume(data.content, savedMap) : data.content;
+      setPiiMap(savedMap);
+      setResume(savedContent);
       setUpdatedAt(data.updatedAt ?? null);
-      setJsonText(JSON.stringify(data.content, null, 2));
+      setJsonText(JSON.stringify(savedContent, null, 2));
+      setShowField({});
       setStatus({ kind: "ok", msg: "Saved" });
     } catch (e) {
       setStatus({ kind: "err", msg: e instanceof Error ? e.message : "save failed" });
@@ -173,6 +187,10 @@ export default function MasterPage() {
       try {
         const parsed = JSON.parse(jsonText);
         setResume(parsed);
+        // Clear piiMap so ContactBlock doesn't mask edited JSON.
+        setPiiMap(null);
+        setShowField({});
+        setStatus({ kind: "ok", msg: "Switched to structured view. Save to re-redact PII." });
       } catch {
         setStatus({ kind: "err", msg: "JSON is invalid — fix or revert before switching back." });
         return;
@@ -181,7 +199,6 @@ export default function MasterPage() {
       setJsonText(JSON.stringify(resume, null, 2));
     }
     setShowJson(!showJson);
-    setStatus({ kind: null, msg: "" });
   }
 
   if (!resume) {
@@ -225,7 +242,7 @@ export default function MasterPage() {
             />
           ) : (
             <div className="space-y-6">
-              <ContactBlock contact={resume.contact} onChange={updateContact} />
+              <ContactBlock contact={resume.contact} onChange={updateContact} piiMap={piiMap} showField={showField} onToggleField={(field) => setShowField((s) => ({ ...s, [field]: !s[field] }))} />
 
               {resume.sections.map((section, idx) => {
                 const proseKind =
@@ -328,37 +345,89 @@ function PreviewPane({ updatedAt }: { updatedAt: string | null }) {
 function ContactBlock({
   contact,
   onChange,
+  piiMap,
+  showField,
+  onToggleField,
 }: {
   contact: Contact;
   onChange: (patch: Partial<Contact>) => void;
+  piiMap: RedactionMap | null;
+  showField: Record<string, boolean>;
+  onToggleField: (field: string) => void;
 }) {
   const links = contact.links ?? [];
   const setLinks = (next: { label: string; href: string }[]) => onChange({ links: next });
+
+  // Mask a PII field value for display (PRE-54).
+  const mask = (field: string, real: string) => {
+    if (!piiMap) return real;
+    if (showField[field]) return real;
+    // Show placeholder based on field type.
+    if (field === "name") return "[NAME]";
+    if (field === "phone") return "[PHONE]";
+    if (field === "email") return "[EMAIL]";
+    return real;
+  };
+
+  // Auto-unmask when user focuses a masked field so they edit real data.
+  const handleFocus = (field: string, real: string, onChangeFn: (value: string) => void) => {
+    if (piiMap && !showField[field]) {
+      onToggleField(field);
+      // Replace the placeholder with real value so user edits real data.
+      onChangeFn(real);
+    }
+  };
+
+  const toggleBtnCls = "rounded border border-neutral-300 bg-white px-1.5 py-0.5 text-[10px] text-neutral-500 hover:bg-neutral-100";
 
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Contact</h2>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Labeled label="Name">
-          <input
-            className={inputCls}
-            value={contact.name}
-            onChange={(e) => onChange({ name: e.target.value })}
-          />
+          <div className="flex gap-1">
+            <input
+              className={inputCls}
+              value={mask("name", contact.name)}
+              onFocus={() => handleFocus("name", contact.name, (v) => onChange({ name: v }))}
+              onChange={(e) => onChange({ name: e.target.value })}
+            />
+            {piiMap && (
+              <button type="button" onClick={() => onToggleField("name")} className={toggleBtnCls} title="Show/hide">
+                {showField.name ? "👁" : "👁‍🗨"}
+              </button>
+            )}
+          </div>
         </Labeled>
         <Labeled label="Phone">
-          <input
-            className={inputCls}
-            value={contact.phone ?? ""}
-            onChange={(e) => onChange({ phone: e.target.value })}
-          />
+          <div className="flex gap-1">
+            <input
+              className={inputCls}
+              value={mask("phone", contact.phone ?? "")}
+              onFocus={() => handleFocus("phone", contact.phone ?? "", (v) => onChange({ phone: v }))}
+              onChange={(e) => onChange({ phone: e.target.value })}
+            />
+            {piiMap && (
+              <button type="button" onClick={() => onToggleField("phone")} className={toggleBtnCls} title="Show/hide">
+                {showField.phone ? "👁" : "👁‍🗨"}
+              </button>
+            )}
+          </div>
         </Labeled>
         <Labeled label="Email" wide>
-          <input
-            className={inputCls}
-            value={contact.email ?? ""}
-            onChange={(e) => onChange({ email: e.target.value })}
-          />
+          <div className="flex gap-1">
+            <input
+              className={inputCls}
+              value={mask("email", contact.email ?? "")}
+              onFocus={() => handleFocus("email", contact.email ?? "", (v) => onChange({ email: v }))}
+              onChange={(e) => onChange({ email: e.target.value })}
+            />
+            {piiMap && (
+              <button type="button" onClick={() => onToggleField("email")} className={toggleBtnCls} title="Show/hide">
+                {showField.email ? "👁" : "👁‍🗨"}
+              </button>
+            )}
+          </div>
         </Labeled>
       </div>
       <div className="mt-4">

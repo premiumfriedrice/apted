@@ -26,6 +26,9 @@ vi.mock("@/lib/db", () => ({
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fakePdf = Buffer.from("%PDF-1.4 fake pdf content");
 
+// Mock pii_map row returned when the route queries master_pii_map (PRE-53).
+const fakePiiMapRow = { map: { contact: { name: "Alice", phone: "", email: "a@b.com", links: [] }, orgs: [] } };
+
 function makeVersionRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: overrides.id ?? "v1-uuid",
@@ -82,6 +85,7 @@ beforeEach(() => {
 
 describe("POST /api/versions — PDF compile + store round-trip", () => {
   it("compiles tailoredContent to PDF and stores binary in the pdf column", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
     mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
 
     const { POST } = await loadVersionsRoute();
@@ -104,7 +108,8 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
     expect(mockCompile).toHaveBeenCalledOnce();
 
     // INSERT included pdf as $6 (BYTEA)
-    const insertCall = mockQuery.mock.calls[0];
+    // calls[0] is pii_map query, calls[1] is the INSERT
+    const insertCall = mockQuery.mock.calls[1];
     expect(insertCall[0]).toContain("INSERT INTO resume_versions");
     expect(insertCall[0]).toContain("pdf");
     // 6th param ($6) is the pdf buffer
@@ -116,6 +121,7 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
 
   it("saves version without PDF when compile fails (non-fatal)", async () => {
     mockCompile.mockRejectedValueOnce(new Error("compile service down"));
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
     mockQuery.mockResolvedValueOnce({
       rows: [makeVersionRow({ pdf: null })],
     });
@@ -143,11 +149,13 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
     expect(body.pdfBase64).toBeNull();
 
     // INSERT still happened, pdf param was null
-    const insertCall = mockQuery.mock.calls[0];
+    // calls[0] is pii_map query, calls[1] is the INSERT
+    const insertCall = mockQuery.mock.calls[1];
     expect(insertCall[1][5]).toBeNull();
   });
 
   it("defaults outcome to 'draft' when omitted", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
     mockQuery.mockResolvedValueOnce({
       rows: [makeVersionRow()],
     });
@@ -391,7 +399,9 @@ describe("GET /api/versions?outcome=X — outcome filter", () => {
 
 describe("PATCH /api/versions/[id] — re-compile PDF", () => {
   it("re-compiles PDF when tailoredContent is updated", async () => {
-    // Return existing version before update
+    // pii_map query for PDF re-compile (PRE-53)
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
+    // Return updated version row after UPDATE
     mockQuery.mockResolvedValueOnce({
       rows: [makeVersionRow()],
     });
@@ -414,7 +424,8 @@ describe("PATCH /api/versions/[id] — re-compile PDF", () => {
     // compileTexToPdf was called again
     expect(mockCompile).toHaveBeenCalledOnce();
     // UPDATE included pdf column
-    const updateCall = mockQuery.mock.calls[0];
+    // calls[0] is pii_map query, calls[1] is the UPDATE
+    const updateCall = mockQuery.mock.calls[1];
     expect(updateCall[0]).toContain("pdf = $");
     // Response includes base64 PDF
     expect(body.pdfBase64).toBe(fakePdf.toString("base64"));

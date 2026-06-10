@@ -42,6 +42,9 @@ const minResume = {
   sections: [],
 };
 
+// Mock pii_map row returned when the route queries master_pii_map (PRE-53).
+const fakePiiMapRow = { map: { contact: { name: "Test User", phone: "", email: "", links: [] }, orgs: [] } };
+
 /** Build a minimal POST body. */
 function postBody(overrides: Record<string, unknown> = {}) {
   return {
@@ -165,6 +168,7 @@ describe("POST /api/versions", () => {
   });
 
   it("compiles tailored content to PDF and stores it as BYTEA", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
     mockQuery.mockResolvedValueOnce({
       rows: [
         {
@@ -193,15 +197,17 @@ describe("POST /api/versions", () => {
     expect(mockCompileTexToPdf).toHaveBeenCalled();
 
     // Verify the INSERT includes the pdf column.
-    const sql = mockQuery.mock.calls[0]?.[0] as string;
+    // calls[0] is pii_map query, calls[1] is the INSERT
+    const sql = mockQuery.mock.calls[1]?.[0] as string;
     expect(sql).toMatch(/pdf/);
     // The pdf value should be the Buffer passed as a parameter.
-    expect(mockQuery.mock.calls[0]?.[1]).toContain(fakePdf);
+    expect(mockQuery.mock.calls[1]?.[1]).toContain(fakePdf);
   });
 
   it("handles compile failure gracefully — stores the version with null pdf", async () => {
     mockCompileTexToPdf.mockRejectedValueOnce(new Error("tectonic crash"));
 
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
     mockQuery.mockResolvedValueOnce({
       rows: [
         {
@@ -227,7 +233,8 @@ describe("POST /api/versions", () => {
     expect(body.pdfBase64).toBeNull();
 
     // Verify the INSERT wrote null for pdf.
-    const params = mockQuery.mock.calls[0]?.[1] as unknown[];
+    // calls[0] is pii_map query, calls[1] is the INSERT
+    const params = mockQuery.mock.calls[1]?.[1] as unknown[];
     expect(params).toContain(null);
   });
 
@@ -245,6 +252,7 @@ describe("POST /api/versions", () => {
   });
 
   it("defaults outcome to 'draft' when not provided", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
     mockQuery.mockResolvedValueOnce({
       rows: [
         {
@@ -269,9 +277,10 @@ describe("POST /api/versions", () => {
     );
 
     expect(res.status).toBe(200);
-    const sql = mockQuery.mock.calls[0]?.[0] as string;
+    // calls[0] is pii_map query, calls[1] is the INSERT
+    const sql = mockQuery.mock.calls[1]?.[0] as string;
     // The outcome param (positional) should be 'draft'.
-    const params = mockQuery.mock.calls[0]?.[1] as string[];
+    const params = mockQuery.mock.calls[1]?.[1] as string[];
     expect(params).toContain("draft");
   });
 });
@@ -284,6 +293,7 @@ describe("PDF round-trip", () => {
 
   it("saved PDF binary survives a round-trip: save → retrieve → decode", async () => {
     // — Save —
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
     mockQuery.mockResolvedValueOnce({
       rows: [
         {

@@ -8,6 +8,7 @@ import { getProviderForFlow } from "@/lib/providers";
 import { getRanker } from "@/lib/relevance";
 import { tailorUserPrompt } from "@/lib/prompts/user";
 import { applyFilter } from "@/lib/structure";
+import { redactResume } from "@/lib/redact";
 import {
   createProgress,
   updateProgress,
@@ -74,8 +75,16 @@ export async function POST(req: Request) {
 
       // ── Phase 2: Tailoring (Claude) ───────────────────────────────
       updateProgress(jobId, { phase: "tailoring", percent: 60, message: "Tailoring resume bullets…" });
+
+      // Redact PII from master + prior versions before sending to LLM (PRE-52).
+      const redactedMaster = redactResume(filteredMaster).redacted;
+      const redactedPrior = relevantVersions.map((v) => ({
+        ...v,
+        tailored_content: redactResume(v.tailored_content).redacted,
+      }));
+
       const draft = await generateResume(
-        tailorUserPrompt({ master: filteredMaster, priorVersions: relevantVersions, jobDescription: parsed.jobDescription }),
+        tailorUserPrompt({ master: redactedMaster, priorVersions: redactedPrior, jobDescription: parsed.jobDescription }),
         getProviderForFlow("tailor"),
       );
 
