@@ -15,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
             <Link href="/" className="text-lg font-semibold tracking-tight">apted</Link>
             <nav className="flex items-center gap-4 text-sm text-neutral-600">
+              <Link href="/" className="hover:text-neutral-900">Library</Link>
               <Link href="/builder" className="hover:text-neutral-900">Builder</Link>
               <Link href="/master"  className="hover:text-neutral-900">Master</Link>
               <Link href="/settings" className="hover:text-neutral-900">Settings</Link>

@@ -57,16 +57,16 @@ export async function POST(req: Request) {
   const content = Resume.parse(tailoredContent);
   const oc: Outcome = outcome && OUTCOMES.includes(outcome) ? outcome : "draft";
 
-  // Compile the resume to PDF before storing. This is best-effort: if the
-  // compile service is unavailable we still save the version — the library
-  // will show a "PDF unavailable" state and a recompile button.
+  // Compile the resume to PDF before storing. Best-effort: if the
+  // compile service is unavailable we still save the version, but pdf
+  // will be null. The library UI handles the missing-PDF case.
   let pdf: Buffer | null = null;
   try {
     const settings = await getUserSettings();
     const tex = renderResume(content, settings.template);
     pdf = await compileTexToPdf(tex);
   } catch {
-    // Compile failed — store null. The library UI handles this.
+    console.warn("PDF compile failed for new version");
   }
 
   const r = await pool.query(
