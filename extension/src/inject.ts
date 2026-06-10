@@ -223,15 +223,16 @@ function pickProfile(host: string): SiteProfile {
     });
   }
 
-  // Prefetch the blob on dragstart attempt. Drag must populate DataTransfer
-  // synchronously, so we keep a cached blob + url on the chip element itself
-  // and trigger a background prefetch when the user hovers/focuses the chip.
+  // Prefetch the blob eagerly when the draft appears so the drag DataTransfer
+  // always has bytes ready. Runs in page context, so items.add() works.
   let cachedBlob: Blob | null = null;
   let cachedObjectUrl: string | null = null;
   let cachedFilename = "resume.pdf";
+  let prefetchRunning = false;
 
   async function prefetch(): Promise<void> {
-    if (!currentDraft) return;
+    if (!currentDraft || prefetchRunning) return;
+    prefetchRunning = true;
     try {
       const { blob } = await getDraftPdfBlob({
         draftId: currentDraft.id,
@@ -247,42 +248,45 @@ function pickProfile(host: string): SiteProfile {
       });
       chipStale.hidden = true;
     } catch {
-      // swallowed — chip will try again at drag time
+      // swallowed
+    } finally {
+      prefetchRunning = false;
     }
   }
 
-  chip.addEventListener("mouseenter", () => void prefetch());
-
-  chip.addEventListener("dragstart", (e: DragEvent) => {
+  function fireDrag(e: DragEvent): void {
     if (!cachedBlob || !cachedObjectUrl || !currentDraft) {
-      // Prefetch hasn't completed; cancel the drag, prime the cache, and
-      // let the user retry.
       e.preventDefault();
       chipStale.hidden = false;
       void prefetch().then(() => { chipStale.hidden = true; });
       return;
     }
+    const dt = e.dataTransfer;
+    if (!dt) return;
+
+    dt.effectAllowed = "copy";
+
+    // Create a proper File — content scripts run in the page's JS context,
+    // so the File constructor and dt.items.add() both work reliably.
     const file = new File([cachedBlob], cachedFilename, {
       type: "application/pdf",
       lastModified: Date.now(),
     });
-    if (!e.dataTransfer) return;
-    e.dataTransfer.effectAllowed = "copy";
-    try {
-      e.dataTransfer.items.add(file);
-    } catch {
-      // some browsers throw if items.add is called twice — ignore.
-    }
-    e.dataTransfer.setData(
-      "DownloadURL",
-      `application/pdf:${cachedFilename}:${cachedObjectUrl}`,
-    );
-    e.dataTransfer.setData("text/uri-list", cachedObjectUrl);
-    e.dataTransfer.setData("text/plain", cachedFilename);
-    e.dataTransfer.setDragImage(chip, 8, 8);
+
+    // setData first (required before items manipulation in Chromium).
+    dt.setData("DownloadURL", `application/pdf:${cachedFilename}:${cachedObjectUrl}`);
+    dt.setData("text/plain", cachedFilename);
+
+    // items.add() makes the file droppable onto <input type=file>.
+    dt.items.add(file);
+
+    dt.setDragImage(chip, 8, 8);
     lastDragResult = null;
     pop.hidden = true;
-  });
+  }
+
+  chip.addEventListener("mouseenter", () => void prefetch());
+  chip.addEventListener("dragstart", (e: DragEvent) => fireDrag(e));
 
   chip.addEventListener("dragend", (e: DragEvent) => {
     const ok = !!e.dataTransfer && e.dataTransfer.dropEffect !== "none";
@@ -301,7 +305,8 @@ function pickProfile(host: string): SiteProfile {
     if (area !== "local" || !changes.aptedCurrentDraft) return;
     const next = (changes.aptedCurrentDraft.newValue as CurrentDraft | undefined) ?? null;
     updateChip(next);
-    // Stale marker if id same but updatedAt advanced.
+    // Prefetch eagerly and mark stale if updatedAt advanced.
+    if (next) void prefetch();
     if (next && currentDraft && next.id === currentDraft.id && next.updatedAt !== currentDraft.updatedAt) {
       chipStale.hidden = false;
       cachedBlob = null;
@@ -311,6 +316,42 @@ function pickProfile(host: string): SiteProfile {
       }
     }
   });
+
+  // ── Cross-window drop: intercept drags from the sidepanel onto file inputs ──
+  // The sidepanel sets aptedDragPdfB64 in session storage before dragstart.
+  document.addEventListener("drop", (e: DragEvent) => {
+    // Only intercept if the sidepanel pre-staged a PDF for cross-window drag.
+    void chrome.storage.session.get("aptedDragPdfB64").then(async (stored) => {
+      const b64 = stored.aptedDragPdfB64 as string | undefined;
+      if (!b64) return; // Not our drag — let the page handle it normally.
+
+      // Clean up so the next regular page drag isn't intercepted.
+      await chrome.storage.session.remove("aptedDragPdfB64");
+
+      // Find the file input under the drop point or nearest.
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      const fileInput = target?.closest("input[type=file]");
+      if (!fileInput) return; // Dropped outside a file input.
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Convert base64 to File and inject into the file input.
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const file = new File([bytes], (stored.aptedDragPdfFilename as string) ?? "resume.pdf", {
+        type: "application/pdf",
+        lastModified: Date.now(),
+      });
+
+      // Programmatically set the file input's files.
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      (fileInput as HTMLInputElement).files = dt.files;
+      fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }, { capture: true });
 
   const attach = () => document.body && document.body.appendChild(host);
   if (document.body) attach();

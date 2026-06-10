@@ -534,51 +534,48 @@ els.newTailor.addEventListener("click", () => void newTailor());
 els.previewRetry.addEventListener("click", () => void refreshPdfPreview());
 
 // ── Drag chip: drag PDF out of the sidepanel onto job forms (PRE-43) ────
-// The blob is prefetched eagerly in setDraft() so it's ready before dragstart.
+// The blob is prefetched eagerly in setDraft(). On dragstart we stash the
+// base64 in chrome.storage.session; inject.ts (content script) reads it on
+// the receiving page's drop event and injects the file into the file input.
 let dragBlob: Blob | null = null;
+let dragFilename = "resume.pdf";
 
-// No need for mouseenter pre-fetch anymore — setDraft handles it.
-// Keep the chip opacity at 1; the chip is already visible when draft exists.
-
-els.dragChip.addEventListener("dragstart", (e: DragEvent) => {
+els.dragChip.addEventListener("dragstart", async (e: DragEvent) => {
   if (!dragBlob || !state.draft) {
     e.preventDefault();
     return;
   }
-  const dt = e.dataTransfer;
-  if (!dt) return;
 
-  const filename = suggestPdfFilename({
+  dragFilename = suggestPdfFilename({
     id: state.draft.id,
     company: els.jdCompany.value.trim() || undefined,
     role: els.jdRole.value.trim() || undefined,
   });
 
-  dt.effectAllowed = "copy";
-
-  // Chrome extension sidepanels: setData before items gives more reliable
-  // behaviour. Use DownloadURL for desktop drops and text/plain as fallback.
-  dt.setData("DownloadURL", `application/pdf:${filename}:${URL.createObjectURL(dragBlob)}`);
-  dt.setData("text/plain", filename);
-
-  // items.add() makes the blob droppable onto <input type=file> on web pages.
-  // This can fail in some Chrome contexts; wrap in try/catch.
+  // Convert blob to base64 and stash in session storage so the content
+  // script (inject.ts) can read it on the receiving page.
   try {
-    const file = new File([dragBlob], filename, {
-      type: "application/pdf",
-      lastModified: Date.now(),
-    });
-    dt.items.add(file);
+    const buf = await dragBlob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000) as unknown as number[]);
+    }
+    const b64 = btoa(bin);
+    await chrome.storage.session.set({ aptedDragPdfB64: b64, aptedDragPdfFilename: dragFilename });
   } catch {
-    // items.add not supported in this context — user can still download via
-    // DownloadURL if they drop on desktop or file manager.
+    e.preventDefault();
+    return;
   }
 
-  dt.setDragImage(els.dragChip, 8, 8);
+  // Provide a visual payload — not for the target page (session storage
+  // handles that), but so the cursor shows the drag is active.
+  e.dataTransfer!.effectAllowed = "copy";
+  e.dataTransfer!.setDragImage(els.dragChip, 8, 8);
 });
 
 els.dragChip.addEventListener("dragend", () => {
-  // Blob stays cached in dragBlob and pdf.ts; no cleanup needed.
+  // Content script cleans up session storage on drop.
 });
 
 // Persist on form-field changes. Debounced inside schedulePersist so we
