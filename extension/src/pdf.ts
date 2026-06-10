@@ -112,6 +112,55 @@ export async function getDraftPdfObjectUrl(args: {
   return entry!.objectUrl;
 }
 
+// Conditional fetch for the PDF viewer: sends If-None-Match so the server can
+// return 304 when nothing changed. Returns the blob URL (reused on 304) and
+// a flag indicating whether the bytes actually changed. Used by the sidepanel
+// preview so we don't recompile + retransfer the PDF on every edit that didn't
+// change the rendered output (e.g. minor wording tweaks).
+export async function fetchPdfForPreview(args: {
+  draftId: string;
+  draftUpdatedAt: string;
+}): Promise<{ objectUrl: string; changed: boolean }> {
+  // Same draft + same updated_at → reuse cached object URL, no fetch needed.
+  if (
+    entry &&
+    entry.draftId === args.draftId &&
+    entry.draftUpdatedAt === args.draftUpdatedAt
+  ) {
+    return { objectUrl: entry.objectUrl, changed: false };
+  }
+
+  // Different draft or newer updated_at, but maybe same underlying PDF bytes.
+  // Send If-None-Match so the server can short-circuit with 304.
+  const prevEtag = entry && entry.draftId === args.draftId ? entry.etag : undefined;
+
+  const result = await send<FetchPdfResult>({
+    type: "fetch-pdf",
+    draftId: args.draftId,
+    ifNoneMatch: prevEtag,
+  });
+
+  if (result.kind === "not-modified") {
+    // Server says bytes unchanged. Bump the cached entry's updatedAt so
+    // future calls with this updatedAt also short-circuit locally.
+    entry!.draftUpdatedAt = args.draftUpdatedAt;
+    return { objectUrl: entry!.objectUrl, changed: false };
+  }
+
+  // New bytes. Drop the old cached entry and build a fresh one.
+  invalidate();
+
+  const blob = base64ToBlob(result.base64, result.mime);
+  entry = {
+    draftId: args.draftId,
+    draftUpdatedAt: args.draftUpdatedAt,
+    blob,
+    objectUrl: URL.createObjectURL(blob),
+    etag: result.etag,
+  };
+  return { objectUrl: entry.objectUrl, changed: true };
+}
+
 export function clearPdfCache(): void {
   invalidate();
 }

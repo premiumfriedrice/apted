@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
+import { renderResume } from "@/lib/render";
+import { getUserSettings } from "@/lib/settings";
+import { compileTexToPdf } from "@/lib/compile";
 
 export const runtime = "nodejs";
 
@@ -9,15 +12,9 @@ type Outcome = (typeof OUTCOMES)[number];
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: Request, { params }: Ctx) {
-  const { id } = await params;
-  const r = await pool.query(
-    "SELECT id, company, role, job_description, tailored_content, outcome, created_at FROM resume_versions WHERE id = $1",
-    [id],
-  );
-  if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const row = r.rows[0];
-  return NextResponse.json({
+function rowToJson(row: Record<string, unknown>) {
+  const pdfBuf = row.pdf as Buffer | null;
+  return {
     id: row.id,
     company: row.company,
     role: row.role,
@@ -25,7 +22,18 @@ export async function GET(_req: Request, { params }: Ctx) {
     tailoredContent: row.tailored_content,
     outcome: row.outcome,
     createdAt: row.created_at,
-  });
+    pdfBase64: pdfBuf ? pdfBuf.toString("base64") : null,
+  };
+}
+
+export async function GET(_req: Request, { params }: Ctx) {
+  const { id } = await params;
+  const r = await pool.query(
+    "SELECT id, company, role, job_description, tailored_content, outcome, created_at, pdf FROM resume_versions WHERE id = $1",
+    [id],
+  );
+  if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
+  return NextResponse.json(rowToJson(r.rows[0]));
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
