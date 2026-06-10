@@ -28,7 +28,7 @@ const els = {
   previewError: $("preview-error"),
   previewErrorMsg: $("preview-error-msg"),
   previewRetry: $<HTMLButtonElement>("preview-retry"),
-  previewEmbed: $<HTMLEmbedElement>("preview-embed"),
+  previewEmbed: $<HTMLIFrameElement>("preview-embed"),
   chatLog: $("chat-log"),
   chatForm: $<HTMLFormElement>("chat-form"),
   chatInput: $<HTMLInputElement>("chat-input"),
