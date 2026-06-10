@@ -263,12 +263,40 @@ async function handle(msg: Msg): Promise<unknown> {
       return fetchDraftPdf(msg.draftId, msg.ifNoneMatch);
 
     case "fill-nearest-input":
-      // Relay to the content script on the active tab.
-      // The sidepanel can't fill file inputs directly; the inject script can.
+      // The sidepanel can't fill file inputs directly. We inject a small
+      // script into the active tab that creates a File from the base64 PDF
+      // and fills the nearest file input. Works on ANY page.
       try {
-        const tab = (await getSourceTab())?.id;
-        if (!tab) return { ok: false, error: "No active tab" };
-        return await chrome.tabs.sendMessage(tab, { type: "fill-nearest-input" });
+        const tab = await getSourceTab();
+        if (!tab?.id) return { ok: false, error: "No active tab" };
+        // Read the staged PDF from session storage (written by sidepanel).
+        const stored = await chrome.storage.session.get(["aptedDragPdfB64", "aptedDragPdfFilename"]);
+        const b64 = stored.aptedDragPdfB64 as string | undefined;
+        if (!b64) return { ok: false, error: "No PDF staged" };
+        // Clean up immediately so it doesn't get reused.
+        await chrome.storage.session.remove(["aptedDragPdfB64", "aptedDragPdfFilename"]);
+        const filename = (stored.aptedDragPdfFilename as string) ?? "resume.pdf";
+        // Inject a function that converts base64 to a File and fills the input.
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          args: [b64, filename],
+          func: (base64: string, name: string) => {
+            const bin = atob(base64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const file = new File([bytes], name, { type: "application/pdf", lastModified: Date.now() });
+            const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='file']"));
+            if (!inputs.length) return;
+            const target = inputs.find((i) => /pdf/i.test(i.accept))
+              ?? inputs.find((i) => i.offsetParent !== null)
+              ?? inputs[0];
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            target.files = dt.files;
+            target.dispatchEvent(new Event("change", { bubbles: true }));
+          },
+        });
+        return { ok: true };
       } catch (e) {
         return { ok: false, error: e instanceof Error ? e.message : String(e) };
       }
