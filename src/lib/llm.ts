@@ -67,6 +67,7 @@ async function callModel(
   systemPrompt: string,
   userPrompt: string,
   extraSystem = "",
+  schema?: z.ZodType,
 ): Promise<string> {
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     try {
@@ -74,6 +75,7 @@ async function callModel(
         system: systemPrompt + extraSystem,
         user: userPrompt,
         maxTokens: MAX_TOKENS,
+        schema,
       });
     } catch (e: unknown) {
       const status = (e as { status?: number })?.status;
@@ -90,14 +92,18 @@ async function callModel(
 // Zod schema with normalization however they like. (Passing a Zod schema
 // directly here gets noisy because Zod's `.default()` / `.transform()` makes
 // the input type diverge from the output type.)
+//
+// The optional `schema` parameter enables structured output for providers
+// that support it (Anthropic output_config, OpenAI json_schema response_format).
 async function callAndParse<T>(
   provider: Provider,
   systemPrompt: string,
   userPrompt: string,
   parse: (raw: unknown) => T,
+  schema?: z.ZodType,
 ): Promise<T> {
   const tryParse = (raw: string): T => parse(JSON.parse(extractJson(raw)));
-  const first = await callModel(provider, systemPrompt, userPrompt);
+  const first = await callModel(provider, systemPrompt, userPrompt, "", schema);
   try {
     return tryParse(first);
   } catch {
@@ -107,6 +113,7 @@ async function callAndParse<T>(
       userPrompt,
       `\n\nYour previous response could not be parsed against the expected schema. ` +
         `Return ONLY a single valid JSON object matching the schema. No prose, no code fences.`,
+      schema,
     );
     return tryParse(repair);
   }
@@ -122,6 +129,7 @@ export async function generateResume(
 ): Promise<Resume> {
   return callAndParse(provider, buildSystemPrompt(), userPrompt, (raw) =>
     Resume.parse(normalizeResumeShape(raw)),
+    Resume,
   );
 }
 
@@ -131,8 +139,12 @@ export async function generateResumeFromText(
   userPrompt: string,
   provider: Provider = getProvider(),
 ): Promise<Resume> {
-  return callAndParse(provider, buildExtractionSystemPrompt(), userPrompt, (raw) =>
-    Resume.parse(normalizeResumeShape(raw)),
+  return callAndParse(
+    provider,
+    buildExtractionSystemPrompt(),
+    userPrompt,
+    (raw) => Resume.parse(normalizeResumeShape(raw)),
+    Resume,
   );
 }
 
@@ -161,12 +173,18 @@ export async function generateItemsFromProse<K extends ParseProseKind>(
     : kind === "projects" ? ProjectItem
     : EducationItem;
   const envelope = z.object({ items: z.array(itemSchema) });
-  const parsed = await callAndParse(provider, buildExtractionSystemPrompt(), userPrompt, (raw) => {
-    if (raw && typeof raw === "object" && Array.isArray((raw as { items?: unknown }).items)) {
-      for (const it of (raw as { items: unknown[] }).items) normalizeItemTags(it);
-    }
-    return envelope.parse(raw);
-  });
+  const parsed = await callAndParse(
+    provider,
+    buildExtractionSystemPrompt(),
+    userPrompt,
+    (raw) => {
+      if (raw && typeof raw === "object" && Array.isArray((raw as { items?: unknown }).items)) {
+        for (const it of (raw as { items: unknown[] }).items) normalizeItemTags(it);
+      }
+      return envelope.parse(raw);
+    },
+    envelope,
+  );
   return parsed.items as ItemForKind[K][];
 }
 
@@ -196,7 +214,7 @@ export async function selectStructure(
   });
 
   try {
-    const raw = await provider.complete({ system, user, maxTokens: 2048 });
+    const raw = await provider.complete({ system, user, maxTokens: 2048, schema: FilterSpec });
     return FilterSpec.parse(JSON.parse(extractJson(raw)));
   } catch (e) {
     // Structure provider failed — keep everything and let Claude see the full master.
