@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateResume } from "@/lib/llm";
+import { getProviderForFlow } from "@/lib/providers";
 import { editUserPrompt } from "@/lib/prompts/user";
 
 export const runtime = "nodejs";
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
     // The draft IS the accumulated state — we do NOT replay chat history.
     const next = await generateResume(
       editUserPrompt({ master, current, instruction }),
+      getProviderForFlow("edit"),
     );
 
     const prevHistory: unknown[] = Array.isArray(dr.rows[0].history) ? dr.rows[0].history : [];

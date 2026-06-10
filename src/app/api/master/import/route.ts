@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { generateResumeFromText } from "@/lib/llm";
+import { getProviderForFlow } from "@/lib/providers";
 import { importResumeUserPrompt } from "@/lib/prompts/user";
 
 export const runtime = "nodejs";
@@ -31,7 +32,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const content = await generateResumeFromText(importResumeUserPrompt({ text }));
+    const content = await generateResumeFromText(
+      importResumeUserPrompt({ text }),
+      getProviderForFlow("import"),
+    );
     return NextResponse.json({ content });
   } catch (e: unknown) {
     if (e instanceof ZodError) {
