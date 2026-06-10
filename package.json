@@ -9,6 +9,7 @@
     "lint": "next lint",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "backfill-pdfs": "tsx --env-file=.env.local scripts/backfill-pdfs.ts",
     "benchmark": "tsx --env-file=.env.local scripts/benchmark.ts",
     "test": "vitest run",
     "test:watch": "vitest"
