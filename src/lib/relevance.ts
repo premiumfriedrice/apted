@@ -2,9 +2,12 @@
 // hints. Sending all 20 most-recent is wasteful (tokens) and domain-blind — a
 // platform-engineering resume shouldn't frame a mobile-development JD. We rank
 // by keyword/tag overlap between the JD and each version's profile and keep the
-// top K. Pure function, no I/O — swap for embeddings later behind this signature
-// if overlap proves too brittle (APTED-011).
+// top K. An optional embeddings-based ranker (behind the same signature) can be
+// activated via RELEVANCE_RANKER=embeddings when overlap is too brittle.
+//
+// PRE-11: configurable topK + embeddings ranker.
 import type { Resume } from "./resume";
+import { cosineSimilarity, getEmbeddingProvider, type EmbeddingProvider } from "./providers/embeddings";
 
 export interface PriorVersion {
   company: string;
@@ -56,6 +59,8 @@ function profileText(v: PriorVersion): string {
   return parts.join(" ");
 }
 
+// ── Token-overlap ranker (default, zero I/O) ────────────────────────────
+
 // Returns the topK versions most relevant to the JD, highest overlap first.
 // Ties break toward the earlier input (callers pass newest-first), so recency
 // is the tiebreaker. Versions with zero overlap are still eligible to fill the
@@ -76,4 +81,86 @@ export function rankPriorVersions(
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, topK)
     .map((s) => s.v);
+}
+
+// ── Embeddings ranker (opt-in via RELEVANCE_RANKER=embeddings) ──────────
+
+let embeddingsProvider: EmbeddingProvider | null = null;
+let embeddingsFailed = false;
+
+function getOrInitEmbeddings(): EmbeddingProvider | null {
+  if (embeddingsFailed) return null;
+  if (!embeddingsProvider) {
+    embeddingsProvider = getEmbeddingProvider();
+    if (!embeddingsProvider) {
+      embeddingsFailed = true;
+      console.warn("relevance: embeddings ranker requested but OPENAI_API_KEY is not set");
+    }
+  }
+  return embeddingsProvider;
+}
+
+// Async variant: ranks versions by cosine similarity between the JD embedding
+// and each version's profileText embedding. Same sort order (highest first,
+// recency tiebreak) and same output shape.
+export async function rankPriorVersionsEmbeddings(
+  jobDescription: string,
+  versions: PriorVersion[],
+  topK = 5,
+): Promise<PriorVersion[]> {
+  const provider = getOrInitEmbeddings();
+  if (!provider) {
+    // Fall back to overlap if embeddings can't be initialised.
+    console.warn("relevance: embeddings unavailable, falling back to token overlap");
+    return rankPriorVersions(jobDescription, versions, topK);
+  }
+
+  // Embed the JD once, then each version profile.
+  const jdVec = await provider.embed(jobDescription);
+  const scored = await Promise.all(
+    versions.map(async (v, index) => {
+      const profile = profileText(v);
+      const pVec = await provider.embed(profile);
+      const score = cosineSimilarity(jdVec, pVec);
+      return { v, score, index };
+    }),
+  );
+
+  return scored
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, topK)
+    .map((s) => s.v);
+}
+
+// ── Ranker router ───────────────────────────────────────────────────────
+
+export type RankerMode = "overlap" | "embeddings";
+
+export function getRankerMode(): RankerMode {
+  const mode = process.env.RELEVANCE_RANKER;
+  if (mode === "embeddings") return "embeddings";
+  return "overlap";
+}
+
+// Unified async ranker signature so call sites always `await` regardless of
+// which ranker is configured.
+export type RankerFn = (
+  jobDescription: string,
+  versions: PriorVersion[],
+  topK?: number,
+) => Promise<PriorVersion[]>;
+
+// Async wrapper for the sync overlap ranker.
+async function rankPriorVersionsAsync(
+  jobDescription: string,
+  versions: PriorVersion[],
+  topK = 5,
+): Promise<PriorVersion[]> {
+  return rankPriorVersions(jobDescription, versions, topK);
+}
+
+// Select the right ranker based on RELEVANCE_RANKER env var. Returns an async
+// function so the call site always uses `await`.
+export function getRanker(): RankerFn {
+  return getRankerMode() === "embeddings" ? rankPriorVersionsEmbeddings : rankPriorVersionsAsync;
 }

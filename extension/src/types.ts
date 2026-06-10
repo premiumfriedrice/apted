@@ -19,6 +19,7 @@ export type ExperienceItem = {
   start?: string;
   end?: string;
   bullets: Bullet[];
+  tags?: string[];
 };
 
 export type ProjectItem = {
@@ -28,6 +29,7 @@ export type ProjectItem = {
   start?: string;
   end?: string;
   bullets: Bullet[];
+  tags?: string[];
 };
 
 export type EducationItem = {
@@ -38,6 +40,12 @@ export type EducationItem = {
   start?: string;
   end?: string;
   bullets: Bullet[];
+  tags?: string[];
+};
+
+export type AchievementItem = {
+  id: string;
+  text: string;
 };
 
 export type SkillGroup = { id: string; category: string; items: string };
@@ -46,7 +54,8 @@ export type Section =
   | { id: string; kind: "experience"; title: string; items: ExperienceItem[] }
   | { id: string; kind: "projects"; title: string; items: ProjectItem[] }
   | { id: string; kind: "education"; title: string; items: EducationItem[] }
-  | { id: string; kind: "skills"; title: string; items: SkillGroup[] };
+  | { id: string; kind: "skills"; title: string; items: SkillGroup[] }
+  | { id: string; kind: "achievements"; title: string; items: AchievementItem[] };
 
 export type Resume = { contact: Contact; sections: Section[] };
 

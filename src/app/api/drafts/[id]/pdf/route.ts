@@ -30,7 +30,13 @@ export async function GET(req: Request, { params }: Ctx) {
     pdf = await compileTexToPdf(tex);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "compile failed";
-    return NextResponse.json({ error: msg }, { status: 502 });
+    // Return an HTML error page so the iframe shows a visible message instead
+    // of a blank frame. JSON errors are invisible inside <iframe> (PRE-21).
+    const errorHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Compile error</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fef2f2;color:#991b1b;text-align:center;padding:2rem;}</style></head><body><div><h2>Compile failed</h2><p>${msg}</p></div></body></html>`;
+    return new NextResponse(errorHtml, {
+      status: 502,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
   }
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
