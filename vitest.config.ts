@@ -6,7 +6,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     // Only match server-side tests, not the extension's.
-    include: ["src/__tests__/**/*.test.ts"],
+    include: ["src/**/*.test.ts"],
     exclude: ["extension/**"],
   },
   resolve: {
