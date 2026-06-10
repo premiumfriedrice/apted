@@ -15,6 +15,10 @@ export interface PriorVersion {
   tailored_content: Resume;
 }
 
+export interface ScoredVersion extends PriorVersion {
+  score: number;
+}
+
 // Small, generic stoplist — enough to stop function words from dominating the
 // overlap score. Deliberately not a domain list (we want domain terms to count).
 const STOPWORDS = new Set([
@@ -69,18 +73,18 @@ export function rankPriorVersions(
   jobDescription: string,
   versions: PriorVersion[],
   topK = 5,
-): PriorVersion[] {
+): ScoredVersion[] {
   const jdTokens = tokenize(jobDescription);
   return versions
     .map((v, index) => {
       const profile = tokenize(profileText(v));
       let score = 0;
       for (const t of profile) if (jdTokens.has(t)) score++;
-      return { v, score, index };
+      return { ...v, score, index };
     })
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, topK)
-    .map((s) => s.v);
+    .map(({ index, ...s }) => s);
 }
 
 // ── Embeddings ranker (opt-in via RELEVANCE_RANKER=embeddings) ──────────
@@ -107,7 +111,7 @@ export async function rankPriorVersionsEmbeddings(
   jobDescription: string,
   versions: PriorVersion[],
   topK = 5,
-): Promise<PriorVersion[]> {
+): Promise<ScoredVersion[]> {
   const provider = getOrInitEmbeddings();
   if (!provider) {
     // Fall back to overlap if embeddings can't be initialised.
@@ -122,14 +126,14 @@ export async function rankPriorVersionsEmbeddings(
       const profile = profileText(v);
       const pVec = await provider.embed(profile);
       const score = cosineSimilarity(jdVec, pVec);
-      return { v, score, index };
+      return { ...v, score, index };
     }),
   );
 
   return scored
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, topK)
-    .map((s) => s.v);
+    .map(({ index, ...s }) => s);
 }
 
 // ── Ranker router ───────────────────────────────────────────────────────
@@ -148,14 +152,14 @@ export type RankerFn = (
   jobDescription: string,
   versions: PriorVersion[],
   topK?: number,
-) => Promise<PriorVersion[]>;
+) => Promise<ScoredVersion[]>;
 
 // Async wrapper for the sync overlap ranker.
 async function rankPriorVersionsAsync(
   jobDescription: string,
   versions: PriorVersion[],
   topK = 5,
-): Promise<PriorVersion[]> {
+): Promise<ScoredVersion[]> {
   return rankPriorVersions(jobDescription, versions, topK);
 }
 

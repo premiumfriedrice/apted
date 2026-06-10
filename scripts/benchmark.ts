@@ -23,6 +23,7 @@ const KEY_ENV: Record<ProviderName, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   gemini: "GEMINI_API_KEY",
+  deepseek: "DEEPSEEK_API_KEY",
 };
 
 const SAMPLE_JD = `Senior Mobile Engineer (iOS). Build and ship native iOS
