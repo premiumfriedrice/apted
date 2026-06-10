@@ -11,7 +11,7 @@ type Version = {
   tailoredContent: unknown;
   outcome: "draft" | "applied" | "interview" | "offer" | "rejected";
   createdAt: string;
-  pdf: string | null;
+  pdfBase64: string | null;
 };
 
 const OUTCOMES = ["all", "draft", "applied", "interview", "offer", "rejected"] as const;
@@ -87,9 +87,9 @@ export default function LibraryPage() {
                 <pre className="h-full w-full overflow-auto p-3 text-[10px] leading-relaxed text-neutral-700">
                   {JSON.stringify(v.tailoredContent, null, 2)}
                 </pre>
-              ) : v.pdf ? (
+              ) : v.pdfBase64 ? (
                 <iframe
-                  src={`data:application/pdf;base64,${v.pdf}#toolbar=0&navpanes=0&scrollbar=0`}
+                  src={`data:application/pdf;base64,${v.pdfBase64}#toolbar=0&navpanes=0&scrollbar=0`}
                   title={`${v.company} - ${v.role}`}
                   className="pointer-events-none h-full w-full border-0"
                   scrolling="no"
@@ -175,9 +175,9 @@ export default function LibraryPage() {
           >
             {/* Left: full PDF viewer */}
             <section className="overflow-hidden bg-neutral-100">
-              {selected.pdf ? (
+              {selected.pdfBase64 ? (
                 <iframe
-                  src={`data:application/pdf;base64,${selected.pdf}`}
+                  src={`data:application/pdf;base64,${selected.pdfBase64}`}
                   title={`${selected.company} ${selected.role}`}
                   className="h-full w-full border-0"
                 />
