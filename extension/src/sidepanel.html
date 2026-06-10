@@ -44,12 +44,17 @@
         <button id="undo" disabled>Undo</button>
         <button id="save-version" disabled>Save as version</button>
       </div>
-      <div id="pdf-affordance" class="pdf-affordance" hidden>
-        <span id="pdf-stale" class="pdf-stale" hidden>stale — regenerate</span>
-        <span id="pdf-drag-slot"></span>
-      </div>
       <div id="preview" class="preview-body">
-        <div class="empty">No draft yet. Tailor a JD to get started.</div>
+        <div id="preview-empty" class="empty">No draft yet. Tailor a JD to get started.</div>
+        <div id="preview-loading" class="preview-state" hidden>
+          <div class="spinner"></div>
+          <span>Compiling PDF…</span>
+        </div>
+        <div id="preview-error" class="preview-state" hidden>
+          <p id="preview-error-msg"></p>
+          <button id="preview-retry" class="primary">Retry</button>
+        </div>
+        <embed id="preview-embed" type="application/pdf" hidden />
       </div>
     </section>
 

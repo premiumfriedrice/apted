@@ -1,6 +1,5 @@
-import { renderResumeHTML } from "./renderer";
 import { getSettings } from "./storage";
-import { clearPdfCache, getDraftPdfBlob, suggestPdfFilename } from "./pdf";
+import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, suggestPdfFilename } from "./pdf";
 import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
 import type { Msg, Reply } from "./messages";
 import type { Draft, Outcome, ScrapedJob, Version } from "./types";
@@ -23,9 +22,13 @@ const els = {
   undo: $<HTMLButtonElement>("undo"),
   saveVersion: $<HTMLButtonElement>("save-version"),
   downloadPdf: $<HTMLButtonElement>("download-pdf"),
-  pdfAffordance: $<HTMLDivElement>("pdf-affordance"),
-  pdfStale: $<HTMLSpanElement>("pdf-stale"),
   preview: $("preview"),
+  previewEmpty: $("preview-empty"),
+  previewLoading: $("preview-loading"),
+  previewError: $("preview-error"),
+  previewErrorMsg: $("preview-error-msg"),
+  previewRetry: $<HTMLButtonElement>("preview-retry"),
+  previewEmbed: $<HTMLEmbedElement>("preview-embed"),
   chatLog: $("chat-log"),
   chatForm: $<HTMLFormElement>("chat-form"),
   chatInput: $<HTMLInputElement>("chat-input"),
@@ -44,7 +47,8 @@ type State = {
   chat: StoredChatTurn[];
   pdfObjectUrl: string | null;
   pdfForDraftUpdatedAt: string | null;
-  restoring: boolean;       // suppress session writes during initial hydration
+  pdfLoading: boolean;      // true while fetching PDF for the preview
+  restoring: boolean;        // suppress session writes during initial hydration
 };
 
 const state: State = {
@@ -53,6 +57,7 @@ const state: State = {
   chat: [],
   pdfObjectUrl: null,
   pdfForDraftUpdatedAt: null,
+  pdfLoading: false,
   restoring: false,
 };
 
@@ -81,9 +86,55 @@ function invalidatePdf(): void {
   }
   state.pdfObjectUrl = null;
   state.pdfForDraftUpdatedAt = null;
-  els.pdfAffordance.hidden = true;
-  els.pdfStale.hidden = true;
   clearPdfCache();
+  els.previewEmbed.hidden = true;
+}
+
+function showPreviewState(kind: "empty" | "loading" | "error" | "embed"): void {
+  els.previewEmpty.hidden = kind !== "empty";
+  els.previewLoading.hidden = kind !== "loading";
+  els.previewError.hidden = kind !== "error";
+  els.previewEmbed.hidden = kind !== "embed";
+}
+
+async function refreshPdfPreview(): Promise<void> {
+  if (!state.draft) {
+    showPreviewState("empty");
+    return;
+  }
+
+  const d = state.draft;
+  showPreviewState("loading");
+  state.pdfLoading = true;
+
+  try {
+    const { objectUrl, changed } = await fetchPdfForPreview({
+      draftId: d.id,
+      draftUpdatedAt: d.updatedAt,
+    });
+
+    if (!changed && state.pdfObjectUrl === objectUrl) {
+      // Same bytes, same URL — nothing to repaint.
+      showPreviewState("embed");
+      return;
+    }
+
+    // New object URL or first load.
+    if (state.pdfObjectUrl && state.pdfObjectUrl !== objectUrl) {
+      URL.revokeObjectURL(state.pdfObjectUrl);
+    }
+    state.pdfObjectUrl = objectUrl;
+    state.pdfForDraftUpdatedAt = d.updatedAt;
+
+    els.previewEmbed.src = objectUrl;
+    showPreviewState("embed");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    els.previewErrorMsg.textContent = msg;
+    showPreviewState("error");
+  } finally {
+    state.pdfLoading = false;
+  }
 }
 
 function send<K extends Msg["type"]>(msg: Extract<Msg, { type: K }>): Promise<unknown> {
@@ -103,27 +154,22 @@ function setStatus(text: string, kind: "" | "ok" | "error" = ""): void {
   els.status.className = "status" + (kind ? " " + kind : "");
 }
 
-function renderPreview(): void {
-  els.preview.innerHTML = renderResumeHTML(state.draft?.content ?? null);
-}
-
 function setDraft(draft: Draft | null): void {
-  // Invalidate the cached PDF when the draft changes (different id OR newer
-  // updated_at), so the user can't drag a stale PDF.
+  // When draft is cleared or replaced with a different one, drop the cached
+  // PDF so the preview fetches fresh bytes.
   if (!draft) {
     invalidatePdf();
-  } else if (
-    !state.draft ||
-    state.draft.id !== draft.id ||
-    state.pdfForDraftUpdatedAt !== draft.updatedAt
-  ) {
-    if (state.pdfObjectUrl && state.pdfForDraftUpdatedAt !== draft.updatedAt) {
-      // PDF exists but for an older draft snapshot — keep it visible but mark stale.
-      els.pdfStale.hidden = false;
-    }
+  } else if (!state.draft || state.draft.id !== draft.id) {
+    // Different draft (or first draft) — clear the old preview. The new
+    // preview will be fetched by refreshPdfPreview() below.
+    invalidatePdf();
   }
+  // When the same draft has a newer updatedAt (edit finished), we keep the
+  // current PDF embed visible while refreshPdfPreview() revalidates with
+  // etag. If the server returns 304 the preview doesn't flicker; if new
+  // bytes arrive we swap the embed src.
   state.draft = draft;
-  renderPreview();
+  void refreshPdfPreview();
   // Publish the current draft to chrome.storage.local so the content-script
   // drag chip on job sites knows there's a draft ready to drop. Content
   // scripts can't share JS state with the side panel; storage is the bridge.
@@ -178,8 +224,15 @@ async function doDownloadPdf(): Promise<void> {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    els.pdfAffordance.hidden = false;
-    els.pdfStale.hidden = true;
+    // After a successful download, the PDF blob is cached in pdf.ts.
+    // Update the preview embed to match in case it wasn't showing yet.
+    if (!state.pdfObjectUrl || state.pdfObjectUrl !== url) {
+      if (state.pdfObjectUrl) URL.revokeObjectURL(state.pdfObjectUrl);
+      state.pdfObjectUrl = url;
+      state.pdfForDraftUpdatedAt = d.updatedAt;
+      els.previewEmbed.src = url;
+      showPreviewState("embed");
+    }
     setStatus("Downloaded " + filename, "ok");
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -406,6 +459,9 @@ async function newTailor(): Promise<void> {
     state.chat = [];
     els.chatLog.innerHTML = "";
     setDraft(null);
+    invalidatePdf();
+    els.previewEmbed.src = "";
+    showPreviewState("empty");
     await clearSession();
     setStatus("New tailor.", "ok");
   } finally {
@@ -421,6 +477,7 @@ els.undo.addEventListener("click", () => void doUndo());
 els.saveVersion.addEventListener("click", () => void doSaveVersion());
 els.downloadPdf.addEventListener("click", () => void doDownloadPdf());
 els.newTailor.addEventListener("click", () => void newTailor());
+els.previewRetry.addEventListener("click", () => void refreshPdfPreview());
 
 // Persist on form-field changes. Debounced inside schedulePersist so we
 // don't slam storage on every keystroke.
@@ -441,7 +498,7 @@ chrome.storage.onChanged.addListener((_changes, area) => {
 });
 
 void refreshConnection();
-renderPreview();
+showPreviewState("empty");
 
 void (async () => {
   // 1) Context menu "Tailor with apted" wins over everything — that's an
