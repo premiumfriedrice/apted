@@ -4,7 +4,7 @@ Tailor a resume to a job description and refine it iteratively via chat.
 
 - **Stack:** Next.js (App Router) + TypeScript + Tailwind
 - **DB:** Supabase Postgres via `pg`
-- **LLM:** Multi-provider (Anthropic, OpenAI, Gemini) via shared `Provider` interface. Default model `claude-opus-4-8`.
+- **LLM:** Provider-agnostic layer (Anthropic, OpenAI, Gemini, DeepSeek) via shared `Provider` interface. Per-flow routing (cheap for edit/parse, quality for tailor). Default model `claude-opus-4-8`.
 - **Render:** Resume JSON -> `.tex` (Jake Gutierrez template macros) -> PDF via Tectonic in a separate container service
 
 ## How it works
@@ -36,6 +36,8 @@ A note on the renderer: the JSON -> output step is encapsulated in `src/lib/rend
 | `TAILOR_RELEVANT_VERSIONS` | no | How many relevant prior versions to send (default 5). |
 | `COMPILE_SERVICE_URL` | yes for PDF preview | Base URL of the Tectonic compile service. In dev, `http://localhost:8080`. |
 
+See `.env.example` for all options (per-provider model overrides, per-flow routing, relevance tuning).
+
 Copy `.env.example` to `.env.local` and fill in.
 
 ## Run
@@ -64,12 +66,12 @@ Then visit:
 
 - `/` — landing
 - `/master` — edit your master resume (JSON)
-- `/builder` — paste a JD, get a first-pass tailor, refine via chat
-- `/library` — saved versions, filterable by outcome
+- `/builder` — paste a JD, get a first-pass tailor, refine via chat (versions managed here too)
+- `/settings` — select render template
 
 ## API
 
-| Method | Path | Body |
+| Method | Path | Body / Notes |
 | --- | --- | --- |
 | POST | `/api/tailor` | `{ jobDescription }` -> draft |
 | POST | `/api/edit` | `{ draftId, instruction }` -> updated draft |
@@ -78,13 +80,18 @@ Then visit:
 | GET | `/api/drafts/[id]/tex` | -> `.tex` source |
 | GET | `/api/drafts/[id]/pdf` | -> compiled PDF |
 | GET / PUT | `/api/master` | get / replace master JSON |
+| GET | `/api/master/tex` | -> master `.tex` source |
+| GET | `/api/master/pdf` | -> master compiled PDF |
+| POST | `/api/master/import` | `{ text }` — parse free-text resume into master JSON |
+| POST | `/api/master/parse-prose` | `{ kind, prose }` — extract items from prose |
 | GET / POST | `/api/versions` | list (filter `?outcome=`) / create |
 | GET / PATCH / DELETE | `/api/versions/[id]` | inspect / update / delete |
 | POST | `/api/save-fact` | `{ sectionId, itemId, bulletText }` — append a bullet to the master |
+| GET / PUT | `/api/settings` | get / update user settings (template) |
 
 ## System prompt constraints
 
-Encoded in `src/lib/prompts/system.ts`:
+Encoded in `src/lib/prompts/system.ts` + `user.ts`:
 
 - The master resume is the only ground truth. No invented facts.
 - Past versions inform framing / emphasis only.
@@ -105,29 +112,30 @@ src/
       save-fact/route.ts
       settings/route.ts
     builder/page.tsx
-    library/page.tsx
     master/page.tsx
+    settings/page.tsx
     layout.tsx, page.tsx, globals.css
   lib/
-    resume.ts        # Zod schema for the JSON Resume shape
-    db.ts            # pg Pool helper
-    llm.ts           # generateResume() — call + JSON-parse + one repair retry
-    relevance.ts     # rankPriorVersions() — keyword overlap / embeddings
-    compile.ts       # HTTP client for the compile-service
-    settings.ts      # User settings (template selection)
-    resume-rules.md  # System prompt constraints
+    resume.ts           # Zod schema for the JSON Resume shape + shared Draft/Version types
+    resume-rules.md     # Rules the system prompt injects
+    db.ts               # pg Pool + withDb() query helper + createPool() factory
+    llm.ts              # generateResume / generateItemsFromProse generators
     prompts/
-      system.ts      # System prompt builders (tailor / extraction)
-      user.ts        # User prompt builders (tailor / edit / import)
+      system.ts         # System prompt builders (tailor / extraction)
+      user.ts           # User prompt builders (tailor / edit / import)
     providers/
-      index.ts       # Provider factory + per-flow routing
-      types.ts       # Provider interface
-      anthropic.ts   # Anthropic adapter (cache_control on system block)
-      openai.ts      # OpenAI adapter (shared with Gemini)
-      embeddings.ts  # OpenAI text-embedding-3-small for relevance
+      index.ts          # Provider factory + per-flow routing (getProviderForFlow)
+      types.ts          # Provider interface
+      anthropic.ts      # Anthropic adapter (cache_control on system block)
+      openai.ts         # OpenAI / Gemini (OpenAI-compatible) adapter
+      embeddings.ts     # OpenAI text-embedding-3-small for relevance ranking
     render/
-      index.ts       # renderResume() — JSON → .tex dispatcher
-      jake.ts        # Jake Gutierrez template macros
+      index.ts          # renderResume() — JSON → source dispatcher
+      jake.ts           # JSON -> .tex (Jake Gutierrez macros)
+    relevance.ts        # rankPriorVersions (keyword overlap / embeddings)
+    settings.ts         # User settings (template selection)
+    compile.ts          # HTTP client for the compile-service (auth + health check)
+  middleware.ts          # CORS headers (ALLOWED_ORIGINS env-configurable)
 migrations/
   0001_init.sql
   0002_user_settings.sql
@@ -135,5 +143,5 @@ scripts/{migrate,seed,benchmark}.ts
 compile-service/
   server.js, Dockerfile, package.json, README.md
 docs/worklog/
-  001-011 design-decision documents
+  001-017 design-decision documents
 ```

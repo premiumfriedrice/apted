@@ -17,7 +17,7 @@ compile-service/node_modules
 # The project skill at .claude/skills/ is checked in; settings are not.
 .claude/settings.local.json
 
-# pi config (local, per-machine)
+# pi coding agent local config (per-machine extensions & secrets).
 .pi/
 
 # MCP config (local server decisions)

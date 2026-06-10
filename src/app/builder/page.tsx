@@ -1,15 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Resume, Section } from "@/lib/resume";
-
-type Draft = {
-  id: string;
-  jobDescription: string;
-  content: Resume;
-  history: unknown[];
-  updatedAt: string;
-};
+import type { Draft, Resume, Section } from "@/lib/resume";
 
 type ChatTurn = { role: "user" | "system"; text: string };
 

@@ -1,12 +1,12 @@
+import { createPool } from "../src/lib/db";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { createPool } from "../src/lib/db";
 
+const pool = createPool();
 const dir = join(process.cwd(), "migrations");
 
 async function main() {
   const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
-  const pool = createPool();
   const client = await pool.connect();
   try {
     for (const file of files) {

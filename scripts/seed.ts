@@ -1,8 +1,9 @@
 import { createPool } from "../src/lib/db";
 import { emptyMaster } from "../src/lib/resume";
 
+const pool = createPool();
+
 async function main() {
-  const pool = createPool();
   const content = emptyMaster();
   await pool.query(
     `INSERT INTO master_resume (id, content)
