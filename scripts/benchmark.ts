@@ -10,34 +10,14 @@
 // Cost is NOT measured yet — the provider interface doesn't surface token usage
 // (APTED-010 follow-up); estimate from published per-token prices for now.
 import fs from "node:fs";
-import pg from "pg";
 import { Resume } from "../src/lib/resume";
 import { generateResume } from "../src/lib/llm";
 import { tailorUserPrompt } from "../src/lib/prompts/user";
 import { getRanker } from "../src/lib/relevance";
 import { getProvider, PROVIDER_NAMES, type ProviderName } from "../src/lib/providers";
+import { createPool } from "../src/lib/db";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("DATABASE_URL is required");
-  process.exit(1);
-}
-
-function strippedUrl(u: string): string {
-  try {
-    const x = new URL(u);
-    x.searchParams.delete("sslmode");
-    x.searchParams.delete("ssl");
-    return x.toString();
-  } catch {
-    return u;
-  }
-}
-
-const pool = new pg.Pool({
-  connectionString: strippedUrl(url),
-  ssl: { rejectUnauthorized: false },
-});
+const pool = createPool();
 
 const KEY_ENV: Record<ProviderName, string> = {
   anthropic: "ANTHROPIC_API_KEY",
@@ -88,6 +68,7 @@ async function main() {
 
   for (const name of PROVIDER_NAMES) {
     if (!process.env[KEY_ENV[name]]) {
+      console.log(`  ${name}: skipping (${KEY_ENV[name]} not set)`);
       results.push({ provider: name, model: "(no key)", status: "skipped", ms: 0, sections: "-" });
       continue;
     }
