@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { ZodError } from "zod";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateResume } from "@/lib/llm";
@@ -12,10 +14,22 @@ export const runtime = "nodejs";
 // Configurable via env; defaults to 5.
 const RELEVANT_VERSIONS = Number(process.env.TAILOR_RELEVANT_VERSIONS) || 5;
 
+const TailorRequest = z.object({
+  jobDescription: z.string().min(1, "jobDescription is required"),
+});
+
 export async function POST(req: Request) {
-  const { jobDescription } = (await req.json()) as { jobDescription?: string };
-  if (!jobDescription || !jobDescription.trim()) {
-    return NextResponse.json({ error: "jobDescription required" }, { status: 400 });
+  let parsed: z.infer<typeof TailorRequest>;
+  try {
+    parsed = TailorRequest.parse(await req.json());
+  } catch (e: unknown) {
+    if (e instanceof ZodError) {
+      return NextResponse.json(
+        { error: "invalid request body", details: e.flatten() },
+        { status: 400 },
+      );
+    }
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
 
   const client = await pool.connect();
@@ -39,10 +53,10 @@ export async function POST(req: Request) {
     // controlled by RELEVANCE_RANKER). Sending only the top K keeps the
     // prompt cheaper and stops off-domain resumes from skewing the framing.
     const ranker = getRanker();
-    const relevantVersions = await ranker(jobDescription, priorVersions, RELEVANT_VERSIONS);
+    const relevantVersions = await ranker(parsed.jobDescription, priorVersions, RELEVANT_VERSIONS);
 
     const draft = await generateResume(
-      tailorUserPrompt({ master, priorVersions: relevantVersions, jobDescription }),
+      tailorUserPrompt({ master, priorVersions: relevantVersions, jobDescription: parsed.jobDescription }),
       getProviderForFlow("tailor"),
     );
 
@@ -50,17 +64,26 @@ export async function POST(req: Request) {
       `INSERT INTO drafts (job_description, content, history)
        VALUES ($1, $2::jsonb, '[]'::jsonb)
        RETURNING id, content, history, created_at, updated_at`,
-      [jobDescription, JSON.stringify(draft)],
+      [parsed.jobDescription, JSON.stringify(draft)],
     );
     const row = ins.rows[0];
     return NextResponse.json({
       id: row.id,
-      jobDescription,
+      jobDescription: parsed.jobDescription,
       content: row.content,
       history: row.history,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     });
+  } catch (e: unknown) {
+    if (e instanceof ZodError) {
+      return NextResponse.json(
+        { error: "schema mismatch", details: e.flatten() },
+        { status: 400 },
+      );
+    }
+    const msg = e instanceof Error ? e.message : "tailor failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
   } finally {
     client.release();
   }
