@@ -16,3 +16,9 @@ compile-service/node_modules
 # Local-only Claude Code settings (per-machine permissions).
 # The project skill at .claude/skills/ is checked in; settings are not.
 .claude/settings.local.json
+
+# pi config (local, per-machine)
+.pi/
+
+# MCP config (local server decisions)
+.mcp.json

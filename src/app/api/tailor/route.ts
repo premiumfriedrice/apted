@@ -3,7 +3,7 @@ import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateResume } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
-import { rankPriorVersions } from "@/lib/relevance";
+import { getRanker } from "@/lib/relevance";
 import { tailorUserPrompt } from "@/lib/prompts/user";
 
 export const runtime = "nodejs";
@@ -35,10 +35,11 @@ export async function POST(req: Request) {
       tailored_content: Resume.parse(r.tailored_content),
     }));
 
-    // Send only the prior versions relevant to this JD (by keyword/tag overlap)
-    // rather than all 20 — cheaper, and keeps off-domain resumes from skewing
-    // the framing (e.g. a platform-eng resume on a mobile-dev JD). (APTED-011)
-    const relevantVersions = rankPriorVersions(jobDescription, priorVersions, RELEVANT_VERSIONS);
+    // Rank prior versions by relevance to this JD (overlap or embeddings,
+    // controlled by RELEVANCE_RANKER). Sending only the top K keeps the
+    // prompt cheaper and stops off-domain resumes from skewing the framing.
+    const ranker = getRanker();
+    const relevantVersions = await ranker(jobDescription, priorVersions, RELEVANT_VERSIONS);
 
     const draft = await generateResume(
       tailorUserPrompt({ master, priorVersions: relevantVersions, jobDescription }),

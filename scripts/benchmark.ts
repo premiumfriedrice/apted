@@ -14,7 +14,7 @@ import pg from "pg";
 import { Resume } from "../src/lib/resume";
 import { generateResume } from "../src/lib/llm";
 import { tailorUserPrompt } from "../src/lib/prompts/user";
-import { rankPriorVersions } from "../src/lib/relevance";
+import { getRanker } from "../src/lib/relevance";
 import { getProvider, PROVIDER_NAMES, type ProviderName } from "../src/lib/providers";
 
 const url = process.env.DATABASE_URL;
@@ -69,7 +69,8 @@ async function main() {
     role: r.role,
     tailored_content: Resume.parse(r.tailored_content),
   }));
-  const relevant = rankPriorVersions(jobDescription, priorVersions, 5);
+  const ranker = getRanker();
+  const relevant = await ranker(jobDescription, priorVersions, 5);
   const prompt = tailorUserPrompt({ master, priorVersions: relevant, jobDescription });
 
   console.log(
