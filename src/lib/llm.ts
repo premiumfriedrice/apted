@@ -169,3 +169,48 @@ export async function generateItemsFromProse<K extends ParseProseKind>(
   });
   return parsed.items as ItemForKind[K][];
 }
+
+// --- Two-phase tailor pipeline: Phase 1 structure selection ----------------
+
+import { FilterSpec } from "./structure";
+import { getStructureProvider } from "./providers";
+import {
+  buildStructureSystemPrompt,
+  buildStructureUserPrompt,
+  toSkeleton,
+} from "./structure";
+
+// Ask the structure provider (cheap model, e.g. DeepSeek) which sections
+// and items from the master resume are relevant to this JD. Falls back to
+// keeping everything if the provider fails or returns invalid JSON — so the
+// pipeline degrades gracefully to the old single-phase behavior.
+export async function selectStructure(
+  jobDescription: string,
+  master: Resume,
+): Promise<FilterSpec> {
+  const provider = getStructureProvider();
+  const system = buildStructureSystemPrompt();
+  const user = buildStructureUserPrompt({
+    jobDescription,
+    skeleton: toSkeleton(master),
+  });
+
+  try {
+    const raw = await provider.complete({ system, user, maxTokens: 2048 });
+    return FilterSpec.parse(JSON.parse(extractJson(raw)));
+  } catch (e) {
+    // Structure provider failed — keep everything and let Claude see the full master.
+    console.warn("Structure provider failed, using full master:", e);
+    return fallbackFilterSpec(master);
+  }
+}
+
+function fallbackFilterSpec(master: Resume): FilterSpec {
+  return {
+    sections: master.sections.map((s) => ({
+      id: s.id,
+      keep: true,
+      items: s.items.map((it: { id: string }) => ({ id: it.id, keep: true })),
+    })),
+  };
+}
