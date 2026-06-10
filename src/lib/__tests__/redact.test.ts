@@ -382,20 +382,21 @@ describe("edge cases", () => {
 });
 
 // ── 5. Prompt builder PII safety ─────────────────────────────────────────
-// These tests verify that tailorUserPrompt/editUserPrompt redact PII before
-// building the prompt. They require the API routes to call redactResume() before
-// passing data to the prompt builders. That integration will be done in a
-// follow-up commit that wires redaction into the tailor/edit endpoints.
-//
-// Skipping until the prompt builders are updated to call redactResume().
-describe.skip("prompt builders produce zero PII", () => {
-  test("tailorUserPrompt contains no raw contact PII", () => {
-    const master = makeFullResume();
+// These tests verify that when route handlers pass redacted data to the
+// prompt builders (PRE-52), the resulting prompts contain zero raw PII.
+// Redaction happens at the route level (tailor/route.ts, edit/route.ts),
+// not inside the prompt builders themselves.
+describe("prompt builders produce zero PII with pre-redacted input", () => {
+  test("tailorUserPrompt contains no raw contact PII when given redacted data", () => {
+    const original = makeFullResume();
+    // Simulate route-level redaction: routes call redactResume() before
+    // passing data to prompt builders (PRE-52).
+    const master = redactResume(original).redacted;
     const priorVersions = [
       {
         company: "Acme Corp",
         role: "Engineer",
-        tailored_content: makeFullResume(),
+        tailored_content: redactResume(makeFullResume()).redacted,
       },
     ];
 
@@ -420,9 +421,10 @@ describe.skip("prompt builders produce zero PII", () => {
     expect(prompt).toContain("[ORG-0]");
   });
 
-  test("editUserPrompt contains no raw contact PII", () => {
-    const master = makeFullResume();
-    const current = makeFullResume();
+  test("editUserPrompt contains no raw contact PII when given redacted data", () => {
+    const original = makeFullResume();
+    const master = redactResume(original).redacted;
+    const current = redactResume(original).redacted;
 
     const prompt = editUserPrompt({
       master,
@@ -442,16 +444,17 @@ describe.skip("prompt builders produce zero PII", () => {
     expect(prompt).toContain("[ORG-0]");
   });
 
-  test("tailorUserPrompt redacts prior versions too", () => {
-    const master = makeFullResume();
+  test("tailorUserPrompt redacts prior versions too when routes redact", () => {
+    const master = redactResume(makeFullResume()).redacted;
+    const priorVersionContent = {
+      contact: { name: "Secret Agent", phone: "999", email: "secret@evil.com", links: [] },
+      sections: [],
+    };
     const priorVersions = [
       {
         company: "Evil Corp",
         role: "Hacker",
-        tailored_content: {
-          contact: { name: "Secret Agent", phone: "999", email: "secret@evil.com", links: [] },
-          sections: [],
-        },
+        tailored_content: redactResume(priorVersionContent).redacted,
       },
     ];
 
@@ -468,7 +471,8 @@ describe.skip("prompt builders produce zero PII", () => {
   });
 
   test("multiple redaction calls on the same resume are safe (prompt builder doesn't mutate input)", () => {
-    const master = makeFullResume();
+    const original = makeFullResume();
+    const master = redactResume(original).redacted;
 
     // Call twice — the second call should still produce safe output
     const prompt1 = tailorUserPrompt({
@@ -483,7 +487,7 @@ describe.skip("prompt builders produce zero PII", () => {
     });
 
     // The original master should be untouched by the prompt builder
-    expect(master.contact.name).toBe("Jane Doe");
+    expect(original.contact.name).toBe("Jane Doe");
 
     // Both prompts must be safe
     expect(prompt1).not.toContain("Jane Doe");

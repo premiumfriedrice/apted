@@ -4,6 +4,8 @@ import { Resume } from "@/lib/resume";
 import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
+import { injectResume } from "@/lib/redact";
+import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
@@ -56,7 +58,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
     try {
       const parsed = Resume.parse(body.tailoredContent);
       const settings = await getUserSettings();
-      const tex = renderResume(parsed, settings.template);
+      // Inject PII back before rendering (PRE-53).
+      const pm = await pool.query("SELECT map FROM master_pii_map WHERE id = 1");
+      const piiMap = pm.rows[0]?.map as RedactionMap | null;
+      let renderContent = parsed;
+      if (piiMap) renderContent = injectResume(parsed, piiMap);
+      const tex = renderResume(renderContent, settings.template);
       const pdfBuf = await compileTexToPdf(tex);
       fields.push(`pdf = $${i++}`);
       vals.push(pdfBuf);

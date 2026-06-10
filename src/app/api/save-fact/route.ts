@@ -6,6 +6,8 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
+import { redactResume, injectResume } from "@/lib/redact";
+import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
@@ -19,9 +21,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "sectionId, itemId, bulletText required" }, { status: 400 });
   }
 
-  const r = await pool.query("SELECT content FROM master_resume WHERE id = 1");
-  if (!r.rows[0]) return NextResponse.json({ error: "master missing" }, { status: 400 });
-  const master = Resume.parse(r.rows[0].content);
+  const [mr, pm] = await Promise.all([
+    pool.query("SELECT content FROM master_resume WHERE id = 1"),
+    pool.query("SELECT map FROM master_pii_map WHERE id = 1"),
+  ]);
+  if (!mr.rows[0]) return NextResponse.json({ error: "master missing" }, { status: 400 });
+
+  // Inject PII to work with real data, then redact before storing (PRE-51).
+  const piiMap = pm.rows[0]?.map as RedactionMap | null;
+  const stored = Resume.parse(mr.rows[0].content);
+  const master = piiMap ? injectResume(stored, piiMap) : stored;
 
   const sec = master.sections.find((s) => s.id === sectionId);
   if (!sec) return NextResponse.json({ error: "section not found" }, { status: 404 });
@@ -32,9 +41,19 @@ export async function POST(req: Request) {
 
   item.bullets.push({ id: `b-${Date.now()}`, text: bulletText.trim() });
 
-  await pool.query(
-    "UPDATE master_resume SET content = $1::jsonb, updated_at = now() WHERE id = 1",
-    [JSON.stringify(master)],
-  );
-  return NextResponse.json({ ok: true, master });
+  // Redact and store (PRE-51).
+  const { redacted, map: newMap } = redactResume(master);
+  await Promise.all([
+    pool.query(
+      "UPDATE master_resume SET content = $1::jsonb, updated_at = now() WHERE id = 1",
+      [JSON.stringify(redacted)],
+    ),
+    pool.query(
+      `INSERT INTO master_pii_map (id, map, updated_at)
+       VALUES (1, $1::jsonb, now())
+       ON CONFLICT (id) DO UPDATE SET map = EXCLUDED.map, updated_at = now()`,
+      [JSON.stringify(newMap)],
+    ),
+  ]);
+  return NextResponse.json({ ok: true, master: redacted, piiMap: newMap });
 }

@@ -4,17 +4,25 @@ import { Resume } from "@/lib/resume";
 import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
+import { injectResume } from "@/lib/redact";
+import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const [r, settings] = await Promise.all([
+  const [r, settings, pm] = await Promise.all([
     pool.query("SELECT content, updated_at FROM master_resume WHERE id = 1"),
     getUserSettings(),
+    pool.query("SELECT map FROM master_pii_map WHERE id = 1"),
   ]);
   if (!r.rows[0]) return NextResponse.json({ error: "not seeded" }, { status: 404 });
 
-  const tex = renderResume(Resume.parse(r.rows[0].content), settings.template);
+  // Inject PII back before rendering (PRE-53).
+  const piiMap = pm.rows[0]?.map as RedactionMap | null;
+  let content = Resume.parse(r.rows[0].content);
+  if (piiMap) content = injectResume(content, piiMap);
+
+  const tex = renderResume(content, settings.template);
   let pdf: Buffer;
   try {
     pdf = await compileTexToPdf(tex);

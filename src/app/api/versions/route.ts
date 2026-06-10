@@ -4,6 +4,8 @@ import { Resume } from "@/lib/resume";
 import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
+import { injectResume } from "@/lib/redact";
+import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
@@ -63,7 +65,12 @@ export async function POST(req: Request) {
   let pdf: Buffer | null = null;
   try {
     const settings = await getUserSettings();
-    const tex = renderResume(content, settings.template);
+    // Inject PII back before rendering (PRE-53).
+    const pm = await pool.query("SELECT map FROM master_pii_map WHERE id = 1");
+    const piiMap = pm.rows[0]?.map as RedactionMap | null;
+    let renderContent = content;
+    if (piiMap) renderContent = injectResume(content, piiMap);
+    const tex = renderResume(renderContent, settings.template);
     pdf = await compileTexToPdf(tex);
   } catch {
     console.warn("PDF compile failed for new version");
