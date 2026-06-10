@@ -36,6 +36,7 @@ options that were on the table, which one was chosen, and why the others were no
 | PRE-16/17/20 | DB utility consolidation (withDb, createPool, benchmark key names) | [015-db-utility-consolidation.md](015-db-utility-consolidation.md) |
 | PRE-18/22 | Extension types fix + shared type consolidation | [016-extension-types-shared-consolidation.md](016-extension-types-shared-consolidation.md) |
 | PRE-19 | CORS middleware: tighten ALLOWED_ORIGIN to configurable list | [017-cors-tightening.md](017-cors-tightening.md) |
+| PRE-8 | Schema-enforced structured output across providers | [018-structured-output.md](018-structured-output.md) |
 
 ## Entry format
 
