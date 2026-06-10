@@ -64,6 +64,13 @@ export type Draft = {
   history: Resume[];
   createdAt: string;
   updatedAt: string;
+  similarResumes?: SimilarResume[];
+};
+
+export type SimilarResume = {
+  company: string;
+  role: string;
+  score: number; // 0–100
 };
 
 export type Outcome = "draft" | "applied" | "interview" | "offer" | "rejected";

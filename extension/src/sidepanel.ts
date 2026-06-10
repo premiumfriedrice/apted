@@ -2,7 +2,7 @@ import { getSettings } from "./storage";
 import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, suggestPdfFilename } from "./pdf";
 import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
 import type { Msg, Reply } from "./messages";
-import type { Draft, Outcome, ScrapedJob, Version } from "./types";
+import type { Draft, Outcome, ScrapedJob, SimilarResume, Version } from "./types";
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -29,6 +29,8 @@ const els = {
   previewErrorMsg: $("preview-error-msg"),
   previewRetry: $<HTMLButtonElement>("preview-retry"),
   previewEmbed: $<HTMLIFrameElement>("preview-embed"),
+  dragChip: $<HTMLSpanElement>("drag-chip"),
+  dragChipLabel: $("drag-chip-label"),
   chatLog: $("chat-log"),
   chatForm: $<HTMLFormElement>("chat-form"),
   chatInput: $<HTMLInputElement>("chat-input"),
@@ -39,6 +41,8 @@ const els = {
   saveCompany: $<HTMLInputElement>("save-company"),
   saveRole: $<HTMLInputElement>("save-role"),
   saveOutcome: $<HTMLSelectElement>("save-outcome"),
+  similarSection: $("similar-section"),
+  similarList: $("similar-list"),
 };
 
 type State = {
@@ -88,6 +92,32 @@ function invalidatePdf(): void {
   state.pdfForDraftUpdatedAt = null;
   clearPdfCache();
   els.previewEmbed.hidden = true;
+}
+
+// ── Similar resumes (PRE-47) ───────────────────────────────────────────
+
+function renderSimilarResumes(similar: SimilarResume[]): void {
+  if (!similar?.length) {
+    els.similarSection.hidden = true;
+    return;
+  }
+  els.similarSection.hidden = false;
+  els.similarList.innerHTML = similar
+    .map(
+      (s) => `
+      <div class="similar-item">
+        <span class="similar-score">${s.score}%</span>
+        <span class="similar-text">${escHtml(s.role)} <span class="similar-company">@ ${escHtml(s.company)}</span></span>
+      </div>`,
+    )
+    .join("");
+}
+
+function escHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    '"': "&quot;", "'": "&#39;",
+  } as Record<string, string>)[ch] ?? ch);
 }
 
 function showPreviewState(kind: "empty" | "loading" | "error" | "embed"): void {
@@ -191,6 +221,20 @@ function setDraft(draft: Draft | null): void {
   els.saveVersion.disabled = !hasDraft;
   els.downloadPdf.disabled = !hasDraft;
   els.undo.disabled = !hasDraft || !(draft?.history?.length);
+
+  // Drag chip visibility and label (PRE-43).
+  if (hasDraft) {
+    const filename = suggestPdfFilename({
+      id: draft.id,
+      company: els.jdCompany.value.trim() || undefined,
+      role: els.jdRole.value.trim() || undefined,
+    });
+    els.dragChipLabel.textContent = filename;
+    els.dragChip.hidden = false;
+  } else {
+    els.dragChip.hidden = true;
+  }
+
   schedulePersist();
 }
 
@@ -299,6 +343,7 @@ async function doTailor(): Promise<void> {
   try {
     const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
     setDraft(draft);
+    renderSimilarResumes(draft.similarResumes ?? []);
     appendTurn("apted", "First-pass tailor ready.");
     setStatus("Done.", "ok");
   } catch (e) {
@@ -462,6 +507,7 @@ async function newTailor(): Promise<void> {
     invalidatePdf();
     els.previewEmbed.src = "";
     showPreviewState("empty");
+    els.similarSection.hidden = true;
     await clearSession();
     setStatus("New tailor.", "ok");
   } finally {
@@ -478,6 +524,58 @@ els.saveVersion.addEventListener("click", () => void doSaveVersion());
 els.downloadPdf.addEventListener("click", () => void doDownloadPdf());
 els.newTailor.addEventListener("click", () => void newTailor());
 els.previewRetry.addEventListener("click", () => void refreshPdfPreview());
+
+// ── Drag chip: drag PDF out of the sidepanel onto job forms (PRE-43) ────
+// Reuses the pdf.ts cache so we don't re-fetch on every drag attempt.
+let dragBlob: Blob | null = null;
+let dragObjectUrl: string | null = null;
+
+els.dragChip.addEventListener("mouseenter", async () => {
+  if (!state.draft) return;
+  try {
+    const { blob } = await getDraftPdfBlob({
+      draftId: state.draft.id,
+      draftUpdatedAt: state.draft.updatedAt,
+    });
+    dragBlob = blob;
+    if (dragObjectUrl) URL.revokeObjectURL(dragObjectUrl);
+    dragObjectUrl = URL.createObjectURL(blob);
+    els.dragChip.style.opacity = "1";
+  } catch {
+    // Silently ignore — dragchip will try again at dragstart.
+  }
+});
+
+els.dragChip.addEventListener("dragstart", (e: DragEvent) => {
+  if (!dragBlob || !dragObjectUrl || !state.draft) {
+    e.preventDefault();
+    return;
+  }
+  const filename = suggestPdfFilename({
+    id: state.draft.id,
+    company: els.jdCompany.value.trim() || undefined,
+    role: els.jdRole.value.trim() || undefined,
+  });
+  const file = new File([dragBlob], filename, {
+    type: "application/pdf",
+    lastModified: Date.now(),
+  });
+  if (!e.dataTransfer) return;
+  e.dataTransfer.effectAllowed = "copy";
+  try {
+    e.dataTransfer.items.add(file);
+  } catch {
+    // Some browsers throw if items.add is called twice.
+  }
+  e.dataTransfer.setData("DownloadURL", `application/pdf:${filename}:${dragObjectUrl}`);
+  e.dataTransfer.setData("text/uri-list", dragObjectUrl);
+  e.dataTransfer.setData("text/plain", filename);
+  e.dataTransfer.setDragImage(els.dragChip, 8, 8);
+});
+
+els.dragChip.addEventListener("dragend", () => {
+  // Keep the blob cached; pdf.ts handles the authoritative cache.
+});
 
 // Persist on form-field changes. Debounced inside schedulePersist so we
 // don't slam storage on every keystroke.

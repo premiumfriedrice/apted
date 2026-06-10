@@ -69,19 +69,29 @@ function profileText(v: PriorVersion): string {
 // Ties break toward the earlier input (callers pass newest-first), so recency
 // is the tiebreaker. Versions with zero overlap are still eligible to fill the
 // slots if there aren't K relevant ones — they're just ranked last.
+// Scores are normalized to 0-100 relative to the best match in the full set
+// (not just topK) so callers see interpretable scores.
 export function rankPriorVersions(
   jobDescription: string,
   versions: PriorVersion[],
   topK = 5,
 ): ScoredVersion[] {
   const jdTokens = tokenize(jobDescription);
-  return versions
-    .map((v, index) => {
-      const profile = tokenize(profileText(v));
-      let score = 0;
-      for (const t of profile) if (jdTokens.has(t)) score++;
-      return { ...v, score, index };
-    })
+  const scored = versions.map((v, index) => {
+    const profile = tokenize(profileText(v));
+    let raw = 0;
+    for (const t of profile) if (jdTokens.has(t)) raw++;
+    return { ...v, score: raw, index };
+  });
+
+  // Normalize to 0-100 relative to the best overlap in the set.
+  const maxRaw = scored.reduce((m, s) => Math.max(m, s.score), 0);
+  const normalized = scored.map((s) => ({
+    ...s,
+    score: maxRaw > 0 ? Math.round((s.score / maxRaw) * 100) : 0,
+  }));
+
+  return normalized
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, topK)
     .map(({ index, ...s }) => s);
@@ -125,7 +135,9 @@ export async function rankPriorVersionsEmbeddings(
     versions.map(async (v, index) => {
       const profile = profileText(v);
       const pVec = await provider.embed(profile);
-      const score = cosineSimilarity(jdVec, pVec);
+      // Cosine similarity is 0-1; normalise to 0-100 for consistency with
+      // the overlap ranker.
+      const score = Math.round(cosineSimilarity(jdVec, pVec) * 100);
       return { ...v, score, index };
     }),
   );
