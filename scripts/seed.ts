@@ -1,29 +1,7 @@
-import pg from "pg";
+import { createPool } from "../src/lib/db";
 import { emptyMaster } from "../src/lib/resume";
 
-const { Pool } = pg;
-
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("DATABASE_URL is required");
-  process.exit(1);
-}
-
-function strippedUrl(u: string): string {
-  try {
-    const x = new URL(u);
-    x.searchParams.delete("sslmode");
-    x.searchParams.delete("ssl");
-    return x.toString();
-  } catch {
-    return u;
-  }
-}
-
-const pool = new Pool({
-  connectionString: strippedUrl(url),
-  ssl: { rejectUnauthorized: false },
-});
+const pool = createPool();
 
 async function main() {
   const content = emptyMaster();

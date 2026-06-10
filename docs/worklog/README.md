@@ -30,6 +30,12 @@ options that were on the table, which one was chosen, and why the others were no
 | APTED-009 | OpenAI GPT-4.1-nano / 4o-mini support | [009-openai-provider.md](009-openai-provider.md) |
 | APTED-010 | Multi-model benchmark harness | [010-benchmark-harness.md](010-benchmark-harness.md) |
 | APTED-011 | Cost optimizations: caching + relevant prior versions | [011-cost-optimizations.md](011-cost-optimizations.md) |
+| PRE-11 | Embeddings-based relevance ranker | [012-embeddings-ranker.md](012-embeddings-ranker.md) |
+| PRE-14 | Flatten try-catch + Zod validation in tailor/edit routes | [013-flatten-try-catch-zod-validation.md](013-flatten-try-catch-zod-validation.md) |
+| PRE-15 | Fix README stale references | [014-fix-readme-stale-references.md](014-fix-readme-stale-references.md) |
+| PRE-16/17/20 | DB utility consolidation (withDb, createPool, benchmark key names) | [015-db-utility-consolidation.md](015-db-utility-consolidation.md) |
+| PRE-18/22 | Extension types fix + shared type consolidation | [016-extension-types-shared-consolidation.md](016-extension-types-shared-consolidation.md) |
+| PRE-19 | CORS middleware: tighten ALLOWED_ORIGIN to configurable list | [017-cors-tightening.md](017-cors-tightening.md) |
 
 ## Entry format
 

@@ -10,34 +10,14 @@
 // Cost is NOT measured yet — the provider interface doesn't surface token usage
 // (APTED-010 follow-up); estimate from published per-token prices for now.
 import fs from "node:fs";
-import pg from "pg";
+import { createPool } from "../src/lib/db";
 import { Resume } from "../src/lib/resume";
 import { generateResume } from "../src/lib/llm";
 import { tailorUserPrompt } from "../src/lib/prompts/user";
 import { rankPriorVersions } from "../src/lib/relevance";
 import { getProvider, PROVIDER_NAMES, type ProviderName } from "../src/lib/providers";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("DATABASE_URL is required");
-  process.exit(1);
-}
-
-function strippedUrl(u: string): string {
-  try {
-    const x = new URL(u);
-    x.searchParams.delete("sslmode");
-    x.searchParams.delete("ssl");
-    return x.toString();
-  } catch {
-    return u;
-  }
-}
-
-const pool = new pg.Pool({
-  connectionString: strippedUrl(url),
-  ssl: { rejectUnauthorized: false },
-});
+const pool = createPool();
 
 const KEY_ENV: Record<ProviderName, string> = {
   anthropic: "ANTHROPIC_API_KEY",
@@ -69,7 +49,7 @@ async function main() {
     role: r.role,
     tailored_content: Resume.parse(r.tailored_content),
   }));
-  const relevant = rankPriorVersions(jobDescription, priorVersions, 5);
+  const relevant = await rankPriorVersions(jobDescription, priorVersions, 5);
   const prompt = tailorUserPrompt({ master, priorVersions: relevant, jobDescription });
 
   console.log(
@@ -87,7 +67,7 @@ async function main() {
 
   for (const name of PROVIDER_NAMES) {
     if (!process.env[KEY_ENV[name]]) {
-      results.push({ provider: name, model: "(no key)", status: "skipped", ms: 0, sections: "-" });
+      results.push({ provider: name, model: `(no ${KEY_ENV[name]})`, status: "skipped", ms: 0, sections: "-" });
       continue;
     }
     const provider = getProvider(name);

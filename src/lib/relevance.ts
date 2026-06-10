@@ -1,9 +1,14 @@
 // Pick the prior tailored versions worth sending to /api/tailor as framing
 // hints. Sending all 20 most-recent is wasteful (tokens) and domain-blind — a
-// platform-engineering resume shouldn't frame a mobile-development JD. We rank
-// by keyword/tag overlap between the JD and each version's profile and keep the
-// top K. Pure function, no I/O — swap for embeddings later behind this signature
-// if overlap proves too brittle (APTED-011).
+// platform-engineering resume shouldn't frame a mobile-development JD.
+//
+// Two rankers behind the same signature:
+//   - keyword (default): token overlap between JD and version role/tags/skills
+//   - embeddings (opt-in via TAILOR_RANKER=embeddings): cosine similarity of
+//     OpenAI text-embedding-3-small vectors
+//
+// Set TAILOR_RANKER=embeddings to swap. The caller only ever calls one
+// function — no conditional logic needed at the call site (APTED-011, PRE-11).
 import type { Resume } from "./resume";
 
 export interface PriorVersion {
@@ -56,14 +61,16 @@ function profileText(v: PriorVersion): string {
   return parts.join(" ");
 }
 
+// --- Keyword-overlap ranker (default) -------------------------------------
+
 // Returns the topK versions most relevant to the JD, highest overlap first.
 // Ties break toward the earlier input (callers pass newest-first), so recency
 // is the tiebreaker. Versions with zero overlap are still eligible to fill the
 // slots if there aren't K relevant ones — they're just ranked last.
-export function rankPriorVersions(
+function rankByKeywords(
   jobDescription: string,
   versions: PriorVersion[],
-  topK = 5,
+  topK: number,
 ): PriorVersion[] {
   const jdTokens = tokenize(jobDescription);
   return versions
@@ -76,4 +83,95 @@ export function rankPriorVersions(
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, topK)
     .map((s) => s.v);
+}
+
+// --- Embeddings-based ranker (opt-in via TAILOR_RANKER=embeddings) ---------
+
+const EMBEDDING_MODEL = "text-embedding-3-small";
+const EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
+
+async function getEmbedding(text: string, apiKey: string): Promise<number[]> {
+  const res = await fetch(EMBEDDINGS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model: EMBEDDING_MODEL, input: text }),
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(
+      `OpenAI embeddings API ${res.status}: ${err.slice(0, 200)}`,
+    );
+  }
+  const json = (await res.json()) as {
+    data: Array<{ embedding: number[] }>;
+  };
+  return json.data[0].embedding;
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+async function rankByEmbeddings(
+  jobDescription: string,
+  versions: PriorVersion[],
+  topK: number,
+): Promise<PriorVersion[]> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      "TAILOR_RANKER=embeddings but OPENAI_API_KEY is not set — falling back to keyword ranker",
+    );
+    return rankByKeywords(jobDescription, versions, topK);
+  }
+
+  const texts = versions.map((v) => profileText(v));
+  // Get JD embedding + all version embeddings in parallel. Individual calls
+  // rather than a batch because the cost is negligible (~$0.0001 per profile)
+  // and batching adds retry complexity for little gain at <20 profiles.
+  const [jdEmbedding, ...versionEmbeddings] = await Promise.all([
+    getEmbedding(jobDescription.slice(0, 8000), apiKey),
+    ...texts.map((t) => getEmbedding(t.slice(0, 8000), apiKey)),
+  ]);
+
+  return versions
+    .map((v, i) => ({
+      v,
+      similarity: cosineSimilarity(jdEmbedding, versionEmbeddings[i]),
+      index: i,
+    }))
+    .sort((a, b) => b.similarity - a.similarity || a.index - b.index)
+    .slice(0, topK)
+    .map((s) => s.v);
+}
+
+// --- Public API ------------------------------------------------------------
+
+// Returns the topK versions most relevant to the JD. Dispatches to the keyword
+// ranker by default; set TAILOR_RANKER=embeddings to use semantic similarity.
+// When the embeddings ranker is active the return is a Promise (async API call);
+// the keyword path returns synchronously. Callers should await unconditionally
+// — the sync path resolves immediately.
+export function rankPriorVersions(
+  jobDescription: string,
+  versions: PriorVersion[],
+  topK?: number,
+): PriorVersion[] | Promise<PriorVersion[]> {
+  const k = topK ?? (Number(process.env.TAILOR_RELEVANT_VERSIONS) || 5);
+  if (process.env.TAILOR_RANKER === "embeddings") {
+    return rankByEmbeddings(jobDescription, versions, k);
+  }
+  return rankByKeywords(jobDescription, versions, k);
 }

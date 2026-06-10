@@ -96,6 +96,28 @@ export type Section = z.infer<typeof Section>;
 export type Bullet = z.infer<typeof Bullet>;
 export type Contact = z.infer<typeof Contact>;
 
+// API response shapes. These live here (rather than duplicated in client
+// components) so every consumer — builder page, extension — uses the same
+// definition. When the schema changes, these update automatically.
+export interface Draft {
+  id: string;
+  jobDescription: string;
+  content: Resume;
+  history: unknown[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Version {
+  id: string;
+  company: string;
+  role: string;
+  jobDescription: string;
+  tailoredContent: Resume;
+  outcome: string;
+  createdAt: string;
+}
+
 export function emptyMaster(): Resume {
   return {
     contact: { name: "", phone: "", email: "", links: [] },
