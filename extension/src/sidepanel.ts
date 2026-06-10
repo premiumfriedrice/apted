@@ -223,6 +223,9 @@ function setDraft(draft: Draft | null): void {
   els.undo.disabled = !hasDraft || !(draft?.history?.length);
 
   // Drag chip visibility and label (PRE-43).
+  // Shows the PDF filename when a draft is ready. Clicking it fills the
+  // nearest file input on the job page (drag from sidepanel doesn't work
+  // because Chrome closes the panel on drag-out).
   if (hasDraft) {
     const filename = suggestPdfFilename({
       id: draft.id,
@@ -231,16 +234,8 @@ function setDraft(draft: Draft | null): void {
     });
     els.dragChipLabel.textContent = filename;
     els.dragChip.hidden = false;
-    // Eagerly prefetch the PDF blob so dragstart always has it ready.
-    void getDraftPdfBlob({
-      draftId: draft.id,
-      draftUpdatedAt: draft.updatedAt,
-    }).then(({ blob }) => {
-      dragBlob = blob;
-    }).catch(() => { /* will retry on next draft change */ });
   } else {
     els.dragChip.hidden = true;
-    dragBlob = null;
   }
 
   schedulePersist();
@@ -533,49 +528,43 @@ els.downloadPdf.addEventListener("click", () => void doDownloadPdf());
 els.newTailor.addEventListener("click", () => void newTailor());
 els.previewRetry.addEventListener("click", () => void refreshPdfPreview());
 
-// ── Drag chip: drag PDF out of the sidepanel onto job forms (PRE-43) ────
-// The blob is prefetched eagerly in setDraft(). On dragstart we stash the
-// base64 in chrome.storage.session; inject.ts (content script) reads it on
-// the receiving page's drop event and injects the file into the file input.
-let dragBlob: Blob | null = null;
-let dragFilename = "resume.pdf";
-
-els.dragChip.addEventListener("dragstart", async (e: DragEvent) => {
-  if (!dragBlob || !state.draft) {
-    e.preventDefault();
-    return;
-  }
-
-  dragFilename = suggestPdfFilename({
-    id: state.draft.id,
-    company: els.jdCompany.value.trim() || undefined,
-    role: els.jdRole.value.trim() || undefined,
-  });
-
-  // Convert blob to base64 and stash in session storage so the content
-  // script (inject.ts) can read it on the receiving page.
+// ── PDF chip: click fills the nearest file input on the job page (PRE-43) ──
+// Drag from the sidepanel doesn't work because Chrome closes the panel on
+// drag-out. Instead, clicking the chip sends the PDF to the inject script
+// via session storage, which fills the nearest <input type=file>.
+els.dragChip.addEventListener("click", async () => {
+  if (!state.draft) return;
+  const original = els.dragChip.textContent;
+  els.dragChip.textContent = "Attaching…";
   try {
-    const buf = await dragBlob.arrayBuffer();
+    const { blob } = await getDraftPdfBlob({
+      draftId: state.draft.id,
+      draftUpdatedAt: state.draft.updatedAt,
+    });
+    const filename = suggestPdfFilename({
+      id: state.draft.id,
+      company: els.jdCompany.value.trim() || undefined,
+      role: els.jdRole.value.trim() || undefined,
+    });
+    // Convert to base64 and stash in session storage.
+    const buf = await blob.arrayBuffer();
     const bytes = new Uint8Array(buf);
     let bin = "";
     for (let i = 0; i < bytes.length; i += 0x8000) {
       bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000) as unknown as number[]);
     }
-    const b64 = btoa(bin);
-    await chrome.storage.session.set({ aptedDragPdfB64: b64, aptedDragPdfFilename: dragFilename });
-  } catch {
-    e.preventDefault();
-    return;
+    await chrome.storage.session.set({
+      aptedDragPdfB64: btoa(bin),
+      aptedDragPdfFilename: filename,
+    });
+    // Tell the inject script to fill the nearest file input.
+    await chrome.runtime.sendMessage({ type: "fill-nearest-input" });
+    setStatus("PDF attached to form!", "ok");
+  } catch (e) {
+    setStatus("Could not attach PDF: " + (e instanceof Error ? e.message : String(e)), "error");
+  } finally {
+    els.dragChip.textContent = original;
   }
-
-  // Provide a visual payload — not for the target page (session storage
-  // handles that), but so the cursor shows the drag is active.
-  e.dataTransfer!.effectAllowed = "copy";
-  e.dataTransfer!.setDragImage(els.dragChip, 8, 8);
-});
-
-els.dragChip.addEventListener("dragend", () => {
-  // Content script cleans up session storage on drop.
 });
 
 // Persist on form-field changes. Debounced inside schedulePersist so we

@@ -262,6 +262,17 @@ async function handle(msg: Msg): Promise<unknown> {
     case "fetch-pdf":
       return fetchDraftPdf(msg.draftId, msg.ifNoneMatch);
 
+    case "fill-nearest-input":
+      // Relay to the content script on the active tab.
+      // The sidepanel can't fill file inputs directly; the inject script can.
+      try {
+        const tab = (await getSourceTab())?.id;
+        if (!tab) return { ok: false, error: "No active tab" };
+        return await chrome.tabs.sendMessage(tab, { type: "fill-nearest-input" });
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      }
+
     case "get-draft":
       try {
         return await apiFetch<Draft>(

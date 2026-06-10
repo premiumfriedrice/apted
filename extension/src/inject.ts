@@ -353,6 +353,40 @@ function pickProfile(host: string): SiteProfile {
     });
   }, { capture: true });
 
+  // ── Handle fill-nearest-input from sidepanel ──────────────────────────────
+  // The sidepanel can't fill file inputs directly. It stashes the PDF as
+  // base64 in session storage and sends this message via the background
+  // script. We find the nearest file input and fill it.
+  chrome.runtime.onMessage.addListener((msg: { type: string }) => {
+    if (msg.type !== "fill-nearest-input") return;
+    chrome.storage.session.get(["aptedDragPdfB64", "aptedDragPdfFilename"]).then(async (stored) => {
+      const b64 = stored.aptedDragPdfB64 as string | undefined;
+      if (!b64) return;
+      await chrome.storage.session.remove(["aptedDragPdfB64", "aptedDragPdfFilename"]);
+
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const file = new File([bytes], (stored.aptedDragPdfFilename as string) ?? "resume.pdf", {
+        type: "application/pdf",
+        lastModified: Date.now(),
+      });
+
+      // Find the best file input on the page.
+      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='file']"));
+      if (!inputs.length) return;
+      // Prefer inputs that accept PDFs, then any visible input, then the first.
+      const pdfInput = inputs.find((i) => /pdf/i.test(i.accept))
+        ?? inputs.find((i) => i.offsetParent !== null)
+        ?? inputs[0];
+
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      pdfInput.files = dt.files;
+      pdfInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+
   const attach = () => document.body && document.body.appendChild(host);
   if (document.body) attach();
   else document.addEventListener("DOMContentLoaded", attach, { once: true });

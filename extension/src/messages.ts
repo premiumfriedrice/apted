@@ -15,7 +15,8 @@ export type Msg =
     }
   | { type: "open-window" }
   | { type: "fetch-pdf"; draftId: string; ifNoneMatch?: string }
-  | { type: "get-draft"; draftId: string };
+  | { type: "get-draft"; draftId: string }
+  | { type: "fill-nearest-input" };
 
 // The PDF endpoint returns binary; we shuttle it across the MV3 SW boundary
 // as base64 since Blob isn't reliably structured-cloneable through
