@@ -127,14 +127,16 @@ export function createDrawerStyles(): string {
 
     .apted-handle--open .apted-handle-glyph {
       font-size: 18px;
-      font-weight: 500;
+      font-weight: 600;
       color: #000;
       opacity: 1;
+      text-rendering: geometricPrecision;
     }
 
     .apted-handle--open:hover .apted-handle-glyph {
       color: #000;
       opacity: 1;
+      text-rendering: geometricPrecision;
     }
 
     /* ── Blue dot badge ───────────────────────────────────────────────── */
