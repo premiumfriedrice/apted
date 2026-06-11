@@ -58,7 +58,7 @@
   font-weight: 400;
   color: #111;
   line-height: 1;
-  transition: font-size 0.35s ease-out, color 0.2s ease, filter 0.2s ease;
+  transition: font-size 0.35s ease-out, color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,11 +71,10 @@
 
 .apted-handle--open .apted-handle-glyph {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 500;
   color: #000;
   filter: none;
   opacity: 1;
-  -webkit-font-smoothing: subpixel-antialiased;
 }
 
 .apted-handle--open:hover .apted-handle-glyph {
