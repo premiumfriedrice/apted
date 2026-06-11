@@ -75,8 +75,8 @@ describe("drawer style constants", () => {
     expect(css).toContain("width: 64px");
     expect(css).toContain("height: 72px");
     expect(css).toContain("right: 12px");
-    expect(css).toContain("translateX(-336px)");
-    expect(css).toContain("translateY(4px)");
+    expect(css).toContain("translateX(-340px)");
+    expect(css).toContain("translateY(6px)");
     const handleOpenMatch = css.match(/\.apted-handle--open\s*\{[^}]*\}/);
     expect(handleOpenMatch).toBeTruthy();
     expect(handleOpenMatch![0]).not.toContain("background:");
@@ -206,6 +206,12 @@ describe("createHandleSVG", () => {
     expect(css).toContain("font-weight: 700");
     expect(css).toContain("color: #111");
   });
+
+  it("open state turns glyph solid black", () => {
+    const css = createDrawerStyles();
+    expect(css).toContain(".apted-handle--open .apted-handle-glyph");
+    expect(css).toContain("color: #000");
+  });
 });
 
 // ── Drawer HTML structure ───────────────────────────────────────────────────
@@ -232,12 +238,12 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-drawer");
   });
 
-  it("includes header with brand name 'pted' and zero title margin", () => {
+  it("includes header with brand name 'pted' and title margin for glyph", () => {
     const html = createDrawerHTML();
     expect(html).toContain("pted");
     expect(html).not.toContain(">apted<");
     const css = createDrawerStyles();
-    expect(css).toContain("margin: 0");
+    expect(css).toContain("margin: 0 0 0 6px");
   });
 
   it("includes JD section with company and role inputs", () => {

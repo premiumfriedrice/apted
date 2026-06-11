@@ -91,13 +91,13 @@ export function createDrawerStyles(): string {
 
     .apted-handle--open {
       right: 12px;
-      transform: translateX(-336px) translateY(4px);
+      transform: translateX(-340px) translateY(6px);
       justify-content: flex-end;
       overflow: visible;
     }
 
     .apted-handle--open:hover {
-      transform: translateX(-336px) translateY(4px);
+      transform: translateX(-340px) translateY(6px);
     }
 
     .apted-handle--disabled {
@@ -125,7 +125,7 @@ export function createDrawerStyles(): string {
     .apted-handle--open .apted-handle-glyph {
       font-size: 18px;
       font-weight: 500;
-      color: #171717;
+      color: #000;
       filter: none;
     }
 
@@ -200,7 +200,7 @@ export function createDrawerStyles(): string {
       font-size: 18px;
       font-weight: 500;
       color: #171717;
-      margin: 0;
+      margin: 0 0 0 6px;
       letter-spacing: -0.02em;
     }
 
