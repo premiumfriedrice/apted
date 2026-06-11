@@ -76,7 +76,7 @@ describe("drawer style constants", () => {
     expect(css).toContain("height: 72px");
     expect(css).toContain("right: 12px");
     expect(css).toContain("translateX(-336px)");
-    expect(css).toContain("translateY(2px)");
+    expect(css).toContain("translateY(4px)");
     const handleOpenMatch = css.match(/\.apted-handle--open\s*\{[^}]*\}/);
     expect(handleOpenMatch).toBeTruthy();
     expect(handleOpenMatch![0]).not.toContain("background:");
@@ -232,11 +232,12 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-drawer");
   });
 
-  it("includes header with brand name and title offset for handle icon", () => {
+  it("includes header with brand name 'pted' and zero title margin", () => {
     const html = createDrawerHTML();
-    expect(html).toContain("apted");
+    expect(html).toContain("pted");
+    expect(html).not.toContain(">apted<");
     const css = createDrawerStyles();
-    expect(css).toContain("margin: 0 0 0 32px");
+    expect(css).toContain("margin: 0");
   });
 
   it("includes JD section with company and role inputs", () => {

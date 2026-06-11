@@ -91,13 +91,13 @@ export function createDrawerStyles(): string {
 
     .apted-handle--open {
       right: 12px;
-      transform: translateX(-336px) translateY(2px);
+      transform: translateX(-336px) translateY(4px);
       justify-content: flex-end;
       overflow: visible;
     }
 
     .apted-handle--open:hover {
-      transform: translateX(-336px) translateY(2px);
+      transform: translateX(-336px) translateY(4px);
     }
 
     .apted-handle--disabled {
@@ -200,7 +200,7 @@ export function createDrawerStyles(): string {
       font-size: 18px;
       font-weight: 500;
       color: #171717;
-      margin: 0 0 0 32px;
+      margin: 0;
       letter-spacing: -0.02em;
     }
 
@@ -616,7 +616,7 @@ export function createDrawerHTML(): string {
     <div id="apted-drawer" class="apted-drawer">
       <div class="apted-drawer-header">
         <div class="apted-drawer-header-row">
-          <h1 class="apted-drawer-title">apted</h1>
+          <h1 class="apted-drawer-title">pted</h1>
           <div class="apted-spacer"></div>
           <button id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
             <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18">

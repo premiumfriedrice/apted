@@ -34,13 +34,13 @@
 
 .apted-handle--open {
   right: 12px;
-  transform: translateX(-336px) translateY(2px);
+  transform: translateX(-336px) translateY(4px);
   justify-content: flex-end;
   overflow: visible;
 }
 
 .apted-handle--open:hover {
-  transform: translateX(-336px) translateY(2px);
+  transform: translateX(-336px) translateY(4px);
 }
 
 .apted-handle--disabled {
@@ -130,7 +130,7 @@
   font-size: 18px;
   font-weight: 500;
   color: #171717;
-  margin: 0 0 0 32px;
+  margin: 0;
   letter-spacing: -0.02em;
 }
 
