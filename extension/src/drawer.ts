@@ -91,13 +91,13 @@ export function createDrawerStyles(): string {
 
     .apted-handle--open {
       right: 12px;
-      transform: translateX(-360px) translateY(7px);
+      transform: translateX(-368px) translateY(9px);
       justify-content: flex-end;
       overflow: visible;
     }
 
     .apted-handle--open:hover {
-      transform: translateX(-360px) translateY(7px);
+      transform: translateX(-368px) translateY(9px);
     }
 
     .apted-handle--disabled {
@@ -129,13 +129,13 @@ export function createDrawerStyles(): string {
     .apted-handle--open .apted-handle-glyph {
       font-size: 18px;
       font-weight: 500;
-      color: #000;
-      filter: none;
+      color: #000 !important;
+      filter: none !important;
     }
 
     .apted-handle--open:hover .apted-handle-glyph {
-      color: #000;
-      filter: none;
+      color: #000 !important;
+      filter: none !important;
     }
 
     /* ── Blue dot badge ───────────────────────────────────────────────── */
@@ -209,7 +209,7 @@ export function createDrawerStyles(): string {
       font-size: 18px;
       font-weight: 500;
       color: #171717;
-      margin: 0 0 0 6px;
+      margin: 0 0 0 12px;
       letter-spacing: -0.02em;
     }
 
