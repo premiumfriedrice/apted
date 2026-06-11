@@ -3,6 +3,9 @@
    as the canonical reference for editing styles. */
 
 /* ── Handle: geometric "a" glyph, flush right edge ──────────────────── */
+/* NOTE: Outfit font is loaded via @font-face in createDrawerStyles() using
+   chrome.runtime.getURL() for local font files. The @font-face declarations
+   are injected at the top of the shadow DOM stylesheet at runtime. */
 .apted-handle {
   position: fixed;
   right: 0;
@@ -50,7 +53,7 @@
 }
 
 .apted-handle-glyph {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 56px;
   font-weight: 400;
   color: #111;
@@ -123,6 +126,7 @@
 }
 
 .apted-drawer-title {
+  font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 18px;
   font-weight: 500;
   color: #171717;

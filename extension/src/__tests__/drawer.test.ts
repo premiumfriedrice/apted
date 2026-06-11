@@ -188,10 +188,10 @@ describe("createHandleSVG", () => {
     expect(svg).toContain("apted-handle-glyph");
   });
 
-  it("uses system fonts for the glyph", () => {
+  it("uses Outfit as primary font for the glyph", () => {
     const css = createDrawerStyles();
+    expect(css).toContain("Outfit");
     expect(css).toContain("-apple-system");
-    expect(css).toContain("BlinkMacSystemFont");
   });
 
   it("uses bold font-weight (700) for the glyph", () => {
@@ -216,9 +216,11 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-handle");
   });
 
-  it("does NOT load external fonts — uses system fonts only", () => {
-    const html = createDrawerHTML();
-    expect(html).not.toContain("fonts.googleapis.com");
+  it("loads Outfit via @font-face in the shadow DOM styles", () => {
+    const css = createDrawerStyles();
+    expect(css).toContain("@font-face");
+    expect(css).toContain("font-family: 'Outfit'");
+    expect(css).toContain("chrome-extension://");
   });
 
   it("does NOT include separate drawer icon — handle becomes the icon", () => {

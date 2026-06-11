@@ -31,6 +31,7 @@ async function copyStatic() {
     cp("src/sidepanel.html", `${outdir}/sidepanel.html`),
     cp("src/sidepanel.css", `${outdir}/sidepanel.css`),
     cp("src/options.html", `${outdir}/options.html`),
+    cp("fonts", `${outdir}/fonts`, { recursive: true, force: true }),
   ]);
 }
 

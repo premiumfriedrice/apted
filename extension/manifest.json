@@ -31,6 +31,12 @@
     }
   },
   "omnibox": { "keyword": "apted" },
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.ttf"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": [
