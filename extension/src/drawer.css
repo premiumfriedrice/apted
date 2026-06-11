@@ -28,19 +28,19 @@
   transition: transform 0.35s ease-out, right 0.35s ease-out, width 0.2s ease, height 0.2s ease, background 0.2s ease;
 }
 
-.apted-handle:hover {
+.apted-handle:not(.apted-handle--open):hover {
   transform: translateX(-4px);
 }
 
 .apted-handle--open {
   right: 12px;
-  transform: translateX(-348px) translateY(6px);
+  transform: translateX(-360px) translateY(7px);
   justify-content: flex-end;
   overflow: visible;
 }
 
 .apted-handle--open:hover {
-  transform: translateX(-348px) translateY(6px);
+  transform: translateX(-360px) translateY(7px);
 }
 
 .apted-handle--disabled {
@@ -65,9 +65,18 @@
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.12));
 }
 
+.apted-handle:not(.apted-handle--open):hover .apted-handle-glyph {
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.18));
+}
+
 .apted-handle--open .apted-handle-glyph {
   font-size: 18px;
   font-weight: 500;
+  color: #000;
+  filter: none;
+}
+
+.apted-handle--open:hover .apted-handle-glyph {
   color: #000;
   filter: none;
 }
