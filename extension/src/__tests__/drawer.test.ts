@@ -207,10 +207,12 @@ describe("createHandleSVG", () => {
     expect(css).toContain("color: #111");
   });
 
-  it("open state turns glyph solid black", () => {
+  it("open state turns glyph solid black with bold weight", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-handle--open .apted-handle-glyph");
     expect(css).toContain("color: #000");
+    expect(css).toContain("font-weight: 700");
+    expect(css).toContain("opacity: 1");
   });
 });
 
