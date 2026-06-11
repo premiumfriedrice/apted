@@ -216,11 +216,10 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-handle");
   });
 
-  it("loads Outfit via @font-face in the shadow DOM styles", () => {
+  it("uses Outfit font-family in the glyph and title", () => {
     const css = createDrawerStyles();
-    expect(css).toContain("@font-face");
-    expect(css).toContain("font-family: 'Outfit'");
-    expect(css).toContain("chrome-extension://");
+    expect(css).toContain('font-family: "Outfit"');
+    expect(css).toContain("-apple-system");
   });
 
   it("does NOT include separate drawer icon — handle becomes the icon", () => {

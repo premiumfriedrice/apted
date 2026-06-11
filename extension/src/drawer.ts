@@ -38,33 +38,8 @@ export function getSlideKeyframes(): string {
 export function createDrawerStyles(): string {
   const pulse = getPulseKeyframes();
   const slide = getSlideKeyframes();
-  const outfit400 = chrome.runtime.getURL("fonts/outfit-400.ttf");
-  const outfit500 = chrome.runtime.getURL("fonts/outfit-500.ttf");
-  const outfit700 = chrome.runtime.getURL("fonts/outfit-700.ttf");
 
   return /* css */ `
-    @font-face {
-      font-family: 'Outfit';
-      font-style: normal;
-      font-weight: 400;
-      font-display: swap;
-      src: url('${outfit400}') format('truetype');
-    }
-    @font-face {
-      font-family: 'Outfit';
-      font-style: normal;
-      font-weight: 500;
-      font-display: swap;
-      src: url('${outfit500}') format('truetype');
-    }
-    @font-face {
-      font-family: 'Outfit';
-      font-style: normal;
-      font-weight: 700;
-      font-display: swap;
-      src: url('${outfit700}') format('truetype');
-    }
-
     :host, .apted-drawer, .apted-handle, .apted-backdrop,
     .apted-header, .apted-section, .apted-body, .apted-chat, .apted-status,
     .apted-btn, .apted-input, .apted-textarea, .apted-select,
@@ -780,6 +755,33 @@ export function createInitialState(): DrawerState {
     return;
   }
   console.log("[apted] injecting drawer on", location.hostname);
+
+  // Inject @font-face globally so Outfit is available inside shadow DOM
+  const fontStyle = document.createElement("style");
+  fontStyle.textContent = `
+    @font-face {
+      font-family: 'Outfit';
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url('${chrome.runtime.getURL("fonts/outfit-400.ttf")}') format('truetype');
+    }
+    @font-face {
+      font-family: 'Outfit';
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+      src: url('${chrome.runtime.getURL("fonts/outfit-500.ttf")}') format('truetype');
+    }
+    @font-face {
+      font-family: 'Outfit';
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+      src: url('${chrome.runtime.getURL("fonts/outfit-700.ttf")}') format('truetype');
+    }
+  `;
+  document.head.appendChild(fontStyle);
 
   const host = document.createElement("div");
   host.id = "apted-drawer-host";
