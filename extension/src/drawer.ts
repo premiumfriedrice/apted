@@ -91,13 +91,13 @@ export function createDrawerStyles(): string {
 
     .apted-handle--open {
       right: 12px;
-      transform: translateX(-340px) translateY(6px);
+      transform: translateX(-348px) translateY(6px);
       justify-content: flex-end;
       overflow: visible;
     }
 
     .apted-handle--open:hover {
-      transform: translateX(-340px) translateY(6px);
+      transform: translateX(-348px) translateY(6px);
     }
 
     .apted-handle--disabled {

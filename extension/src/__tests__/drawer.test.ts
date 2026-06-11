@@ -75,7 +75,7 @@ describe("drawer style constants", () => {
     expect(css).toContain("width: 64px");
     expect(css).toContain("height: 72px");
     expect(css).toContain("right: 12px");
-    expect(css).toContain("translateX(-340px)");
+    expect(css).toContain("translateX(-348px)");
     expect(css).toContain("translateY(6px)");
     const handleOpenMatch = css.match(/\.apted-handle--open\s*\{[^}]*\}/);
     expect(handleOpenMatch).toBeTruthy();
