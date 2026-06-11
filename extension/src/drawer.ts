@@ -127,7 +127,7 @@ export function createDrawerStyles(): string {
 
     .apted-handle--open .apted-handle-glyph {
       font-size: 18px;
-      font-weight: 600;
+      font-weight: 500;
       color: #000;
       opacity: 1;
       text-rendering: geometricPrecision;

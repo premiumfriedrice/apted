@@ -211,7 +211,7 @@ describe("createHandleSVG", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-handle--open .apted-handle-glyph");
     expect(css).toContain("color: #000");
-    expect(css).toContain("font-weight: 600");
+    expect(css).toContain("font-weight: 500");
     expect(css).toContain("opacity: 1");
     expect(css).toContain("text-rendering: geometricPrecision");
   });
