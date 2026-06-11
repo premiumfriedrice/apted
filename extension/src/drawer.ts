@@ -82,7 +82,7 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: flex-end;
       overflow: visible;
-      transition: transform 0.35s ease-out, right 0.35s ease-out, width 0.2s ease, height 0.2s ease, background 0.2s ease;
+      transition: transform 0.2s ease-out, right 0.2s ease-out, width 0.15s ease, height 0.15s ease, background 0.15s ease;
     }
 
     .apted-handle:not(.apted-handle--open):hover {
@@ -115,7 +115,7 @@ export function createDrawerStyles(): string {
       font-weight: 400;
       color: #111;
       line-height: 1;
-      transition: font-size 0.35s ease-out, color 0.2s ease;
+      transition: font-size 0.2s ease-out, color 0.15s ease;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -178,7 +178,7 @@ export function createDrawerStyles(): string {
       pointer-events: auto;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       transform: translateX(calc(100% + 24px));
-      transition: transform 0.35s ease-out;
+      transition: transform 0.2s ease-out;
       z-index: 2147483646;
       font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
       color: #171717;
@@ -301,7 +301,7 @@ export function createDrawerStyles(): string {
       z-index: 2147483645;
       pointer-events: auto;
       display: none;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.2s ease;
     }
 
     .apted-backdrop--visible {
