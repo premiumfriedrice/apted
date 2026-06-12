@@ -271,11 +271,11 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("preview-embed");
   });
 
-  it("includes download, save, and undo buttons", () => {
+  it("includes download, save, inject, and fullscreen buttons", () => {
     const html = createDrawerHTML();
     expect(html).toContain("download-pdf");
     expect(html).toContain("save-version");
-    expect(html).toContain("undo");
+    expect(html).toContain("inject-pdf");
   });
 
   it("includes similar resumes section", () => {

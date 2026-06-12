@@ -1,7 +1,7 @@
 import { scrapeJob } from "./scrapers";
 import { getSettings } from "./storage";
 import type { FetchPdfResult, Msg } from "./messages";
-import type { Draft, ScrapedJob, Version } from "./types";
+import type { Draft, ScrapedJob, SimilarResume, Version } from "./types";
 
 // Toolbar action UX is configurable from the options page:
 //   - "popup":  anchored toolbar popover (manifest default_popup). Works in
@@ -259,8 +259,18 @@ async function handle(msg: Msg): Promise<unknown> {
       await openInWindow();
       return { ok: true };
 
+    case "open-options":
+      await chrome.runtime.openOptionsPage();
+      return { ok: true };
+
     case "fetch-pdf":
       return fetchDraftPdf(msg.draftId, msg.ifNoneMatch);
+
+    case "find-similar":
+      return apiFetch<{ similar: SimilarResume[] }>("/api/versions/similar", {
+        method: "POST",
+        json: { jobDescription: msg.jobDescription },
+      });
 
     case "fill-nearest-input":
       // The sidepanel can't fill file inputs directly. We inject a small
