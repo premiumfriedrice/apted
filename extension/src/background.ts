@@ -273,19 +273,24 @@ async function handle(msg: Msg): Promise<unknown> {
       });
 
     case "fill-nearest-input":
-      // The sidepanel can't fill file inputs directly. We inject a small
+      // The drawer/sidepanel can't fill file inputs directly. We inject a small
       // script into the active tab that creates a File from the base64 PDF
       // and fills the nearest file input. Works on ANY page.
+      // The PDF data can be sent inline (from drawer content script) or via
+      // session storage (from sidepanel, which can access chrome.storage.session).
       try {
         const tab = await getSourceTab();
         if (!tab?.id) return { ok: false, error: "No active tab" };
-        // Read the staged PDF from session storage (written by sidepanel).
-        const stored = await chrome.storage.session.get(["aptedDragPdfB64", "aptedDragPdfFilename"]);
-        const b64 = stored.aptedDragPdfB64 as string | undefined;
-        if (!b64) return { ok: false, error: "No PDF staged" };
-        // Clean up immediately so it doesn't get reused.
-        await chrome.storage.session.remove(["aptedDragPdfB64", "aptedDragPdfFilename"]);
-        const filename = (stored.aptedDragPdfFilename as string) ?? "resume.pdf";
+        let b64 = msg.pdfB64;
+        let filename = msg.pdfFilename ?? "resume.pdf";
+        // Fallback: read from session storage (sidepanel path).
+        if (!b64) {
+          const stored = await chrome.storage.session.get(["aptedDragPdfB64", "aptedDragPdfFilename"]);
+          b64 = stored.aptedDragPdfB64 as string | undefined;
+          if (!b64) return { ok: false, error: "No PDF staged" };
+          filename = (stored.aptedDragPdfFilename as string) ?? "resume.pdf";
+          await chrome.storage.session.remove(["aptedDragPdfB64", "aptedDragPdfFilename"]);
+        }
         // Inject a function that converts base64 to a File and fills the input.
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },

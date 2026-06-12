@@ -16,7 +16,7 @@ export type Msg =
   | { type: "open-window" }
   | { type: "fetch-pdf"; draftId: string; ifNoneMatch?: string }
   | { type: "get-draft"; draftId: string }
-  | { type: "fill-nearest-input" }
+  | { type: "fill-nearest-input"; pdfB64?: string; pdfFilename?: string }
   | { type: "find-similar"; jobDescription: string }
   | { type: "open-options" };
 
@@ -37,6 +37,7 @@ export type MsgResultMap = {
   "open-options": { ok: true };
   "fetch-pdf": FetchPdfResult;
   "get-draft": Draft | { notFound: true };
+  "fill-nearest-input": { ok: boolean; error?: string };
   "find-similar": { similar: SimilarResume[] };
 };
 

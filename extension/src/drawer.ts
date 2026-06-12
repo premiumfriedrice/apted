@@ -1458,7 +1458,6 @@ export function createInitialState(): DrawerState {
     els.injectPdf.disabled = true;
     els.injectPdf.textContent = "Injecting…";
     try {
-      // Stash the PDF base64 before sending the message
       const d = state.draft;
       const { blob } = await getDraftPdfBlob({
         draftId: d.id,
@@ -1473,14 +1472,11 @@ export function createInitialState(): DrawerState {
         reader.onerror = () => reject(new Error("Failed to read PDF"));
         reader.readAsDataURL(blob);
       });
-      await chrome.storage.session.set({
-        aptedDragPdfB64: b64,
-        aptedDragPdfFilename: "resume.pdf",
-      });
-      const reply = (await send({ type: "fill-nearest-input" })) as {
-        ok: boolean;
-        error?: string;
-      };
+      const reply = (await send({
+        type: "fill-nearest-input",
+        pdfB64: b64,
+        pdfFilename: "resume.pdf",
+      })) as { ok: boolean; error?: string };
       if (reply.ok) {
         els.injectPdf.textContent = "Injected ✓";
         els.injectPdf.classList.add("apted-btn--success");
