@@ -75,8 +75,8 @@ describe("drawer style constants", () => {
     expect(css).toContain("width: 64px");
     expect(css).toContain("height: 72px");
     expect(css).toContain("right: 12px");
-    expect(css).toContain("translateX(-327px)");
-    expect(css).toContain("translateY(1px)");
+    expect(css).toContain("translateX(-360px)");
+    expect(css).toContain("translateY(7px)");
     const handleOpenMatch = css.match(/\.apted-handle--open\s*\{[^}]*\}/);
     expect(handleOpenMatch).toBeTruthy();
     expect(handleOpenMatch![0]).not.toContain("background:");
@@ -246,7 +246,7 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("pted");
     expect(html).not.toContain(">apted<");
     const css = createDrawerStyles();
-    expect(css).toContain("margin: 0 0 0 10px");
+    expect(css).toContain("margin: 0 0 0 6px");
   });
 
   it("includes JD section with company and role inputs", () => {
