@@ -168,15 +168,16 @@ export function createDrawerStyles(): string {
       position: fixed;
       top: 12px;
       right: 12px;
+      bottom: 12px;
       width: ${DRAWSER_WIDTH}px;
-      max-height: calc(100vh - 24px);
       background: #fff;
       border: 1px solid #e5e5e5;
-      border-radius: 8px;
+      border-radius: 6px;
       display: flex;
       flex-direction: column;
       pointer-events: auto;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
       transform: translateX(calc(100% + 24px));
       transition: transform 0.2s ease-out;
       z-index: 2147483646;
@@ -235,6 +236,10 @@ export function createDrawerStyles(): string {
       border-color: #e5e5e5;
     }
 
+    .apted-header-btn svg {
+      pointer-events: none;
+    }
+
     .apted-connection-text {
       display: block;
       font-size: 10px;
@@ -248,6 +253,7 @@ export function createDrawerStyles(): string {
       overflow-y: auto;
       overflow-x: hidden;
       padding: 0 16px;
+      overscroll-behavior: contain;
     }
 
     .apted-drawer-body::-webkit-scrollbar {
@@ -347,10 +353,21 @@ export function createDrawerStyles(): string {
       border-color: #1d4ed8;
     }
 
+    .apted-btn--success {
+      background: #16a34a;
+      color: #fff;
+      border-color: #16a34a;
+    }
+
     .apted-btn--sm {
       padding: 4px 10px;
       font-size: 12px;
-      border-radius: 5px;
+      border-radius: 6px;
+    }
+
+    .apted-btn--sm svg {
+      display: block;
+      margin: 0 auto;
     }
 
     .apted-btn--full {
@@ -441,6 +458,17 @@ export function createDrawerStyles(): string {
     }
 
     .apted-preview-embed[hidden] {
+      display: none;
+    }
+
+    .apted-preview-click {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      cursor: pointer;
+    }
+
+    .apted-preview-click[hidden] {
       display: none;
     }
 
@@ -605,6 +633,54 @@ export function createDrawerStyles(): string {
     .apted-dialog-backdrop[hidden] {
       display: none;
     }
+
+    /* ── Fullscreen overlay ────────────────────────────────────────────── */
+    .apted-fullscreen-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    .apted-fullscreen-overlay[hidden] {
+      display: none;
+    }
+
+    .apted-fullscreen-wrap {
+      position: relative;
+      width: min(640px, 85vw);
+      height: min(960px, 94vh);
+    }
+
+    .apted-fullscreen-wrap::before {
+      content: "";
+      position: absolute;
+      inset: -16px;
+      backdrop-filter: blur(40px) saturate(1.3);
+      -webkit-backdrop-filter: blur(40px) saturate(1.3);
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
+                  0 20px 60px rgba(0, 0, 0, 0.3);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .apted-fullscreen-embed {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2),
+                  0 24px 80px rgba(0, 0, 0, 0.4);
+    }
   `;
 }
 
@@ -628,12 +704,12 @@ export function createDrawerHTML(): string {
         <div class="apted-drawer-header-row">
           <h1 class="apted-drawer-title">pted</h1>
           <div class="apted-spacer"></div>
-          <button id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
+          <button type="button" id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
             <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18">
               <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5zm7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.97l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/>
             </svg>
           </button>
-          <button id="apted-close-drawer" class="apted-header-btn" title="Minimize" aria-label="Minimize">
+          <button type="button" id="apted-close-drawer" class="apted-header-btn" title="Minimize" aria-label="Minimize">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -642,7 +718,7 @@ export function createDrawerHTML(): string {
         <span id="apted-connection" class="apted-connection-text" title="API base"></span>
       </div>
 
-      <div class="apted-drawer-body">
+      <div id="apted-drawer-body" class="apted-drawer-body">
         <div class="apted-card">
           <div class="apted-card-row">
             <h2 class="apted-card-title">Job description</h2>
@@ -661,11 +737,22 @@ export function createDrawerHTML(): string {
 
         <div class="apted-card">
           <div class="apted-card-row">
-            <h2 class="apted-card-title">Preview</h2>
+            <button id="apted-inject-pdf" class="apted-btn apted-btn--sm" disabled>Inject to page</button>
             <div class="apted-btn-group">
-              <button id="apted-download-pdf" class="apted-btn apted-btn--sm" disabled>Download</button>
-              <button id="apted-save-version" class="apted-btn apted-btn--sm" disabled>Save</button>
-              <button id="apted-undo" class="apted-btn apted-btn--sm" disabled>Undo</button>
+              <button id="apted-download-pdf" class="apted-btn apted-btn--sm" title="Download PDF" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </button>
+              <button id="apted-save-version" class="apted-btn apted-btn--sm" title="Save version" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+              </button>
             </div>
           </div>
           <div id="apted-preview" class="apted-preview-body">
@@ -679,6 +766,7 @@ export function createDrawerHTML(): string {
               <button id="apted-preview-retry" class="apted-btn apted-btn--primary apted-btn--sm">Retry</button>
             </div>
             <iframe id="apted-preview-embed" class="apted-preview-embed" title="Resume preview" hidden></iframe>
+            <div id="apted-preview-click" class="apted-preview-click" hidden></div>
           </div>
         </div>
 
@@ -722,6 +810,12 @@ export function createDrawerHTML(): string {
         <button id="apted-save-cancel" class="apted-btn">Cancel</button>
         <div class="apted-spacer"></div>
         <button id="apted-save-confirm" class="apted-btn apted-btn--primary">Save</button>
+      </div>
+    </div>
+
+    <div id="apted-fullscreen-overlay" class="apted-fullscreen-overlay" hidden>
+      <div class="apted-fullscreen-wrap">
+        <iframe id="apted-fullscreen-embed" class="apted-fullscreen-embed" title="Resume fullscreen preview"></iframe>
       </div>
     </div>
   `;
@@ -835,7 +929,10 @@ export function createInitialState(): DrawerState {
     tailor: $<HTMLButtonElement>("apted-tailor"),
     downloadPdf: $<HTMLButtonElement>("apted-download-pdf"),
     saveVersion: $<HTMLButtonElement>("apted-save-version"),
-    undo: $<HTMLButtonElement>("apted-undo"),
+    injectPdf: $<HTMLButtonElement>("apted-inject-pdf"),
+    fullscreenOverlay: $<HTMLElement>("apted-fullscreen-overlay"),
+    fullscreenEmbed: $<HTMLIFrameElement>("apted-fullscreen-embed"),
+    drawerBody: $<HTMLElement>("apted-drawer-body"),
     preview: $<HTMLElement>("apted-preview"),
     previewEmpty: $<HTMLElement>("apted-preview-empty"),
     previewLoading: $<HTMLElement>("apted-preview-loading"),
@@ -843,6 +940,7 @@ export function createInitialState(): DrawerState {
     previewErrorMsg: $<HTMLElement>("apted-preview-error-msg"),
     previewRetry: $<HTMLButtonElement>("apted-preview-retry"),
     previewEmbed: $<HTMLIFrameElement>("apted-preview-embed"),
+    previewClick: $<HTMLDivElement>("apted-preview-click"),
     similarSection: $<HTMLElement>("apted-similar-section"),
     similarList: $<HTMLElement>("apted-similar-list"),
     chatForm: $<HTMLFormElement>("apted-chat-form"),
@@ -891,6 +989,7 @@ export function createInitialState(): DrawerState {
     els.previewLoading.hidden = kind !== "loading";
     els.previewError.hidden = kind !== "error";
     els.previewEmbed.hidden = kind !== "embed";
+    els.previewClick.hidden = kind !== "embed";
   }
 
   async function refreshPdfPreview(): Promise<void> {
@@ -915,7 +1014,7 @@ export function createInitialState(): DrawerState {
       }
       state.pdfObjectUrl = objectUrl;
       state.pdfForDraftUpdatedAt = d.updatedAt;
-      els.previewEmbed.src = objectUrl;
+      els.previewEmbed.src = withPdfToolbarSuppressed(objectUrl);
       showPreviewState("embed");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -941,6 +1040,12 @@ export function createInitialState(): DrawerState {
         </span>`,
       )
       .join("");
+  }
+
+  function withPdfToolbarSuppressed(url: string): string {
+    if (!url) return url;
+    const sep = url.includes("#") ? "&" : "#";
+    return url + sep + "toolbar=0&navpanes=0";
   }
 
   function escHtml(s: string): string {
@@ -1002,7 +1107,7 @@ export function createInitialState(): DrawerState {
     els.chatSend.disabled = !hasDraft;
     els.saveVersion.disabled = !hasDraft;
     els.downloadPdf.disabled = !hasDraft;
-    els.undo.disabled = !hasDraft || !(draft?.history?.length);
+    els.injectPdf.disabled = !hasDraft;
     schedulePersist();
   }
 
@@ -1109,6 +1214,18 @@ export function createInitialState(): DrawerState {
       if (!els.jdRole.value) els.jdRole.value = scraped.title;
       schedulePersist(0);
       setStatus(`Scraped from ${scraped.source}.`, "ok");
+
+      // Find similar resumes after a successful scrape.
+      try {
+        const { similar } = (await send({
+          type: "find-similar",
+          jobDescription: scraped.jobDescription,
+        })) as { similar: SimilarResume[] };
+        renderSimilarResumes(similar);
+      } catch {
+        // Non-fatal: similar resumes are a bonus feature.
+        els.similarSection.hidden = true;
+      }
     } catch (e) {
       setStatus(errMsg(e), "error");
     }
@@ -1158,18 +1275,6 @@ export function createInitialState(): DrawerState {
     }
   }
 
-  async function doUndo(): Promise<void> {
-    if (!state.draft) return;
-    setStatus("Undoing…");
-    try {
-      const draft = (await send({ type: "undo", draftId: state.draft.id })) as Draft;
-      setDraft(draft);
-      setStatus("Reverted.", "ok");
-    } catch (e) {
-      setStatus(errMsg(e), "error");
-    }
-  }
-
   async function doDownloadPdf(): Promise<void> {
     if (!state.draft) return;
     const d = state.draft;
@@ -1199,7 +1304,7 @@ export function createInitialState(): DrawerState {
         if (state.pdfObjectUrl) URL.revokeObjectURL(state.pdfObjectUrl);
         state.pdfObjectUrl = url;
         state.pdfForDraftUpdatedAt = d.updatedAt;
-        els.previewEmbed.src = url;
+        els.previewEmbed.src = withPdfToolbarSuppressed(url);
         showPreviewState("embed");
       }
       setStatus("Downloaded " + filename, "ok");
@@ -1328,18 +1433,93 @@ export function createInitialState(): DrawerState {
 
   els.handle.addEventListener("click", () => toggleDrawer());
   els.backdrop.addEventListener("click", closeDrawer);
+  // Prevent wheel events from the drawer body from scrolling the main page
+  els.drawerBody.addEventListener("wheel", (e) => {
+    e.stopPropagation();
+  }, { passive: true });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && state.open) {
-      closeDrawer();
+    if (e.key === "Escape") {
+      if (!els.fullscreenOverlay.hidden) {
+        els.fullscreenOverlay.hidden = true;
+        els.fullscreenEmbed.src = "";
+      } else if (state.open) {
+        closeDrawer();
+      }
     }
   });
   els.openSettings.addEventListener("click", () => {
-    chrome.runtime.openOptionsPage();
+    void send({ type: "open-options" });
   });
   els.closeDrawerBtn.addEventListener("click", closeDrawer);
   els.rescrape.addEventListener("click", () => void doScrape());
   els.tailor.addEventListener("click", () => void doTailor());
-  els.undo.addEventListener("click", () => void doUndo());
+  els.injectPdf.addEventListener("click", async () => {
+    if (!state.draft) return;
+    els.injectPdf.disabled = true;
+    els.injectPdf.textContent = "Injecting…";
+    try {
+      // Stash the PDF base64 before sending the message
+      const d = state.draft;
+      const { blob } = await getDraftPdfBlob({
+        draftId: d.id,
+        draftUpdatedAt: d.updatedAt,
+      });
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const parts = (reader.result as string).split(",");
+          resolve(parts[1] ?? "");
+        };
+        reader.onerror = () => reject(new Error("Failed to read PDF"));
+        reader.readAsDataURL(blob);
+      });
+      await chrome.storage.session.set({
+        aptedDragPdfB64: b64,
+        aptedDragPdfFilename: "resume.pdf",
+      });
+      const reply = (await send({ type: "fill-nearest-input" })) as {
+        ok: boolean;
+        error?: string;
+      };
+      if (reply.ok) {
+        els.injectPdf.textContent = "Injected ✓";
+        els.injectPdf.classList.add("apted-btn--success");
+        setTimeout(() => {
+          els.injectPdf.textContent = "Inject to page";
+          els.injectPdf.classList.remove("apted-btn--success");
+          els.injectPdf.disabled = false;
+        }, 2000);
+      } else {
+        els.injectPdf.textContent = "Failed";
+        els.injectPdf.disabled = false;
+      }
+    } catch (e) {
+      els.injectPdf.textContent = "Inject to page";
+      els.injectPdf.disabled = false;
+      setStatus(errMsg(e), "error");
+    }
+  });
+  // Click the transparent overlay on top of the preview iframe to open fullscreen
+  els.previewClick.addEventListener("click", () => {
+    if (!state.draft || !state.pdfObjectUrl) return;
+    els.fullscreenEmbed.src = state.pdfObjectUrl;
+    els.fullscreenOverlay.hidden = false;
+  });
+  // Prevent wheel events from the preview iframe from bubbling to the main page
+  els.preview.addEventListener("wheel", (e) => {
+    e.stopPropagation();
+  }, { passive: true });
+  // Prevent wheel events from the fullscreen overlay from bubbling to the main page
+  els.fullscreenOverlay.addEventListener("wheel", (e) => {
+    e.stopPropagation();
+  }, { passive: true });
+  // Click outside the wrap (on the overlay background) to close fullscreen
+  els.fullscreenOverlay.addEventListener("click", (e) => {
+    if (e.target === els.fullscreenOverlay) {
+      els.fullscreenOverlay.hidden = true;
+      els.fullscreenEmbed.src = "";
+    }
+  });
   els.downloadPdf.addEventListener("click", () => void doDownloadPdf());
   els.saveVersion.addEventListener("click", showSaveDialog);
   els.previewRetry.addEventListener("click", () => void refreshPdfPreview());

@@ -37,6 +37,7 @@ options that were on the table, which one was chosen, and why the others were no
 | PRE-18/22 | Extension types fix + shared type consolidation | [016-extension-types-shared-consolidation.md](016-extension-types-shared-consolidation.md) |
 | PRE-19 | CORS middleware: tighten ALLOWED_ORIGIN to configurable list | [017-cors-tightening.md](017-cors-tightening.md) |
 | PRE-8 | Schema-enforced structured output across providers | [018-structured-output.md](018-structured-output.md) |
+| PRE-70→74 | Extension drawer UI polish (fullscreen PDF, scroll containment, settings fix) | [019-extension-ui-polish.md](019-extension-ui-polish.md) |
 
 ## Entry format
 
