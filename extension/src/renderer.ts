@@ -98,6 +98,8 @@ function renderSection(s: Section): string {
           )
           .join("")}</ul>`
       );
+    default:
+      return heading;
   }
 }
 

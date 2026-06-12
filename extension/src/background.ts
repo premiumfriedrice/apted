@@ -289,7 +289,8 @@ async function handle(msg: Msg): Promise<unknown> {
             if (!inputs.length) return;
             const target = inputs.find((i) => /pdf/i.test(i.accept))
               ?? inputs.find((i) => i.offsetParent !== null)
-              ?? inputs[0];
+              ?? inputs[0]!;
+            if (!target) return;
             const dt = new DataTransfer();
             dt.items.add(file);
             target.files = dt.files;
