@@ -48,6 +48,8 @@ export type AchievementItem = {
   text: string;
 };
 
+export type SkillGroup = { category: string; items: string };
+
 export type Section =
   | { id: string; kind: "experience"; title: string; items: ExperienceItem[] }
   | { id: string; kind: "projects"; title: string; items: ProjectItem[] }

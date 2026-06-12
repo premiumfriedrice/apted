@@ -15,8 +15,8 @@ function fakeBase64(content = "FAKE_PDF"): string {
   return btoa(content);
 }
 
-function okPdfResult(base64: string, etag = '"123"', mime = "application/pdf"): FetchPdfResult {
-  return { kind: "ok", base64, etag, mime };
+function okPdfResult(base64: string, etag = '"123"', mime: "application/pdf" | undefined = "application/pdf"): FetchPdfResult {
+  return { kind: "ok", base64, etag, mime: mime ?? "application/pdf" } as const;
 }
 
 function notModifiedResult(etag = '"123"'): FetchPdfResult {
@@ -43,8 +43,8 @@ function spyObjectUrls() {
   const revoked: string[] = [];
   const origCreate = URL.createObjectURL.bind(URL);
   const origRevoke = URL.revokeObjectURL.bind(URL);
-  vi.spyOn(URL, "createObjectURL").mockImplementation((blob: Blob) => {
-    const url = origCreate(blob);
+  vi.spyOn(URL, "createObjectURL").mockImplementation((obj: Blob | MediaSource) => {
+    const url = origCreate(obj as Blob);
     created.push(url);
     return url;
   });
@@ -262,7 +262,7 @@ describe("getDraftPdfBlob", () => {
     // Simulate a small chunk of real PDF binary (including null bytes).
     const raw = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x00, 0x01, 0xff]);
     let bin = "";
-    for (let i = 0; i < raw.length; i++) bin += String.fromCharCode(raw[i]);
+    for (let i = 0; i < raw.length; i++) bin += String.fromCharCode(raw[i]!);
     const b64 = btoa(bin);
 
     mockSendMessage(okPdfResult(b64, '"bin"', "application/pdf"));

@@ -22,6 +22,7 @@ const entries = [
   { in: "src/options.ts", out: "options" },
   { in: "src/inject.ts", out: "inject" },
   { in: "src/autofill.ts", out: "autofill" },
+  { in: "src/drawer.ts", out: "drawer" },
 ];
 
 async function copyStatic() {
@@ -30,6 +31,7 @@ async function copyStatic() {
     cp("src/sidepanel.html", `${outdir}/sidepanel.html`),
     cp("src/sidepanel.css", `${outdir}/sidepanel.css`),
     cp("src/options.html", `${outdir}/options.html`),
+    cp("fonts", `${outdir}/fonts`, { recursive: true, force: true }),
   ]);
 }
 

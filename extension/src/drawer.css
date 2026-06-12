@@ -1,0 +1,177 @@
+/* apted drawer — reference stylesheet for the floating drawer content script.
+   Rendered inline in drawer.ts via createDrawerStyles(); this file serves
+   as the canonical reference for editing styles. */
+
+/* ── Handle: geometric "a" glyph, flush right edge ──────────────────── */
+/* NOTE: Outfit font is loaded via @font-face in createDrawerStyles() using
+   chrome.runtime.getURL() for local font files. The @font-face declarations
+   are injected at the top of the shadow DOM stylesheet at runtime. */
+.apted-handle {
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 2147483647;
+  pointer-events: auto;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: 64px;
+  height: 72px;
+  font: inherit;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: visible;
+  transition: transform 0.35s ease-out, right 0.35s ease-out, width 0.2s ease, height 0.2s ease, background 0.2s ease;
+}
+
+.apted-handle:not(.apted-handle--open):hover {
+  transform: translateX(-4px);
+}
+
+.apted-handle--open {
+  right: 12px;
+  transform: translateX(-360px) translateY(7px);
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+.apted-handle--open:hover {
+  transform: translateX(-360px) translateY(7px);
+}
+
+.apted-handle--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.apted-handle--hidden {
+  display: none;
+}
+
+.apted-handle-glyph {
+  font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 56px;
+  font-weight: 400;
+  color: #111;
+  line-height: 1;
+  transition: font-size 0.35s ease-out, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apted-handle:not(.apted-handle--open):hover .apted-handle-glyph {
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.18);
+}
+
+.apted-handle--open .apted-handle-glyph {
+  font-size: 18px;
+  font-weight: 500;
+  color: #000;
+  opacity: 1;
+  text-rendering: geometricPrecision;
+}
+
+.apted-handle--open:hover .apted-handle-glyph {
+  color: #000;
+  opacity: 1;
+  text-rendering: geometricPrecision;
+}
+
+/* ── Blue dot badge ───────────────────────────────────────────────── */
+.apted-handle-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 1.5px solid #fff;
+  display: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.apted-handle-dot--visible {
+  display: block;
+}
+
+/* ── Pulse animation on the glyph ─────────────────────────────────── */
+.apted-handle--pulse .apted-handle-glyph {
+  animation: apted-pulse 1.8s ease-in-out 2;
+  transform-origin: center;
+}
+
+@keyframes apted-pulse {
+  0%, 100% { transform: scale(1); }
+  7%, 30% { transform: scale(1.08); }
+  15%, 23% { transform: scale(1); }
+}
+
+/* ── Drawer body: floating overlay card, 384px ──────────────────────── */
+.apted-drawer {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 384px;
+  max-height: calc(100vh - 24px);
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateX(calc(100% + 24px));
+  transition: transform 0.35s ease-out;
+  z-index: 2147483646;
+}
+
+.apted-drawer--open {
+  transform: translateX(0);
+}
+
+.apted-drawer-title {
+  font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: #171717;
+  margin: 0 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+/* ── Scrollable body ──────────────────────────────────────────────── */
+.apted-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.apted-body::-webkit-scrollbar {
+  width: 6px;
+}
+.apted-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.apted-body::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 3px;
+}
+
+/* Backdrop */
+.apted-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 2147483645;
+  pointer-events: auto;
+  display: none;
+}
+
+.apted-backdrop--visible {
+  display: block;
+}

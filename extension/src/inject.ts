@@ -378,7 +378,8 @@ function pickProfile(host: string): SiteProfile {
       // Prefer inputs that accept PDFs, then any visible input, then the first.
       const pdfInput = inputs.find((i) => /pdf/i.test(i.accept))
         ?? inputs.find((i) => i.offsetParent !== null)
-        ?? inputs[0];
+        ?? inputs[0]!;
+      if (!pdfInput) return;
 
       const dt = new DataTransfer();
       dt.items.add(file);
