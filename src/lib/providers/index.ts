@@ -82,7 +82,8 @@ function build(name: ProviderName): Provider {
 const cache = new Map<ProviderName, Provider>();
 
 export function getProvider(name?: string): Provider {
-  const resolved = (name ?? process.env.LLM_PROVIDER ?? "anthropic") as ProviderName;
+  const fallback = process.env.OPENCODE_API_KEY ? "opencode" : "anthropic";
+  const resolved = (name ?? process.env.LLM_PROVIDER ?? fallback) as ProviderName;
   if (!PROVIDER_NAMES.includes(resolved)) {
     throw new Error(
       `Unknown LLM provider "${resolved}". Expected one of: ${PROVIDER_NAMES.join(", ")}`,
@@ -121,12 +122,14 @@ export function getProviderForFlow(flow: Flow): Provider {
   const override = process.env[FLOW_ENV[flow]];
   if (override) return getProvider(override);
 
-  // Default routing: tailor uses OpenCode (Opus/Sonnet) if configured.
-  if (flow === "tailor") {
+  // All flows use OpenCode when it's the configured provider.
+  // Tailor uses the tailor model (Sonnet), others use it too for quality.
+  // Structure selection always uses DeepSeek v4 flash.
+  if (flow === "tailor") return getTailorProvider();
+  if (flow === "edit" || flow === "import" || flow === "parse-prose") {
     if (process.env.OPENCODE_API_KEY || process.env.LLM_PROVIDER === "opencode") {
       return getTailorProvider();
     }
-    return getProvider("anthropic");
   }
   return getProvider();
 }
