@@ -49,6 +49,8 @@ function normalizeItemTags(it: unknown): void {
   if (!it || typeof it !== "object") return;
   const t = (it as { tags?: unknown }).tags;
   if (!Array.isArray(t)) (it as { tags: string[] }).tags = [];
+  const n = (it as { notes?: unknown }).notes;
+  if (n === undefined || n === null) (it as { notes: string }).notes = "";
 }
 
 const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504, 529]);

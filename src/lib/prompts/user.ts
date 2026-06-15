@@ -27,6 +27,7 @@ Rules:
 - One object per distinct entry. If the prose describes three separate roles, return three items.
 - Mint fresh short kebab-case ids for every item and every bullet.
 - Bullets: extract the achievements / responsibilities the user described. Phrase them as concise, action-led one-liners — no em-dashes, no inline bold. Do NOT invent bullets that aren't in the prose.
+- Notes: if the user provides detail beyond what fits in a one-line bullet — metrics, scope, team size, tech stack, outcomes, impact — dump it all into the notes field. Think of notes as the raw material the tailor will draw from. More detail is always better than less. Example: if the user writes "I built a notification system that handles 10k events/sec and reduced latency from 5s to 300ms, adopted by 3 teams", the bullet can be a concise one-liner but notes should capture all of that detail.
 - Missing fields → empty string. Don't fabricate dates, locations, or org names.
 - Default \`tags\` to \`[]\` unless the user explicitly tagged the entry.`;
 }
@@ -44,6 +45,7 @@ Rules:
 - Map naturally to the schema's section kinds (experience / projects / education / skills). If the input has a "Leadership" or "Activities" section, model it as a \`projects\`-kind section with that title — the renderer treats them the same.
 - "Achievements" / "Awards" sections that don't have bullet lists can also be modeled as a \`projects\` section with one-liner items, or omitted if the content doesn't fit.
 - Bullets are concise, action-led, no em-dashes, no inline bold.
+- Notes: always fill notes on experience and project items with every detail the prose provides — metrics, scope, team size, tech, outcomes, impact. More is better. The notes are source material for the tailor; they never appear on the rendered resume.
 - Missing fields → empty string. Don't invent.`;
 }
 

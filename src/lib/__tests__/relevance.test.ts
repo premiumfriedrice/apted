@@ -41,6 +41,7 @@ function makeVersion(
           start: "",
           end: "",
           bullets: [],
+          notes: "",
           tags: it.tags ?? [],
         })),
       };

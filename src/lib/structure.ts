@@ -45,6 +45,7 @@ export interface SectionSkeleton {
     // achievements: text
     label: string;
     tags: string[];
+    notes: string;  // raw detail — tells structure model what's available
   }>;
 }
 
@@ -55,6 +56,7 @@ export function toSkeleton(resume: Resume): SectionSkeleton[] {
     title: sec.title,
     items: sec.items.map((it: Record<string, unknown>) => {
       const tags = (Array.isArray(it.tags) ? it.tags : []) as string[];
+      const notes = (typeof it.notes === "string" ? it.notes : "") as string;
       let label = "";
       switch (sec.kind) {
         case "experience":
@@ -74,7 +76,7 @@ export function toSkeleton(resume: Resume): SectionSkeleton[] {
           label = (it.text as string) ?? "";
           break;
       }
-      return { id: (it.id as string) ?? "", label, tags };
+      return { id: (it.id as string) ?? "", label, tags, notes };
     }),
   }));
 }
@@ -141,7 +143,8 @@ Rules:
   items tagged "react" or with "React" in the label. Drop items that are
   completely unrelated.
 - Be inclusive when in doubt — it is better to keep a borderline item
-  than to drop something Claude might have used.
+  than to drop something Claude might have used. Notes provide extra context;
+  if an item has notes that mention relevant skills or impact, keep it.
 - Skills sections: keep the whole section unless the JD is entirely
   unrelated to tech. Do NOT filter individual skill groups.
 

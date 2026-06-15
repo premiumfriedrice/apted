@@ -50,6 +50,7 @@ function makeFullResume(overrides?: Partial<Resume>): Resume {
             bullets: [
               { id: "b1", text: "Led team of 5 engineers" },
             ],
+            notes: "",
             tags: ["leadership", "backend"],
           },
           {
@@ -60,6 +61,7 @@ function makeFullResume(overrides?: Partial<Resume>): Resume {
             start: "2018",
             end: "2020",
             bullets: [],
+            notes: "",
             tags: [],
           },
         ],
@@ -93,6 +95,7 @@ function makeFullResume(overrides?: Partial<Resume>): Resume {
             start: "2022",
             end: "2023",
             bullets: [],
+            notes: "",
             tags: [],
           },
         ],
@@ -221,9 +224,9 @@ describe("redactOrgNames / injectOrgNames / collectOrgNames", () => {
         {
           id: "exp", kind: "experience", title: "Exp",
           items: [
-            { id: "e1", title: "A", org: "Acme Corp", location: "", start: "", end: "", bullets: [], tags: [] },
-            { id: "e2", title: "B", org: "Acme Corp", location: "", start: "", end: "", bullets: [], tags: [] },
-            { id: "e3", title: "C", org: "Beta Inc", location: "", start: "", end: "", bullets: [], tags: [] },
+            { id: "e1", title: "A", org: "Acme Corp", location: "", start: "", end: "", bullets: [], notes: "", tags: [] },
+            { id: "e2", title: "B", org: "Acme Corp", location: "", start: "", end: "", bullets: [], notes: "", tags: [] },
+            { id: "e3", title: "C", org: "Beta Inc", location: "", start: "", end: "", bullets: [], notes: "", tags: [] },
           ],
         },
       ],
@@ -238,7 +241,7 @@ describe("redactOrgNames / injectOrgNames / collectOrgNames", () => {
       sections: [
         {
           id: "exp", kind: "experience", title: "Exp",
-          items: [{ id: "e1", title: "A", org: "Company A", location: "", start: "", end: "", bullets: [], tags: [] }],
+          items: [{ id: "e1", title: "A", org: "Company A", location: "", start: "", end: "", bullets: [], notes: "", tags: [] }],
         },
         {
           id: "edu", kind: "education", title: "Edu",
@@ -246,7 +249,7 @@ describe("redactOrgNames / injectOrgNames / collectOrgNames", () => {
         },
         {
           id: "proj", kind: "projects", title: "Proj",
-          items: [{ id: "p1", name: "Project C", stack: "", start: "", end: "", bullets: [], tags: [] }],
+          items: [{ id: "p1", name: "Project C", stack: "", start: "", end: "", bullets: [], notes: "", tags: [] }],
         },
       ],
     };
@@ -369,7 +372,7 @@ describe("edge cases", () => {
         contact: { name: "", phone: "", email: "", links: [] },
         sections: [{
           id: "exp", kind: "experience", title: "Exp",
-          items: [{ id: "e1", title: "Role", org, location: "", start: "", end: "", bullets: [], tags: [] }],
+          items: [{ id: "e1", title: "Role", org, location: "", start: "", end: "", bullets: [], notes: "", tags: [] }],
         }],
       };
       const { redacted, map } = redactResume(resume);
@@ -378,6 +381,31 @@ describe("edge cases", () => {
       const restoredOrg = (restored.sections[0].items[0] as { org: string }).org;
       expect(restoredOrg).toBe(org);
     }
+  });
+
+  test("notes containing org names are redacted and restored", () => {
+    const resume: Resume = {
+      contact: { name: "", phone: "", email: "", links: [] },
+      sections: [{
+        id: "exp", kind: "experience", title: "Exp",
+        items: [{
+          id: "e1", title: "Engineer", org: "Acme Corp", location: "", start: "", end: "",
+          bullets: [],
+          notes: "Built a system at Acme Corp that reduced latency by 40%. Acme Corp adopted it company-wide.",
+          tags: [],
+        }],
+      }],
+    };
+    const { redacted, map } = redactResume(resume);
+    const restored = injectResume(redacted, map);
+
+    const notes = (restored.sections[0].items[0] as { notes: string }).notes;
+    expect(notes).toBe("Built a system at Acme Corp that reduced latency by 40%. Acme Corp adopted it company-wide.");
+
+    // Redacted notes should have placeholders
+    const redactedNotes = (redacted.sections[0].items[0] as { notes: string }).notes;
+    expect(redactedNotes).not.toContain("Acme Corp");
+    expect(redactedNotes).toContain("[ORG-0]");
   });
 });
 

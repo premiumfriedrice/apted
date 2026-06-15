@@ -150,6 +150,11 @@ export function redactOrgNames(
       if ("name" in item && item.name && toPlaceholder.has(item.name)) {
         item.name = toPlaceholder.get(item.name)!;
       }
+      if ("notes" in item && typeof item.notes === "string" && item.notes) {
+        for (const [orig, placeholder] of toPlaceholder.entries()) {
+          item.notes = (item.notes as string).replaceAll(orig, placeholder);
+        }
+      }
     }
   }
 
@@ -192,6 +197,11 @@ export function injectOrgNames(
         if (m) {
           const idx = parseInt(m[1], 10);
           if (idx < orgs.length) item.name = orgs[idx];
+        }
+      }
+      if ("notes" in item && typeof item.notes === "string" && item.notes) {
+        for (let i = 0; i < orgs.length; i++) {
+          item.notes = (item.notes as string).replaceAll(`[ORG-${i}]`, orgs[i]);
         }
       }
     }

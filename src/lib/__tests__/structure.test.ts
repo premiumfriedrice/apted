@@ -40,6 +40,7 @@ function sampleMaster() {
           start: "2023",
           end: "Present",
           bullets: [{ id: "b1", text: "Led frontend migration to React 18" }],
+          notes: "",
           tags: ["react", "typescript", "frontend"],
         },
         {
@@ -50,6 +51,7 @@ function sampleMaster() {
           start: "2020",
           end: "2023",
           bullets: [{ id: "b2", text: "Built CRUD APIs in Express" }],
+          notes: "",
           tags: ["node", "express", "backend"],
         },
       ],
@@ -66,6 +68,7 @@ function sampleMaster() {
           start: "2023",
           end: "2023",
           bullets: [{ id: "b3", text: "Trained BERT classifier" }],
+          notes: "",
           tags: ["ml", "python"],
         },
         {
@@ -75,6 +78,7 @@ function sampleMaster() {
           start: "2022",
           end: "2022",
           bullets: [{ id: "b4", text: "Responsive personal site" }],
+          notes: "",
           tags: ["react", "frontend"],
         },
       ],

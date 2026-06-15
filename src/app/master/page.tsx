@@ -39,11 +39,11 @@ const mkId = (prefix: string): string =>
 const newBullet = (): Bullet => ({ id: mkId("b"), text: "" });
 const newExp = (): ExperienceItem => ({
   id: mkId("exp"), title: "", org: "", location: "", start: "", end: "",
-  bullets: [], tags: [],
+  bullets: [], notes: "", tags: [],
 });
 const newProj = (): ProjectItem => ({
   id: mkId("proj"), name: "", stack: "", start: "", end: "",
-  bullets: [], tags: [],
+  bullets: [], notes: "", tags: [],
 });
 const newEdu = (): EducationItem => ({
   id: mkId("edu"), school: "", degree: "", location: "", start: "", end: "",

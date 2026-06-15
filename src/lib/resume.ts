@@ -27,6 +27,7 @@ export const ExperienceItem = z.object({
   start: z.string().default(""),  // free text, e.g. "May 2024"
   end: z.string().default(""),    // free text, e.g. "Present"
   bullets: z.array(Bullet).default([]),
+  notes: z.string().default(""),  // raw prose: details, metrics, context — never rendered
   tags: z.array(z.string()).nullish().transform((x) => x ?? []),
 });
 
@@ -37,6 +38,7 @@ export const ProjectItem = z.object({
   start: z.string().default(""),
   end: z.string().default(""),
   bullets: z.array(Bullet).default([]),
+  notes: z.string().default(""),  // raw prose: details, metrics, context — never rendered
   tags: z.array(z.string()).nullish().transform((x) => x ?? []),
 });
 
