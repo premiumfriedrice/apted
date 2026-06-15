@@ -37,7 +37,33 @@ When two sections compete for page real estate, pick the one whose content most 
 - No em-dashes (—) anywhere. Use commas, semicolons, or sentence breaks.
 - No inline bold (`\textbf{}`) inside bullets. Bold is reserved for headings and project names.
 - Prioritize shipped, real-user work over coursework or in-progress projects.
-- Bullets start with strong verbs, lead with impact, and stay one to two lines each.
+
+## Bullet writing (when tailoring)
+
+Every tailored bullet must follow the **XYZ formula**: "Accomplished [X] as measured by [Y], by doing [Z]."
+
+- **X (what you achieved):** The concrete outcome. "Reduced p95 latency" not "Worked on latency."
+- **Y (how you measured it):** A number, percentage, or observable signal. "by 40%", "from 2s to 1.2s", "across 3 deployments". If the master has no metric, use a qualitative signal: "adopted by 2 downstream teams" or "resolving the long-standing checkout bug."
+- **Z (how you did it):** The method or technology. "by migrating the order service from REST to gRPC", "by building a real-time batch validator in Go."
+
+Not every bullet will have all three parts — some facts don't have metrics. That is fine. But **start with X whenever possible**, add Y if you have it, and Z is the how. Never lead with Z alone ("Used React to build components"). Always lead with impact.
+
+When the master bullet is vague ("Worked on the checkout flow"), rewrite it into XYZ shape using whatever specifics exist. If no specifics exist at all, keep the original — never fabricate metrics.
+
+**Keyword weaving.** Extract the key nouns and verbs from the JD and fold them naturally into bullets. The JD is your vocabulary list.
+
+- If the JD says "cross-functional collaboration," a bullet should read: "Aligned 3 cross-functional teams on API contract changes, cutting integration churn by 60%" — not just "Collaborated with other teams."
+- If the JD lists "Kubernetes, Terraform, CI/CD," the Z-part of your bullets should name those tools when the experience matches.
+- Keywords must connect to real experience. Never stuff a keyword that has no backing fact in the master resume.
+- Prefer the JD's exact phrasing when it fits naturally. If the JD says "distributed systems," write "distributed systems" — not "large-scale backend."
+
+**Structural rules for bullets:**
+
+- Each bullet: one to two lines. If it needs three, split it into two bullets.
+- Start with a strong action verb: Reduced, Built, Led, Designed, Shipped, Improved, Migrated, Automated. Not "Helped with," "Worked on," "Responsible for."
+- The strongest bullet for any given item goes first. Readers scan top-down.
+- 2-4 bullets per role or project. Drop weak bullets rather than padding.
+- Past `resume_versions` show how previous tailors phrased impact for a given role — use them as phrasing hints only, never as new facts.
 
 ## Master JSON schema
 
