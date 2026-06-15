@@ -94,6 +94,8 @@ export function createDrawerStyles(): string {
       transform: translateX(-360px) translateY(7px);
       justify-content: flex-end;
       overflow: visible;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .apted-handle--open:hover {
@@ -211,7 +213,7 @@ export function createDrawerStyles(): string {
       font-size: 18px;
       font-weight: 500;
       color: #171717;
-      margin: 0 0 0 6px;
+      margin: 0;
       letter-spacing: -0.02em;
     }
 
@@ -441,6 +443,7 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: center;
       min-height: 280px;
+      resize: vertical;
     }
 
     .apted-preview-body .apted-empty {
@@ -452,23 +455,11 @@ export function createDrawerStyles(): string {
     .apted-preview-embed {
       width: 100%;
       height: 100%;
-      min-height: 280px;
       border: 0;
       border-radius: 6px;
     }
 
     .apted-preview-embed[hidden] {
-      display: none;
-    }
-
-    .apted-preview-click {
-      position: absolute;
-      inset: 0;
-      z-index: 5;
-      cursor: pointer;
-    }
-
-    .apted-preview-click[hidden] {
       display: none;
     }
 
@@ -509,29 +500,48 @@ export function createDrawerStyles(): string {
     /* ── Similar resumes ───────────────────────────────────────────────── */
     .apted-similar-list {
       display: flex;
+      flex-direction: column;
       gap: 6px;
-      flex-wrap: wrap;
     }
 
     .apted-similar-item {
-      display: inline-flex;
-      align-items: baseline;
-      gap: 4px;
-      font-size: 12px;
-      padding: 3px 10px;
-      background: #f9fafb;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #fff;
       border: 1px solid #e5e5e5;
-      border-radius: 999px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .apted-similar-item:hover {
+      border-color: #d1d5db;
     }
 
     .apted-similar-score {
       font-weight: 700;
-      font-size: 12px;
+      font-size: 11px;
       color: ${ACCENT_COLOR};
+    }
+
+    .apted-similar-score-badge {
+      background: ${ACCENT_COLOR};
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 999px;
+      flex-shrink: 0;
     }
 
     .apted-similar-text {
       color: #171717;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .apted-similar-company {
@@ -702,7 +712,7 @@ export function createDrawerHTML(): string {
     <div id="apted-drawer" class="apted-drawer">
       <div class="apted-drawer-header">
         <div class="apted-drawer-header-row">
-          <h1 class="apted-drawer-title">pted</h1>
+          <h1 class="apted-drawer-title">apted</h1>
           <div class="apted-spacer"></div>
           <button type="button" id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
             <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18">
@@ -722,7 +732,10 @@ export function createDrawerHTML(): string {
         <div class="apted-card">
           <div class="apted-card-row">
             <h2 class="apted-card-title">Job description</h2>
-            <button id="apted-rescrape" class="apted-btn apted-btn--sm">Scrape</button>
+            <div class="apted-btn-group" style="margin-left:auto;">
+              <button id="apted-clear-jd" class="apted-btn apted-btn--sm" title="Clear job description fields">clear</button>
+              <button id="apted-rescrape" class="apted-btn apted-btn--sm">scrape</button>
+            </div>
           </div>
           <input id="apted-jd-company" class="apted-input" placeholder="Company" />
           <input id="apted-jd-role" class="apted-input" placeholder="Role" />
@@ -739,6 +752,11 @@ export function createDrawerHTML(): string {
           <div class="apted-card-row">
             <button id="apted-inject-pdf" class="apted-btn apted-btn--sm" disabled>Inject to page</button>
             <div class="apted-btn-group">
+              <button id="apted-fullscreen-btn" class="apted-btn apted-btn--sm" title="Fullscreen" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+              </button>
               <button id="apted-download-pdf" class="apted-btn apted-btn--sm" title="Download PDF" disabled>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -766,12 +784,11 @@ export function createDrawerHTML(): string {
               <button id="apted-preview-retry" class="apted-btn apted-btn--primary apted-btn--sm">Retry</button>
             </div>
             <iframe id="apted-preview-embed" class="apted-preview-embed" title="Resume preview" hidden></iframe>
-            <div id="apted-preview-click" class="apted-preview-click" hidden></div>
           </div>
         </div>
 
         <div id="apted-similar-section" class="apted-card" hidden>
-          <h2 class="apted-card-title">Similar resumes</h2>
+          <h2 class="apted-card-title">Past tailored resumes</h2>
           <div id="apted-similar-list" class="apted-similar-list"></div>
         </div>
       </div>
@@ -850,12 +867,14 @@ export function createInitialState(): DrawerState {
 }
 
 (function () {
-  if (!SUPPORTED_URL_RE.test(location.href)) {
-    console.log("[apted] URL not supported:", location.href);
-    return;
-  }
   if (document.getElementById("apted-drawer-host")) {
     console.log("[apted] already injected");
+    return;
+  }
+  // Don't inject on browser-internal pages or in test environments
+  // where chrome.runtime.getURL isn't available.
+  if (!chrome?.runtime?.getURL) {
+    console.log("[apted] not an extension context, skipping drawer injection");
     return;
   }
   console.log("[apted] injecting drawer on", location.hostname);
@@ -923,12 +942,14 @@ export function createInitialState(): DrawerState {
     openSettings: $<HTMLButtonElement>("apted-open-settings"),
     closeDrawerBtn: $<HTMLButtonElement>("apted-close-drawer"),
     rescrape: $<HTMLButtonElement>("apted-rescrape"),
+    clearJd: $<HTMLButtonElement>("apted-clear-jd"),
     jdCompany: $<HTMLInputElement>("apted-jd-company"),
     jdRole: $<HTMLInputElement>("apted-jd-role"),
     jdText: $<HTMLTextAreaElement>("apted-jd-text"),
     tailor: $<HTMLButtonElement>("apted-tailor"),
     downloadPdf: $<HTMLButtonElement>("apted-download-pdf"),
     saveVersion: $<HTMLButtonElement>("apted-save-version"),
+    fullscreenBtn: $<HTMLButtonElement>("apted-fullscreen-btn"),
     injectPdf: $<HTMLButtonElement>("apted-inject-pdf"),
     fullscreenOverlay: $<HTMLElement>("apted-fullscreen-overlay"),
     fullscreenEmbed: $<HTMLIFrameElement>("apted-fullscreen-embed"),
@@ -940,7 +961,7 @@ export function createInitialState(): DrawerState {
     previewErrorMsg: $<HTMLElement>("apted-preview-error-msg"),
     previewRetry: $<HTMLButtonElement>("apted-preview-retry"),
     previewEmbed: $<HTMLIFrameElement>("apted-preview-embed"),
-    previewClick: $<HTMLDivElement>("apted-preview-click"),
+
     similarSection: $<HTMLElement>("apted-similar-section"),
     similarList: $<HTMLElement>("apted-similar-list"),
     chatForm: $<HTMLFormElement>("apted-chat-form"),
@@ -965,6 +986,7 @@ export function createInitialState(): DrawerState {
     persistTimer = setTimeout(() => {
       persistTimer = null;
       void writeSession({
+        url: location.href,
         jd: els.jdText.value,
         company: els.jdCompany.value,
         role: els.jdRole.value,
@@ -989,7 +1011,6 @@ export function createInitialState(): DrawerState {
     els.previewLoading.hidden = kind !== "loading";
     els.previewError.hidden = kind !== "error";
     els.previewEmbed.hidden = kind !== "embed";
-    els.previewClick.hidden = kind !== "embed";
   }
 
   async function refreshPdfPreview(): Promise<void> {
@@ -1032,12 +1053,13 @@ export function createInitialState(): DrawerState {
     }
     els.similarSection.hidden = false;
     els.similarList.innerHTML = similar
+      .slice(0, 3)
       .map(
         (s) => `
-        <span class="apted-similar-item">
-          <span class="apted-similar-score">${s.score}%</span>
+        <div class="apted-similar-item" data-version-id="${escHtml(s.id ?? "")}">
+          <span class="apted-similar-score-badge">${s.score}%</span>
           <span class="apted-similar-text">${escHtml(s.role)} <span class="apted-similar-company">@ ${escHtml(s.company)}</span></span>
-        </span>`,
+        </div>`,
       )
       .join("");
   }
@@ -1107,6 +1129,7 @@ export function createInitialState(): DrawerState {
     els.chatSend.disabled = !hasDraft;
     els.saveVersion.disabled = !hasDraft;
     els.downloadPdf.disabled = !hasDraft;
+    els.fullscreenBtn.disabled = !hasDraft;
     els.injectPdf.disabled = !hasDraft;
     schedulePersist();
   }
@@ -1210,10 +1233,37 @@ export function createInitialState(): DrawerState {
       const scraped = (await send({ type: "scrape" })) as ScrapedJob;
       els.jdText.value = scraped.jobDescription;
       state.jobDescription = scraped.jobDescription;
-      if (!els.jdCompany.value) els.jdCompany.value = scraped.company;
-      if (!els.jdRole.value) els.jdRole.value = scraped.title;
+      els.jdCompany.value = scraped.company;
+      els.jdRole.value = scraped.title;
       schedulePersist(0);
-      setStatus(`Scraped from ${scraped.source}.`, "ok");
+      setStatus(`Scraped from ${scraped.source}. Extracting fields…`, "ok");
+
+      // Extract company/role/location via LLM for better accuracy.
+      // This runs in parallel with similar-resumes so the user sees
+      // scraped fields immediately and the LLM values update shortly after.
+      const jd = scraped.jobDescription;
+      if (jd.trim()) {
+        try {
+          const extracted = (await send({
+            type: "extract",
+            url: scraped.url,
+            title: scraped.title,
+            company: scraped.company,
+            jobDescription: jd,
+            source: scraped.source,
+          })) as { title: string; company: string; location: string; terms: string[] };
+          // Only overwrite if the LLM returned non-empty values.
+          if (extracted.company) els.jdCompany.value = extracted.company;
+          if (extracted.title) els.jdRole.value = extracted.title;
+          schedulePersist(0);
+          setStatus(`Extracted fields.`, "ok");
+        } catch {
+          // Non-fatal: scraped values are already filled in.
+          setStatus(`Scraped from ${scraped.source}.`, "ok");
+        }
+      } else {
+        setStatus(`Scraped from ${scraped.source}.`, "ok");
+      }
 
       // Find similar resumes after a successful scrape.
       try {
@@ -1398,6 +1448,7 @@ export function createInitialState(): DrawerState {
           if ("notFound" in draft) {
             setStatus("Previous draft is no longer available; JD restored.", "ok");
             await writeSession({
+              url: location.href,
               jd: snap.jd,
               company: snap.company,
               role: snap.role,
@@ -1412,6 +1463,7 @@ export function createInitialState(): DrawerState {
           setStatus("Couldn't load previous draft: " + errMsg(e), "error");
           try {
             await writeSession({
+              url: location.href,
               jd: snap.jd,
               company: snap.company,
               role: snap.role,
@@ -1452,6 +1504,15 @@ export function createInitialState(): DrawerState {
   });
   els.closeDrawerBtn.addEventListener("click", closeDrawer);
   els.rescrape.addEventListener("click", () => void doScrape());
+  els.clearJd.addEventListener("click", () => {
+    els.jdText.value = "";
+    els.jdCompany.value = "";
+    els.jdRole.value = "";
+    state.jobDescription = "";
+    state.company = "";
+    state.role = "";
+    schedulePersist(0);
+  });
   els.tailor.addEventListener("click", () => void doTailor());
   els.injectPdf.addEventListener("click", async () => {
     if (!state.draft) return;
@@ -1495,11 +1556,37 @@ export function createInitialState(): DrawerState {
       setStatus(errMsg(e), "error");
     }
   });
-  // Click the transparent overlay on top of the preview iframe to open fullscreen
-  els.previewClick.addEventListener("click", () => {
+  // Click the fullscreen button to open the current draft PDF in fullscreen
+  els.fullscreenBtn.addEventListener("click", () => {
     if (!state.draft || !state.pdfObjectUrl) return;
-    els.fullscreenEmbed.src = state.pdfObjectUrl;
+    els.fullscreenEmbed.src = withPdfToolbarSuppressed(state.pdfObjectUrl);
     els.fullscreenOverlay.hidden = false;
+  });
+  // Click a similar resume card to open its PDF in fullscreen
+  els.similarList.addEventListener("click", async (e) => {
+    const item = (e.target as HTMLElement).closest(".apted-similar-item") as HTMLElement | null;
+    if (!item) return;
+    const versionId = item.dataset.versionId;
+    if (!versionId) return;
+    setStatus("Loading PDF…");
+    try {
+      const reply = (await send({
+        type: "fetch-version-pdf",
+        versionId,
+      })) as { base64: string | null; mime: string };
+      if (!reply.base64) {
+        setStatus("No PDF available for this version.", "error");
+        return;
+      }
+      const bytes = Uint8Array.from(atob(reply.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: reply.mime });
+      const url = URL.createObjectURL(blob);
+      els.fullscreenEmbed.src = url;
+      els.fullscreenOverlay.hidden = false;
+      setStatus("");
+    } catch (e) {
+      setStatus(errMsg(e), "error");
+    }
   });
   // Prevent wheel events from the preview iframe from bubbling to the main page
   els.preview.addEventListener("wheel", (e) => {
@@ -1536,6 +1623,27 @@ export function createInitialState(): DrawerState {
     if (area === "sync") void refreshConnection();
   });
 
+  // Listen for open-drawer from the background service worker.
+  // On supported pages (content_scripts in manifest), the message arrives
+  // via chrome.runtime.onMessage. On non-supported pages (dynamic injection),
+  // the message arrives via a DOM event because chrome.runtime isn't available
+  // in the main world.
+  window.addEventListener("apted-open-drawer", () => {
+    openDrawer();
+  });
+  try {
+    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+      if (msg && typeof msg === "object" && (msg as { type: string }).type === "open-drawer") {
+        openDrawer();
+        sendResponse({ ok: true });
+        return true;
+      }
+      return false;
+    });
+  } catch {
+    // chrome.runtime not available (main world injection) — DOM event above handles it.
+  }
+
   const attach = () => {
     if (!document.body) return;
     document.body.appendChild(host);
@@ -1543,6 +1651,11 @@ export function createInitialState(): DrawerState {
     void refreshConnection();
     showPreviewState("empty");
     void (async () => {
+      try {
+        /* restored preview height / zoom removed */
+      } catch {
+        /* ignore */
+      }
       try {
         const key = `aptedDrawerOpen:${location.hostname}`;
         const stored = await chrome.storage.local.get(key);

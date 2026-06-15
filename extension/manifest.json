@@ -5,19 +5,11 @@
   "description": "Tailor your resume to the job posting in your active tab. Thin client for the apted web app.",
   "permissions": ["activeTab", "scripting", "storage", "sidePanel", "contextMenus", "clipboardWrite"],
   "host_permissions": [
-    "https://*.linkedin.com/*",
-    "https://boards.greenhouse.io/*",
-    "https://job-boards.greenhouse.io/*",
-    "https://*.greenhouse.io/*",
-    "https://jobs.lever.co/*",
-    "https://*.myworkdayjobs.com/*",
-    "https://jobs.ashbyhq.com/*"
+    "<all_urls>"
   ],
-  "optional_host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
   "action": {
-    "default_title": "apted",
-    "default_popup": "sidepanel.html"
+    "default_title": "apted"
   },
   "side_panel": { "default_path": "sidepanel.html" },
   "options_page": "options.html",

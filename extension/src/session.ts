@@ -9,6 +9,7 @@ export type StoredChatTurn = { who: "you" | "apted"; text: string };
 
 export type Snapshot = {
   ts: number;             // write time; used for TTL check
+  url: string;            // page URL so we don't restore stale data from a different job
   jd: string;
   company: string;
   role: string;
@@ -22,6 +23,10 @@ export async function readSession(): Promise<Snapshot | null> {
   if (!snap || typeof snap.ts !== "number") return null;
   if (Date.now() - snap.ts > SESSION_TTL_MS) {
     await chrome.storage.local.remove(KEY);
+    return null;
+  }
+  // Only restore if the session was saved on this exact page.
+  if (snap.url !== location.href) {
     return null;
   }
   return snap;

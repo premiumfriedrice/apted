@@ -75,6 +75,7 @@ function schedulePersist(delayMs = 250): void {
   persistTimer = setTimeout(() => {
     persistTimer = null;
     void writeSession({
+      url: location.href,
       jd: els.jdText.value,
       company: els.jdCompany.value,
       role: els.jdRole.value,
@@ -328,7 +329,31 @@ async function doScrape(): Promise<void> {
     // Programmatic input changes don't fire the input event, so the input
     // listener wouldn't capture the scrape into the session. Persist directly.
     schedulePersist(0);
-    setStatus(`Scraped from ${scraped.source}.`, "ok");
+    setStatus(`Scraped from ${scraped.source}. Extracting fields…`, "ok");
+
+    // Extract company/role/location via LLM for better accuracy.
+    const jd = scraped.jobDescription;
+    if (jd.trim()) {
+      try {
+        const extracted = (await send({
+          type: "extract",
+          url: scraped.url,
+          title: scraped.title,
+          company: scraped.company,
+          jobDescription: jd,
+          source: scraped.source,
+        })) as { title: string; company: string; location: string; terms: string[] };
+        if (extracted.company && !els.jdCompany.value) els.jdCompany.value = extracted.company;
+        if (extracted.title && !els.jdRole.value) els.jdRole.value = extracted.title;
+        schedulePersist(0);
+        setStatus("Extracted fields.", "ok");
+      } catch {
+        // Non-fatal: scraped values are already filled in.
+        setStatus(`Scraped from ${scraped.source}.`, "ok");
+      }
+    } else {
+      setStatus(`Scraped from ${scraped.source}.`, "ok");
+    }
   } catch (e) {
     setStatus(errMsg(e), "error");
   }
@@ -457,6 +482,7 @@ async function restoreFromSession(): Promise<boolean> {
           // from the snapshot so next reload doesn't try the dead id again.
           setStatus("Previous draft is no longer available; JD restored.", "ok");
           await writeSession({
+            url: location.href,
             jd: snap.jd,
             company: snap.company,
             role: snap.role,
@@ -475,6 +501,7 @@ async function restoreFromSession(): Promise<boolean> {
         setStatus("Couldn't load previous draft: " + errMsg(e), "error");
         try {
           await writeSession({
+            url: location.href,
             jd: snap.jd,
             company: snap.company,
             role: snap.role,

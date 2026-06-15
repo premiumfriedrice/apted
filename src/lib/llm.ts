@@ -95,7 +95,7 @@ async function callModel(
 //
 // The optional `schema` parameter enables structured output for providers
 // that support it (Anthropic output_config, OpenAI json_schema response_format).
-async function callAndParse<T>(
+export async function callAndParse<T>(
   provider: Provider,
   systemPrompt: string,
   userPrompt: string,
