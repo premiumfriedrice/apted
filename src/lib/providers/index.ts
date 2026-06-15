@@ -10,10 +10,10 @@ import { AnthropicProvider } from "./anthropic";
 import { OpenAICompatibleProvider } from "./openai";
 import type { Provider } from "./types";
 
-export type ProviderName = "anthropic" | "openai" | "gemini" | "deepseek";
+export type ProviderName = "anthropic" | "openai" | "gemini" | "deepseek" | "opencode";
 export type { Provider } from "./types";
 
-export const PROVIDER_NAMES: ProviderName[] = ["anthropic", "openai", "gemini", "deepseek"];
+export const PROVIDER_NAMES: ProviderName[] = ["anthropic", "openai", "gemini", "deepseek", "opencode"];
 
 // Google exposes an OpenAI-compatible surface here, so the OpenAI adapter works
 // verbatim against Gemini.
@@ -21,6 +21,11 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai
 
 // DeepSeek is OpenAI-compatible — same adapter as Gemini.
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
+
+// OpenCode Zen is an OpenAI-compatible proxy at https://opencode.ai/zen/v1.
+// It routes to different providers based on the model prefix:
+//   anthropic/claude-sonnet-4-5, deepseek/deepseek-v4-flash, etc.
+const OPENCODE_BASE_URL = process.env.OPENCODE_BASE_URL ?? "https://opencode.ai/zen/v1";
 
 // Per-provider model defaults. Override any of them with the matching *_MODEL
 // env var without touching code.
@@ -34,6 +39,8 @@ function defaultModel(name: ProviderName): string {
       return process.env.GEMINI_MODEL ?? "gemini-2.0-flash-lite";
     case "deepseek":
       return process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+    case "opencode":
+      return process.env.OPENCODE_MODEL ?? "claude-sonnet-4-5";
   }
 }
 
@@ -62,13 +69,20 @@ function build(name: ProviderName): Provider {
         defaultModel("deepseek"),
         "deepseek",
       );
+    case "opencode":
+      return new OpenAICompatibleProvider(
+        new OpenAI({ apiKey: process.env.OPENCODE_API_KEY!, baseURL: OPENCODE_BASE_URL }),
+        defaultModel("opencode"),
+        "opencode",
+      );
   }
 }
 
 const cache = new Map<ProviderName, Provider>();
 
 export function getProvider(name?: string): Provider {
-  const resolved = (name ?? process.env.LLM_PROVIDER ?? "anthropic") as ProviderName;
+  const fallback = process.env.OPENCODE_API_KEY ? "opencode" : "anthropic";
+  const resolved = (name ?? process.env.LLM_PROVIDER ?? fallback) as ProviderName;
   if (!PROVIDER_NAMES.includes(resolved)) {
     throw new Error(
       `Unknown LLM provider "${resolved}". Expected one of: ${PROVIDER_NAMES.join(", ")}`,
@@ -82,8 +96,18 @@ export function getProvider(name?: string): Provider {
   return provider;
 }
 
+// Build an OpenCode provider with a specific model. Used by getTailorProvider
+// and getStructureProvider to route different models through the same proxy.
+function buildOpenCodeProvider(model: string): Provider {
+  return new OpenAICompatibleProvider(
+    new OpenAI({ apiKey: process.env.OPENCODE_API_KEY!, baseURL: OPENCODE_BASE_URL }),
+    model,
+    "opencode",
+  );
+}
+
 // Per-flow model routing. Each flow can be pinned with its own LLM_PROVIDER_<FLOW>
-// env var; unset flows fall back to the global LLM_PROVIDER (then anthropic).
+// env var; unset flows fall back to the global LLM_PROVIDER.
 export type Flow = "edit" | "import" | "parse-prose" | "tailor";
 
 const FLOW_ENV: Record<Flow, string> = {
@@ -97,17 +121,35 @@ export function getProviderForFlow(flow: Flow): Provider {
   const override = process.env[FLOW_ENV[flow]];
   if (override) return getProvider(override);
 
-  // Default routing: tailor uses Anthropic (Sonnet) for quality.
-  // Other flows use the default provider.
-  if (flow === "tailor") return getProvider("anthropic");
+  // When OpenCode is configured, route all quality-sensitive flows through it.
+  // Tailor: Sonnet via OpenCode for bullet rewording.
+  // Edit/import/parse-prose: also Sonnet for quality.
+  if (process.env.OPENCODE_API_KEY) {
+    if (flow === "tailor" || flow === "edit") return getTailorProvider();
+    // Lighter flows can use a cheaper model if desired; for now, same.
+    return getTailorProvider();
+  }
+
+  // Fallback: Anthropic for quality flows, whatever LLM_PROVIDER is for others.
+  if (flow === "tailor" || flow === "edit") return getProvider("anthropic");
   return getProvider();
 }
 
+// getTailorProvider returns an OpenCode provider configured with the tailor model
+// (Sonnet via OpenCode). Used for the main tailoring/editing pipeline.
+export function getTailorProvider(): Provider {
+  const model = process.env.OPENCODE_TAILOR_MODEL ?? "claude-sonnet-4-5";
+  return buildOpenCodeProvider(model);
+}
+
 // getStructureProvider returns the provider used for the two-phase tailor's
-// structure-selection step (cheap model that filters the master resume before
-// the main model does the heavy lifting). Uses DeepSeek when configured;
-// otherwise falls back to Anthropic.
+// structure-selection step. Uses DeepSeek v4 flash via OpenCode when configured;
+// falls back to DeepSeek direct, then Anthropic.
 export function getStructureProvider(): Provider {
+  if (process.env.OPENCODE_API_KEY) {
+    const model = process.env.OPENCODE_STRUCTURE_MODEL ?? "deepseek-v4-flash";
+    return buildOpenCodeProvider(model);
+  }
   if (process.env.DEEPSEEK_API_KEY) return getProvider("deepseek");
   return getProvider("anthropic");
 }
