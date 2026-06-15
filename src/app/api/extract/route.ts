@@ -14,7 +14,7 @@ const ExtractSchema = z.object({
 const SYSTEM_PROMPT = `You extract structured fields from job descriptions.
 
 Rules:
-- "company": The hiring company name. Use the official name, not a team/division. E.g. "Google" not "Google Cloud", "Stripe" not "Stripe, Inc." If no company is mentioned, use an empty string.
+- "company": The hiring company name. Use the official name, not a team/division. E.g. "Google" not "Google Cloud", "Stripe" not "Stripe, Inc." If no company is mentioned, try to infer it from the URL domain. E.g. "careers.leidos.com" → "Leidos", "jobs.ashbyhq.com/acme" → "Acme".
 - "title": The job title as written. E.g. "Senior React Engineer" not "Senior React Engineer at Stripe"
 - "location": The job location as written. E.g. "San Francisco, CA" or "Remote". If not mentioned, use an empty string.
 - "terms": An array of key skills/technologies mentioned. E.g. ["React", "TypeScript", "Node.js"]. Max 10 items.
@@ -33,7 +33,7 @@ function extractJson(text: string): string {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { title: domTitle, company: domCompany, jobDescription, source } = body as {
+  const { title: domTitle, company: domCompany, jobDescription, url, source } = body as {
     url?: string;
     title?: string;
     company?: string;
@@ -51,8 +51,9 @@ export async function POST(req: Request) {
   // Use first 3000 chars — company/title/location always appear early.
   const snippet = jobDescription.slice(0, 3000);
 
-  // Build the user prompt, including any DOM-extracted hints.
+  // Build the user prompt, including URL and any context.
   const hints: string[] = [];
+  if (url) hints.push(`URL: ${url}`);
   if (domTitle) hints.push(`DOM-extracted title: ${domTitle}`);
   if (domCompany) hints.push(`DOM-extracted company: ${domCompany}`);
   if (source) hints.push(`Source site: ${source}`);

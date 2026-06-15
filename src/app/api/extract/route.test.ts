@@ -54,9 +54,7 @@ describe("POST /api/extract", () => {
       method: "POST",
       body: JSON.stringify({
         jobDescription: "Senior Software Engineer at Leidos. Remote. Python, AWS.",
-        url: "https://careers.leidos.com/jobs/123",
-        title: "Senior Software Engineer",
-        company: "leidos",
+        url: "https://careers.leidos.com/jobs/17768835-software-engineer-intern",
         source: "generic",
       }),
       headers: { "Content-Type": "application/json" },
