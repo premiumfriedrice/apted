@@ -598,6 +598,10 @@ function ExpSectionBody({ section, onChange, onAddFromProse }: { section: ExpSec
             bullets={it.bullets}
             onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
           />
+          <NotesInput
+            value={it.notes ?? ""}
+            onChange={(v) => setItems(section.items.map((x, j) => j === i ? { ...x, notes: v } : x))}
+          />
           <TagsInput
             tags={it.tags ?? []}
             onChange={(tags) => setItems(section.items.map((x, j) => j === i ? { ...x, tags } : x))}
@@ -647,6 +651,10 @@ function ProjSectionBody({ section, onChange, onAddFromProse }: { section: ProjS
           <BulletList
             bullets={it.bullets}
             onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
+          />
+          <NotesInput
+            value={it.notes ?? ""}
+            onChange={(v) => setItems(section.items.map((x, j) => j === i ? { ...x, notes: v } : x))}
           />
           <TagsInput
             tags={it.tags ?? []}
@@ -939,6 +947,22 @@ function TagsInput({
           }}
         />
       </div>
+    </div>
+  );
+}
+
+function NotesInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="mt-3">
+      <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        Notes <span className="font-normal lowercase text-neutral-400">(raw detail for tailoring — metrics, scope, outcomes. Never shown on the resume.)</span>
+      </span>
+      <textarea
+        className={`${inputCls} mt-1 min-h-[80px] w-full resize-y`}
+        placeholder="E.g. Built a notification system that handles 10k events/sec, reduced latency from 5s to 300ms, adopted by 3 teams"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
