@@ -38,6 +38,7 @@ options that were on the table, which one was chosen, and why the others were no
 | PRE-19 | CORS middleware: tighten ALLOWED_ORIGIN to configurable list | [017-cors-tightening.md](017-cors-tightening.md) |
 | PRE-8 | Schema-enforced structured output across providers | [018-structured-output.md](018-structured-output.md) |
 | PRE-70→74 | Extension drawer UI polish (fullscreen PDF, scroll containment, settings fix) | [019-extension-ui-polish.md](019-extension-ui-polish.md) |
+| PRE-79 | OpenCode Zen as primary LLM provider | [020-opencode-zen-provider.md](020-opencode-zen-provider.md) |
 
 ## Entry format
 
