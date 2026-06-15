@@ -1,7 +1,15 @@
 import type { Draft, Outcome, Resume, ScrapedJob, SimilarResume, Version } from "./types";
 
+export type ExtractedFields = {
+  title: string;
+  company: string;
+  location: string;
+  terms: string[];
+};
+
 export type Msg =
   | { type: "scrape" }
+  | { type: "extract"; url: string; title: string; company: string; jobDescription: string; source: string }
   | { type: "tailor"; jobDescription: string }
   | { type: "edit"; draftId: string; instruction: string }
   | { type: "undo"; draftId: string }
@@ -18,6 +26,8 @@ export type Msg =
   | { type: "get-draft"; draftId: string }
   | { type: "fill-nearest-input"; pdfB64?: string; pdfFilename?: string }
   | { type: "find-similar"; jobDescription: string }
+  | { type: "fetch-version-pdf"; versionId: string }
+  | { type: "open-drawer" }
   | { type: "open-options" };
 
 // The PDF endpoint returns binary; we shuttle it across the MV3 SW boundary
@@ -29,6 +39,7 @@ export type FetchPdfResult =
 
 export type MsgResultMap = {
   scrape: ScrapedJob;
+  extract: ExtractedFields;
   tailor: Draft;
   edit: Draft;
   undo: Draft;
@@ -39,6 +50,8 @@ export type MsgResultMap = {
   "get-draft": Draft | { notFound: true };
   "fill-nearest-input": { ok: boolean; error?: string };
   "find-similar": { similar: SimilarResume[] };
+  "fetch-version-pdf": { base64: string | null; mime: "application/pdf" };
+  "open-drawer": { ok: true };
 };
 
 export type Reply<T> = { ok: true; data: T } | { ok: false; error: string };

@@ -70,6 +70,7 @@ export type Draft = {
 };
 
 export type SimilarResume = {
+  id?: string;
   company: string;
   role: string;
   score: number; // 0–100
@@ -92,7 +93,7 @@ export type ScrapedJob = {
   title: string;
   company: string;
   jobDescription: string;
-  source: "linkedin" | "greenhouse" | "lever" | "workday" | "generic";
+  source: "linkedin" | "greenhouse" | "lever" | "workday" | "ashby" | "generic";
 };
 
 export type OpenMode = "popup" | "window";

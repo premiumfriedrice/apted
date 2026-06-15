@@ -15,10 +15,9 @@ import type { Draft, ScrapedJob, SimilarResume, Version } from "./types";
 const PANEL_URL = "sidepanel.html";
 
 async function applyOpenMode(): Promise<void> {
-  const { openMode } = await chrome.storage.sync.get({ openMode: "popup" });
-  // Clearing the popup ("") makes chrome.action.onClicked fire on icon clicks.
-  // Setting it back to "sidepanel.html" restores the anchored popover.
-  await chrome.action.setPopup({ popup: openMode === "window" ? "" : PANEL_URL });
+  // Always clear the popup so chrome.action.onClicked fires.
+  // The drawer opens directly on the active job-site tab.
+  await chrome.action.setPopup({ popup: "" });
 }
 
 chrome.runtime.onInstalled.addListener(() => void applyOpenMode());
@@ -75,19 +74,58 @@ async function getSourceTab(): Promise<chrome.tabs.Tab | undefined> {
   }
 }
 
+// Try to open the drawer on the active tab. If the tab isn't a supported job
+// site (no content script injected), dynamically inject the drawer script
+// so the drawer works on any careers page.
+async function openDrawerOnActiveTab(): Promise<void> {
+  const tab = await getSourceTab();
+  if (!tab?.id) {
+    void openInWindow();
+    return;
+  }
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: "open-drawer" });
+  } catch {
+    // Content script not present — inject the drawer script and open it.
+    // Inject into the MAIN world (default); activeTab grants access for this
+    // when invoked by clicking the extension icon. The drawer listens for a
+    // custom DOM event as well as chrome.runtime.onMessage so it works in
+    // both MAIN and ISOLATED worlds.
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["drawer.js"],
+      });
+      // Wait for the IIFE to finish setting up the DOM and listeners.
+      await new Promise((r) => setTimeout(r, 200));
+      // Dispatch a DOM event to open the drawer (works in MAIN world).
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          window.dispatchEvent(new CustomEvent("apted-open-drawer"));
+        },
+      });
+    } catch (e) {
+      console.warn("[apted] drawer injection failed, falling back to popup:", e);
+      void openInWindow();
+    }
+  }
+}
+
 chrome.action.onClicked.addListener(() => {
-  void openInWindow();
+  void openDrawerOnActiveTab();
 });
 
 // Keyboard shortcut entry point. Arc swallows icon clicks before they reach
 // the extension, so the keyboard shortcut is the reliable open-trigger there.
 chrome.commands.onCommand.addListener((command) => {
-  if (command === "open-apted") void openInWindow();
+  if (command === "open-apted") void openDrawerOnActiveTab();
 });
 
 // Omnibox: type "apted" + space in the URL bar to invoke. Anything after the
 // space is treated as the JD (so you can paste a one-liner JD inline if you
-// have one). Hitting Enter with no extra text just opens the window.
+// have one). Hitting Enter with no extra text just opens the drawer on the
+// active tab (or falls back to the popup window).
 chrome.omnibox.onInputChanged.addListener((_text, suggest) => {
   suggest([]);
 });
@@ -99,7 +137,7 @@ chrome.omnibox.onInputEntered.addListener(async (text) => {
   if (jd) {
     await chrome.storage.session.set({ pendingJd: jd });
   }
-  await openInWindow();
+  await openDrawerOnActiveTab();
 });
 
 chrome.windows.onRemoved.addListener(async (closedId) => {
@@ -223,6 +261,18 @@ async function handle(msg: Msg): Promise<unknown> {
     case "scrape":
       return scrapeActiveTab();
 
+    case "extract":
+      return apiFetch<{ title: string; company: string; location: string; terms: string[] }>("/api/extract", {
+        method: "POST",
+        json: {
+          url: msg.url,
+          title: msg.title,
+          company: msg.company,
+          jobDescription: msg.jobDescription,
+          source: msg.source,
+        },
+      });
+
     case "tailor":
       if (!msg.jobDescription.trim()) throw new Error("Empty job description.");
       return apiFetch<Draft>("/api/tailor", {
@@ -271,6 +321,14 @@ async function handle(msg: Msg): Promise<unknown> {
         method: "POST",
         json: { jobDescription: msg.jobDescription },
       });
+
+    case "fetch-version-pdf": {
+      const data = await apiFetch<{ pdfBase64: string | null }>(
+        `/api/versions/${encodeURIComponent(msg.versionId)}`,
+        { method: "GET" },
+      );
+      return { base64: data.pdfBase64, mime: "application/pdf" };
+    }
 
     case "fill-nearest-input":
       // The drawer/sidepanel can't fill file inputs directly. We inject a small
@@ -332,6 +390,11 @@ async function handle(msg: Msg): Promise<unknown> {
         }
         throw e;
       }
+    // "open-drawer" is sent FROM background TO content scripts via
+    // chrome.tabs.sendMessage, so it should never arrive here. If it
+    // somehow does, respond with an error rather than silently dropping.
+    case "open-drawer":
+      throw new Error("open-drawer should not be sent to background");
   }
 }
 
@@ -359,11 +422,18 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId === "apted-tailor-selection" && info.selectionText) {
     await chrome.storage.session.set({ pendingJd: info.selectionText });
   }
-  await openInWindow();
+  await openDrawerOnActiveTab();
 });
 
 chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
-  handle(msg)
+  // "open-drawer" is sent FROM background TO content scripts via
+  // chrome.tabs.sendMessage — it should never arrive here.
+  if ((msg as { type: string }).type === "open-drawer") {
+    return false; // not for us — don't keep the channel open
+  }
+
+  Promise.resolve()
+    .then(() => handle(msg))
     .then((data) => sendResponse({ ok: true, data }))
     .catch((e: unknown) => {
       const error = e instanceof Error ? e.message : String(e);

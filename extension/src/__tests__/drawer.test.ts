@@ -241,12 +241,11 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-drawer");
   });
 
-  it("includes header with brand name 'pted' and title margin for glyph", () => {
+  it("includes header with brand name 'apted'", () => {
     const html = createDrawerHTML();
-    expect(html).toContain("pted");
-    expect(html).not.toContain(">apted<");
+    expect(html).toContain(">apted<");
     const css = createDrawerStyles();
-    expect(css).toContain("margin: 0 0 0 6px");
+    expect(css).toContain("margin: 0;");
   });
 
   it("includes JD section with company and role inputs", () => {
@@ -276,11 +275,56 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("download-pdf");
     expect(html).toContain("save-version");
     expect(html).toContain("inject-pdf");
+    expect(html).toContain("fullscreen-btn");
   });
 
   it("includes similar resumes section", () => {
     const html = createDrawerHTML();
     expect(html).toContain("similar-section");
+  });
+
+  it("preview body is natively resizable like the textarea", () => {
+    const css = createDrawerStyles();
+    expect(css).toContain(".apted-preview-body");
+    expect(css).toContain("resize: vertical");
+  });
+
+  it("includes fullscreen button", () => {
+    const html = createDrawerHTML();
+    expect(html).toContain("apted-fullscreen-btn");
+  });
+
+  it("similar resumes section uses 'Past tailored resumes' as title", () => {
+    const html = createDrawerHTML();
+    expect(html).toContain("Past tailored resumes");
+  });
+
+  it("similar resume cards have clickable styling", () => {
+    const css = createDrawerStyles();
+    expect(css).toContain(".apted-similar-item");
+    expect(css).toContain("cursor: pointer");
+    expect(css).toContain("border-color: #d1d5db");
+  });
+
+  it("similar resume score badge uses accent color", () => {
+    const css = createDrawerStyles();
+    expect(css).toContain(".apted-similar-score-badge");
+    expect(css).toContain("background: #2563eb");
+    expect(css).toContain("color: #fff");
+  });
+
+  it("preview body is natively resizable like the textarea", () => {
+    const css = createDrawerStyles();
+    expect(css).toContain(".apted-preview-body");
+    expect(css).toContain("resize: vertical");
+    expect(css).toContain("min-height: 280px");
+  });
+
+  it("preview iframe fills the preview body", () => {
+    const css = createDrawerStyles();
+    expect(css).toContain(".apted-preview-embed");
+    expect(css).toContain("width: 100%");
+    expect(css).toContain("height: 100%");
   });
 
   it("includes chat input", () => {
@@ -397,6 +441,17 @@ describe("message sending format", () => {
     const msg = { type: "get-draft" as const, draftId: "draft-123" };
     expect(msg.type).toBe("get-draft");
     expect(msg.draftId).toBe("draft-123");
+  });
+
+  it("fetch-version-pdf message has correct shape", () => {
+    const msg = { type: "fetch-version-pdf" as const, versionId: "ver-123" };
+    expect(msg.type).toBe("fetch-version-pdf");
+    expect(msg.versionId).toBe("ver-123");
+  });
+
+  it("open-drawer message has correct shape", () => {
+    const msg = { type: "open-drawer" as const };
+    expect(msg.type).toBe("open-drawer");
   });
 });
 

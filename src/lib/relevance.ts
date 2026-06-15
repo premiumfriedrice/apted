@@ -10,6 +10,7 @@ import type { Resume } from "./resume";
 import { cosineSimilarity, getEmbeddingProvider, type EmbeddingProvider } from "./providers/embeddings";
 
 export interface PriorVersion {
+  id?: string;
   company: string;
   role: string;
   tailored_content: Resume;

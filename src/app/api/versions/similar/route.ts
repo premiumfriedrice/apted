@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
   // Fetch all resume versions.
   const { rows } = await pool.query(
-    "SELECT company, role, job_description, tailored_content FROM resume_versions ORDER BY created_at DESC",
+    "SELECT id, company, role, job_description, tailored_content FROM resume_versions ORDER BY created_at DESC",
   );
 
   if (!rows.length) {
@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       try {
         const content = Resume.parse(row.tailored_content);
         return {
+          id: row.id as string,
           company: row.company as string,
           role: row.role as string,
           tailored_content: content,
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
         return null;
       }
     })
-    .filter((v: unknown): v is { company: string; role: string; tailored_content: Resume } => v !== null);
+    .filter((v: unknown): v is { id: string; company: string; role: string; tailored_content: Resume } => v !== null);
 
   // Rank by relevance to the JD, top 5.
   const ranker = getRanker();
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
   const similar = scored
     .filter((s) => s.score > 10)
     .map((s) => ({
+      id: s.id,
       company: s.company,
       role: s.role,
       score: s.score,
