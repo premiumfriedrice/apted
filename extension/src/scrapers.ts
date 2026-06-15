@@ -149,7 +149,11 @@ export function scrapeJob(): ScrapedJob {
     // Ashby URLs: https://jobs.ashbyhq.com/company-name/job-id
     // The company is always the first path segment.
     const pathParts = (location.pathname ?? "").split("/").filter(Boolean);
-    company = pathParts[0] ?? "";
+    const rawSlug = pathParts[0] ?? "";
+    // Title-case the slug: "leidos" → "Leidos", "company-name" → "Company Name"
+    company = rawSlug
+      ? rawSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "";
     // If the URL doesn't have a company slug, fall back to DOM selectors.
     if (!company) {
       company = norm(firstMatch(["[data-testid='company-name']", "a[href^='/jobs']", "header a"]));

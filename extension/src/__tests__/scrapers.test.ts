@@ -164,7 +164,7 @@ describe("scrapeJob", () => {
     const result = scrapeJob();
     expect(result.source).toBe("ashby");
     expect(result.title).toBe("Platform Engineer");
-    expect(result.company).toBe("acme");
+    expect(result.company).toBe("Acme");
     expect(result.jobDescription).toContain("Build infrastructure");
   });
 
@@ -184,7 +184,7 @@ describe("scrapeJob", () => {
     const result = scrapeJob();
     expect(result.source).toBe("ashby");
     expect(result.title).toBe("Staff Engineer");
-    expect(result.company).toBe("rivianvw.tech");
+    expect(result.company).toBe("Rivianvw.Tech");
   });
 
   it("parses company and title from JD text fallback (dash pattern)", () => {

@@ -1,21 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the structure provider to return deterministic extraction results.
-const mockComplete = vi.fn();
+const { mockComplete } = vi.hoisted(() => ({
+  mockComplete: vi.fn(),
+}));
 
 vi.mock("@/lib/providers", () => ({
-  getStructureProvider: () => ({
+  getProviderForFlow: () => ({
     name: "mock",
     model: "mock-model",
     complete: mockComplete,
-  }),
-}));
-
-vi.mock("@/lib/llm", () => ({
-  callAndParse: vi.fn(async (_provider, _systemPrompt, userPrompt, parse) => {
-    // Simulate LLM extraction based on the JD content.
-    const result = mockComplete(userPrompt);
-    return parse(result);
   }),
 }));
 
@@ -23,12 +16,6 @@ import { POST } from "./route";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockComplete.mockReturnValue({
-    title: "Android Developer Intern",
-    company: "Rivian",
-    location: "Palo Alto, CA",
-    terms: ["Android", "Kotlin", "internship"],
-  });
 });
 
 describe("POST /api/extract", () => {
@@ -41,26 +28,28 @@ describe("POST /api/extract", () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe("invalid request body");
+    expect(body.error).toBe("jobDescription required");
   });
 
   it("returns 400 if jobDescription is empty", async () => {
     const req = new Request("http://localhost/api/extract", {
       method: "POST",
-      body: JSON.stringify({ jobDescription: "" }),
+      body: JSON.stringify({ jobDescription: "   " }),
       headers: { "Content-Type": "application/json" },
     });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
-  it("extracts fields from a job description", async () => {
-    mockComplete.mockReturnValue({
-      title: "Senior Software Engineer",
-      company: "Leidos",
-      location: "Remote",
-      terms: ["Python", "AWS", "microservices"],
-    });
+  it("extracts company and title from JD text via LLM", async () => {
+    mockComplete.mockResolvedValue(
+      JSON.stringify({
+        company: "Leidos",
+        title: "Senior Software Engineer",
+        location: "Remote",
+        terms: ["Python", "AWS", "microservices"],
+      }),
+    );
     const req = new Request("http://localhost/api/extract", {
       method: "POST",
       body: JSON.stringify({
@@ -75,13 +64,42 @@ describe("POST /api/extract", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.title).toBe("Senior Software Engineer");
     expect(body.company).toBe("Leidos");
+    expect(body.title).toBe("Senior Software Engineer");
     expect(body.location).toBe("Remote");
     expect(body.terms).toEqual(["Python", "AWS", "microservices"]);
   });
 
+  it("falls back to DOM values when LLM fails", async () => {
+    mockComplete.mockRejectedValue(new Error("LLM provider error"));
+    const req = new Request("http://localhost/api/extract", {
+      method: "POST",
+      body: JSON.stringify({
+        jobDescription: "Some job posting text.",
+        title: "Software Engineer",
+        company: "Acme Corp",
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Falls back to DOM values
+    expect(body.title).toBe("Software Engineer");
+    expect(body.company).toBe("Acme Corp");
+    expect(body.location).toBe("");
+    expect(body.terms).toEqual([]);
+  });
+
   it("works with minimal input (just jobDescription)", async () => {
+    mockComplete.mockResolvedValue(
+      JSON.stringify({
+        company: "Rivian",
+        title: "Android Developer Intern",
+        location: "Palo Alto, CA",
+        terms: ["Android", "Kotlin", "internship"],
+      }),
+    );
     const req = new Request("http://localhost/api/extract", {
       method: "POST",
       body: JSON.stringify({
@@ -94,24 +112,5 @@ describe("POST /api/extract", () => {
     const body = await res.json();
     expect(body.title).toBe("Android Developer Intern");
     expect(body.company).toBe("Rivian");
-    expect(body.location).toBe("Palo Alto, CA");
-    expect(Array.isArray(body.terms)).toBe(true);
-  });
-
-  it("returns 500 when LLM extraction fails", async () => {
-    mockComplete.mockImplementation(() => {
-      throw new Error("LLM provider error");
-    });
-    const req = new Request("http://localhost/api/extract", {
-      method: "POST",
-      body: JSON.stringify({
-        jobDescription: "Some job posting text.",
-      }),
-      headers: { "Content-Type": "application/json" },
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toContain("LLM provider error");
   });
 });

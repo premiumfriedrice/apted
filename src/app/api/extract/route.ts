@@ -1,67 +1,91 @@
 import { NextResponse } from "next/server";
+import { getProviderForFlow } from "@/lib/providers";
 import { z } from "zod";
-import { getStructureProvider } from "@/lib/providers";
-import { callAndParse } from "@/lib/llm";
 
 export const runtime = "nodejs";
 
-const ExtractRequest = z.object({
-  url: z.string().optional(),
-  title: z.string().optional(),
-  company: z.string().optional(),
-  jobDescription: z.string().min(1, "jobDescription is required"),
-  source: z.string().optional(),
-});
-
-const ExtractedFields = z.object({
-  title: z.string(),
+const ExtractSchema = z.object({
   company: z.string(),
+  title: z.string(),
   location: z.string(),
   terms: z.array(z.string()),
 });
 
-const SYSTEM_PROMPT = `You are a job-posting field extractor. Given a job description (and optionally a URL, scraped title, scraped company, and source), extract these fields:
+const SYSTEM_PROMPT = `You extract structured fields from job descriptions.
 
-- title: the job title/role (e.g. "Android Developer Intern", "Senior Software Engineer"). Strip date suffixes like "– Fall 2026" or "- Summer 2025". Use the most specific title you can find.
-- company: the hiring company name (e.g. "Rivian", "Leidos", "Volkswagen Group Technologies"). NOT the job board or ATS name. Look for the actual employer.
-- location: the job location (e.g. "Palo Alto, CA", "Remote", "New York, NY / Hybrid"). If multiple locations are listed, prefer the primary one.
-- terms: an array of key terms, skills, or qualifications mentioned (e.g. ["Android", "Kotlin", "internship"]). Maximum 10 items. Focus on the most important differentiating requirements.
+Rules:
+- "company": The hiring company name. Use the official name, not a team/division. E.g. "Google" not "Google Cloud", "Stripe" not "Stripe, Inc." If no company is mentioned, use an empty string.
+- "title": The job title as written. E.g. "Senior React Engineer" not "Senior React Engineer at Stripe"
+- "location": The job location as written. E.g. "San Francisco, CA" or "Remote". If not mentioned, use an empty string.
+- "terms": An array of key skills/technologies mentioned. E.g. ["React", "TypeScript", "Node.js"]. Max 10 items.
 
-Be concise and factual. Do not invent information not present in the input.
+Return ONLY a JSON object with these four fields.`;
 
-Return ONLY a JSON object with this shape:
-{ "title": "...", "company": "...", "location": "...", "terms": ["..."] }
-
-No prose, no markdown, no code fences.`;
+/** Tolerant JSON extraction — handles code fences and surrounding text. */
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) return fenced[1].trim();
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first === -1 || last === -1) return text.trim();
+  return text.slice(first, last + 1);
+}
 
 export async function POST(req: Request) {
-  let parsed: z.infer<typeof ExtractRequest>;
-  try {
-    parsed = ExtractRequest.parse(await req.json());
-  } catch {
-    return NextResponse.json({ error: "invalid request body" }, { status: 400 });
+  const body = await req.json();
+  const { title: domTitle, company: domCompany, jobDescription, source } = body as {
+    url?: string;
+    title?: string;
+    company?: string;
+    jobDescription?: string;
+    source?: string;
+  };
+
+  if (!jobDescription?.trim()) {
+    return NextResponse.json(
+      { error: "jobDescription required" },
+      { status: 400 },
+    );
   }
 
-  const userParts: string[] = [];
-  if (parsed.url) userParts.push(`URL: ${parsed.url}`);
-  if (parsed.source) userParts.push(`Source: ${parsed.source}`);
-  if (parsed.title) userParts.push(`Scraped title: ${parsed.title}`);
-  if (parsed.company) userParts.push(`Scraped company: ${parsed.company}`);
-  userParts.push(`\nJOB DESCRIPTION:\n${parsed.jobDescription}`);
+  // Use first 3000 chars — company/title/location always appear early.
+  const snippet = jobDescription.slice(0, 3000);
 
-  const userPrompt = userParts.join("\n");
+  // Build the user prompt, including any DOM-extracted hints.
+  const hints: string[] = [];
+  if (domTitle) hints.push(`DOM-extracted title: ${domTitle}`);
+  if (domCompany) hints.push(`DOM-extracted company: ${domCompany}`);
+  if (source) hints.push(`Source site: ${source}`);
+  const userPrompt = hints.length
+    ? `${hints.join("\n")}\n\n${snippet}`
+    : snippet;
 
   try {
-    const result = await callAndParse(
-      getStructureProvider(),
-      SYSTEM_PROMPT,
-      userPrompt,
-      (raw) => ExtractedFields.parse(raw),
-      ExtractedFields,
-    );
-    return NextResponse.json(result);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "extraction failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const provider = getProviderForFlow("edit");
+    const raw = await provider.complete({
+      system: SYSTEM_PROMPT,
+      user: userPrompt,
+      maxTokens: 512,
+      schema: ExtractSchema,
+    });
+
+    const parsed = ExtractSchema.parse(JSON.parse(extractJson(raw)));
+
+    // If the LLM returned empty values but DOM had them, fall back to DOM.
+    return NextResponse.json({
+      title: parsed.title || domTitle || "",
+      company: parsed.company || domCompany || "",
+      location: parsed.location || "",
+      terms: parsed.terms || [],
+    });
+  } catch (e) {
+    console.error("extract error:", e);
+    // Fall back to whatever the DOM scrapers found.
+    return NextResponse.json({
+      title: domTitle || "",
+      company: domCompany || "",
+      location: "",
+      terms: [],
+    });
   }
 }
