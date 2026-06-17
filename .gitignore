@@ -22,3 +22,4 @@ compile-service/node_modules
 
 # MCP config (local server decisions)
 .mcp.json
+.worktrees/
