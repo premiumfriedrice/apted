@@ -98,8 +98,48 @@ cd extension && npm run build    # extension build (must succeed)
 - The extension doesn't use React — it's all vanilla DOM manipulation
 - Communication with the Next.js backend goes through `chrome.runtime.sendMessage` → `background.ts` → `fetch()` to the web app API
 
+### 3. Similar resumes before tailoring
+
+**Current state**: Similar resumes only appear after a tailor run (`renderSimilarResumes` is called after the tailor response comes back).
+
+**What to do**: After scraping a JD, immediately call `find-similar` to show past resumes that match BEFORE the user clicks "Tailor Resume." The user can then decide whether to tailor from scratch or start from an existing version.
+
+**Key data flow**:
+- `doScrape()` (line ~1230) already calls `find-similar` after scraping, so similar resumes show up in the drawer right after scraping.
+- But currently `renderSimilarResumes` is also called after tailoring with `draft.similarResumes`.
+- The similar-resume cards should have a "Use this" or "Load" action that sets the draft to that past version.
+
+**Backend**: `POST /api/versions/similar` takes a `jobDescription` and returns `{ similar: [{id, company, role, score, tailored_content}] }`. This already exists.
+
+### 4. Select a past resume to edit
+
+**What to do**: When the user clicks a similar resume card, load that version as the current draft. Then they can edit it via chat instead of starting a fresh tailor from master.
+
+**Key data flow**:
+- Similar resume cards already exist in the drawer (rendered by `renderSimilarResumes`).
+- Need a click handler on each card that:
+  1. Fetches the full version content via `fetch-version-pdf` or a new `get-version` message
+  2. Sets `state.draft` to that version's content
+  3. Renders the PDF preview for that version
+  4. Enables the chat/edit flow on that version
+- The `send({ type: "get-draft", draftId })` message already fetches a draft by ID.
+- May need a new message type or endpoint to fetch a version (not just a draft) by ID.
+
+### 5. ATS keyword match score indicator
+
+**What to do**: Show a visual ATS keyword match score that indicates what percentage of JD keywords appear in the current resume. This helps the user gauge alignment before applying.
+
+**Implementation approach**:
+- The `/api/extract` endpoint already extracts `terms` (keywords) from a JD.
+- After scraping, call `/api/extract` to get JD keywords.
+- Display a score like "72% keyword match" or a small progress bar next to the similar-resumes section or in the status area.
+- The score could be: `(# of JD terms found in resume text) / (# of JD terms) * 100`.
+- This is a display-only feature — no backend changes needed beyond what already exists.
+
 ## Related Linear Issues
 
 - PRE-76: Resizable PDF preview iframe in drawer (related to sizing)
 - PRE-74: Add fullscreen popup button for resume PDF preview
 - PRE-75: Fix job title and company name scraping (done — LLM only now)
+- PRE-78: Style similar resume cards to match web app + limit to 3
+- PRE-77: Click similar resume card to view PDF fullscreen
