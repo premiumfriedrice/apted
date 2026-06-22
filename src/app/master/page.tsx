@@ -362,12 +362,7 @@ export default function MasterPage() {
       {resizing && <div className="fixed inset-0 z-[60] cursor-col-resize" />}
       {/* TopNavBar */}
       <header className="bg-surface-container-lowest dark:bg-surface-dim text-primary dark:text-primary-fixed w-full h-16 sticky top-0 border-b border-outline-variant dark:border-outline flex items-center px-lg w-full z-50">
-        <div className="flex items-center gap-md">
-          <span className="text-[22px] font-medium tracking-tight text-on-surface dark:text-inverse-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>apted</span>
-          <div className="hidden lg:block text-on-surface-variant dark:text-surface-variant text-body-sm font-body-sm border-l border-outline-variant dark:border-outline pl-md ml-md">
-            The master resume is your complete career record. Add everything — the tailor curates per job.
-          </div>
-        </div>
+        <span className="text-[22px] font-medium tracking-tight text-on-surface dark:text-inverse-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>apted</span>
       </header>
 
       {/* Main Layout */}
