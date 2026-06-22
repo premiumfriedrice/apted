@@ -138,48 +138,39 @@ export default function MasterPage() {
   const [piiMap, setPiiMap] = useState<RedactionMap | null>(null);
   // Per-field visibility toggles for PII masking (PRE-54).
   const [showField, setShowField] = useState<Record<string, boolean>>({});
-  const [activeSection, setActiveSection] = useState<string>("contact");
-  const [sidebarWidth, setSidebarWidth] = useState<number>(220);
   const [previewWidth, setPreviewWidth] = useState<number>(50);
-  const [resizing, setResizing] = useState<"sidebar" | "preview" | null>(null);
+  const [resizing, setResizing] = useState<boolean>(false);
 
-  // Sidebar / preview resizing via mouse drag on the resizer bars.
+  // Preview resizing via mouse drag on the resizer bar.
   const resizeState = useRef<{
-    kind: "sidebar" | "preview";
     startX: number;
     startValue: number;
     mainWidth: number;
   } | null>(null);
 
-  function startResize(kind: "sidebar" | "preview", e: React.MouseEvent) {
+  function startResize(e: React.MouseEvent) {
     e.preventDefault();
-    // Main content width = viewport minus sidebar and the two 1px resizer bars.
-    const mainWidth = Math.max(1, window.innerWidth - sidebarWidth - 2);
+    const mainWidth = Math.max(1, window.innerWidth - 1);
     resizeState.current = {
-      kind,
       startX: e.clientX,
-      startValue: kind === "sidebar" ? sidebarWidth : previewWidth,
+      startValue: previewWidth,
       mainWidth,
     };
-    setResizing(kind);
+    setResizing(true);
 
     function onMove(ev: MouseEvent) {
       const state = resizeState.current;
       if (!state) return;
       const delta = ev.clientX - state.startX;
-      if (state.kind === "sidebar") {
-        setSidebarWidth(Math.max(0, Math.min(400, state.startValue + delta)));
-      } else {
-        // previewWidth is stored as a percentage of the main content area.
-        // The resizer is the preview's left edge, so dragging left widens it.
-        const pctDelta = -(delta / state.mainWidth) * 100;
-        setPreviewWidth(Math.max(20, Math.min(75, state.startValue + pctDelta)));
-      }
+      // previewWidth is stored as a percentage of the main content area.
+      // The resizer is the preview's left edge, so dragging left widens it.
+      const pctDelta = -(delta / state.mainWidth) * 100;
+      setPreviewWidth(Math.max(20, Math.min(75, state.startValue + pctDelta)));
     }
 
     function onUp() {
       resizeState.current = null;
-      setResizing(null);
+      setResizing(false);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     }
@@ -207,10 +198,11 @@ export default function MasterPage() {
       r ? { ...r, sections: r.sections.map((s, i) => (i === idx ? updater(s) : s)) } : r,
     );
 
-  const moveSection = (idx: number, delta: number) =>
+  const sectionDrag = useDragReorder((from, to) =>
     setResume((r) =>
-      r ? { ...r, sections: moveInArray(r.sections, idx, delta) } : r,
-    );
+      r ? { ...r, sections: reorderArray(r.sections, from, to) } : r,
+    ),
+  );
 
   const addSection = (kind: Section["kind"]) =>
     setResume((r) => {
@@ -353,24 +345,6 @@ export default function MasterPage() {
 
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
-        {/* SideNavBar */}
-        <SideNavBar
-          sections={resume.sections}
-          active={activeSection}
-          onSelect={setActiveSection}
-          onReorder={(next) => setResume((r) => r ? { ...r, sections: next } : r)}
-          width={sidebarWidth}
-          onExpand={() => setSidebarWidth(220)}
-        />
-
-        {/* Resizer 1 */}
-        <div
-          onMouseDown={(e) => startResize("sidebar", e)}
-          className="hidden md:flex w-1 bg-surface border-r border-outline-variant hover:bg-surface-container-high cursor-col-resize shrink-0 items-center justify-center relative z-10 group select-none"
-        >
-          <div className="h-8 w-[2px] bg-outline-variant group-hover:bg-on-surface-variant rounded-full" />
-        </div>
-
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-background">
           {/* Left Column (Editor) */}
@@ -450,6 +424,7 @@ export default function MasterPage() {
                       section.kind === "experience" || section.kind === "projects" || section.kind === "education"
                         ? (section.kind as ProseKind)
                         : null;
+                    const d = sectionDrag(idx);
                     return (
                       <section key={section.id} id={section.id}>
                         <SectionCard
@@ -459,13 +434,10 @@ export default function MasterPage() {
                             setCollapsed((c) => ({ ...c, [section.id]: !c[section.id] }))
                           }
                           onChange={(next) => updateSection(idx, () => next)}
-                          onMoveUp={() => moveSection(idx, -1)}
-                          onMoveDown={() => moveSection(idx, 1)}
-                          isFirst={idx === 0}
-                          isLast={idx === resume.sections.length - 1}
                           onAddFromProse={
                             proseKind ? () => setProseModal({ sectionIdx: idx, kind: proseKind }) : undefined
                           }
+                          {...d}
                         />
                       </section>
                     );
@@ -478,9 +450,9 @@ export default function MasterPage() {
             </div>
           </div>
 
-          {/* Resizer 2 */}
+          {/* Resizer */}
           <div
-            onMouseDown={(e) => startResize("preview", e)}
+            onMouseDown={(e) => startResize(e)}
             className="hidden lg:flex w-1 bg-surface border-l border-outline-variant hover:bg-surface-container-high cursor-col-resize shrink-0 items-center justify-center relative z-10 group select-none"
           >
             <div className="h-8 w-[2px] bg-outline-variant group-hover:bg-on-surface-variant rounded-full" />
@@ -520,130 +492,6 @@ export default function MasterPage() {
         />
       )}
     </div>
-  );
-}
-
-// -- SideNavBar ----------------------------------------------------------
-
-function SideNavBar({
-  sections,
-  active,
-  onSelect,
-  onReorder,
-  width,
-  onExpand,
-}: {
-  sections: Section[];
-  active: string;
-  onSelect: (id: string) => void;
-  onReorder: (next: Section[]) => void;
-  width: number;
-  onExpand: () => void;
-}) {
-  const collapsed = width < 60;
-  const iconByKind: Record<Section["kind"], string> = {
-    experience: "work",
-    projects: "rebase_edit",
-    education: "school",
-    skills: "psychology",
-    achievements: "verified",
-  };
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const dragIdRef = useRef<string | null>(null);
-
-  function handleDrop(targetId: string) {
-    const dragId = dragIdRef.current;
-    dragIdRef.current = null;
-    setDragOverId(null);
-    if (!dragId || dragId === targetId) return;
-    const fromIdx = sections.findIndex((s) => s.id === dragId);
-    const toIdx = sections.findIndex((s) => s.id === targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-    const next = sections.slice();
-    const [moved] = next.splice(fromIdx, 1);
-    next.splice(toIdx, 0, moved);
-    onReorder(next);
-  }
-
-  const Item = ({
-    id,
-    icon,
-    label,
-    draggable,
-  }: {
-    id: string;
-    icon: string;
-    label: string;
-    draggable?: boolean;
-  }) => {
-    const selected = active === id;
-    const isOver = dragOverId === id && dragOverId !== dragIdRef.current;
-    return (
-      <a
-        href={`#${id}`}
-        draggable={draggable}
-        onDragStart={(e) => {
-          e.dataTransfer.setData("text/plain", id);
-          e.dataTransfer.effectAllowed = "move";
-          dragIdRef.current = id;
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          setDragOverId(id);
-        }}
-        onDragLeave={() => setDragOverId((cur) => (cur === id ? null : cur))}
-        onDrop={(e) => {
-          e.preventDefault();
-          handleDrop(id);
-        }}
-        onDragEnd={() => {
-          dragIdRef.current = null;
-          setDragOverId(null);
-        }}
-        onClick={() => onSelect(id)}
-        className={[
-          "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-          selected
-            ? "text-primary dark:text-primary-fixed font-semibold bg-primary-container dark:bg-secondary-container"
-            : "text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-highest",
-          isOver ? "ring-2 ring-primary ring-inset" : "",
-        ].join(" ")}
-      >
-        <span className="material-symbols-outlined text-[16px] text-on-surface-variant cursor-grab opacity-50 hover:opacity-100">drag_indicator</span>
-        <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>{icon}</span>
-        <span className="text-label-md font-label-md">{label}</span>
-      </a>
-    );
-  };
-
-  if (collapsed) {
-    return (
-      <nav
-        className="hidden md:flex flex-col items-center py-md bg-surface-container-low dark:bg-surface-container-high shrink-0"
-        style={{ width }}
-      >
-        <button onClick={onExpand} className="p-1 text-on-surface-variant hover:text-on-surface rounded" aria-label="Expand sidebar">
-          <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-        </button>
-      </nav>
-    );
-  }
-
-  return (
-    <nav
-      className="hidden md:flex flex-col p-md gap-sm bg-surface-container-low dark:bg-surface-container-high shrink-0 overflow-y-auto"
-      style={{ width }}
-    >
-      <div className="mb-lg px-2">
-        <h2 className="text-headline-md font-headline-md font-bold text-primary">Editor Sections</h2>
-        <p className="text-label-md font-label-md text-on-surface-variant">Resume Structure</p>
-      </div>
-      <Item id="contact" icon="person" label="Contact" />
-      {sections.map((s) => (
-        <Item key={s.id} id={s.id} icon={iconByKind[s.kind]} label={s.title} draggable />
-      ))}
-    </nav>
   );
 }
 
@@ -1078,17 +926,19 @@ function Labeled({ label, children, wide, action }: { label: string; children: R
 // -- Section -------------------------------------------------------------
 
 function SectionCard({
-  section, collapsed, onToggleCollapse, onChange, onMoveUp, onMoveDown, isFirst, isLast, onAddFromProse,
+  section, collapsed, onToggleCollapse, onChange, onAddFromProse,
+  draggable, onDragStart, onDragOver, onDrop, isDragOver,
 }: {
   section: Section;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onChange: (next: Section) => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  isFirst: boolean;
-  isLast: boolean;
   onAddFromProse?: () => void;
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragOver?: () => void;
+  onDrop?: () => void;
+  isDragOver?: boolean;
 }) {
   const iconByKind: Record<Section["kind"], string> = {
     experience: "work",
@@ -1099,9 +949,19 @@ function SectionCard({
   };
 
   return (
-    <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col gap-md">
+    <section
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={(e) => { e.preventDefault(); onDragOver?.(); }}
+      onDrop={(e) => { e.preventDefault(); onDrop?.(); }}
+      className={[
+        "bg-surface-container-lowest border rounded-xl p-md flex flex-col gap-md transition-all",
+        isDragOver ? "border-primary ring-1 ring-primary" : "border-outline-variant",
+      ].join(" ")}
+    >
       <div className="flex justify-between items-center cursor-pointer" onClick={onToggleCollapse}>
         <h3 className="text-headline-md font-headline-md text-on-surface flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px] text-on-surface-variant cursor-grab opacity-50 hover:opacity-100">drag_indicator</span>
           <span className="material-symbols-outlined text-[20px] text-on-surface-variant">{iconByKind[section.kind]}</span>
           <input
             className="bg-transparent border-none focus:ring-0 outline-none p-0 text-headline-md font-headline-md"
@@ -1111,12 +971,6 @@ function SectionCard({
           />
         </h3>
         <div className="flex items-center gap-1">
-          <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} disabled={isFirst} className={smallBtnCls} aria-label="Move up">
-            <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} disabled={isLast} className={smallBtnCls} aria-label="Move down">
-            <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
-          </button>
           <button onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }} className={smallBtnCls} aria-label="Toggle">
             <span className="material-symbols-outlined text-[20px]">{collapsed ? "expand_more" : "expand_less"}</span>
           </button>
