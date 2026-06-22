@@ -383,7 +383,7 @@ export default function MasterPage() {
                 </button>
               </div>
               <div className="flex items-center gap-3">
-                {status.msg && (
+                {status.msg && status.msg !== "Saved" && (
                   <span className={[
                     "text-label-sm font-label-sm truncate max-w-[16rem]",
                     status.kind === "err" ? "text-error" : "text-on-surface-variant",
