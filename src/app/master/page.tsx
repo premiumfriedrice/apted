@@ -784,7 +784,7 @@ function PreviewPane({
     function onWheel(e: WheelEvent) {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -10 : 10;
+        const delta = e.deltaY > 0 ? -3 : 3;
         setZoom((z) => Math.max(25, Math.min(300, z + delta)));
       }
     }
@@ -886,7 +886,7 @@ function PreviewPane({
           </button>
         </div>
       </div>
-      <div ref={viewerRef} className="flex-1 overflow-y-auto bg-inverse-surface">
+      <div ref={viewerRef} className="flex-1 overflow-auto bg-inverse-surface">
         {updatedAt || compiledPdfUrl ? (
           loading ? (
             <div className="w-full h-full flex items-center justify-center text-body-sm text-inverse-on-surface/70">
@@ -897,7 +897,7 @@ function PreviewPane({
               {error}
             </div>
           ) : (
-            <div className="flex flex-col items-center py-6 gap-4">
+            <div className="min-w-full flex flex-col items-center py-6 gap-4">
               {Array.from({ length: numPages }, (_, i) => (
                 <canvas
                   key={i}
