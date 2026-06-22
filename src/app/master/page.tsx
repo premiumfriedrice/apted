@@ -580,15 +580,10 @@ function PreviewPane({
   const [pdf, setPdf] = useState<any>(null);
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(100);
-  const [renderZoom, setRenderZoom] = useState(100);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // Debounce zoom changes slightly to avoid re-rendering on every trackpad tick.
-  useEffect(() => {
-    const timeout = setTimeout(() => setRenderZoom(zoom), 60);
-    return () => clearTimeout(timeout);
-  }, [zoom]);
+
   const [error, setError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useClickAway<HTMLDivElement>(exportOpen, () => setExportOpen(false));
@@ -628,7 +623,8 @@ function PreviewPane({
     return () => { cancelled = true; };
   }, [pdfSrc, updatedAt, compiledPdfUrl]);
 
-  // Render all pages at the debounced zoom with device-pixel-ratio scaling.
+  // Render all pages at current zoom with device-pixel-ratio scaling.
+  // Use an offscreen canvas so the visible canvas is only cleared once the new page is ready.
   useEffect(() => {
     if (!pdf || numPages === 0) return;
     let cancelled = false;
@@ -639,18 +635,24 @@ function PreviewPane({
         const canvas = pageRefs.current[i - 1];
         if (!canvas) continue;
         const pg = await pdf.getPage(i);
-        const viewport = pg.getViewport({ scale: (renderZoom / 100) * dpr });
+        const viewport = pg.getViewport({ scale: (zoom / 100) * dpr });
+        const offscreen = document.createElement("canvas");
+        offscreen.width = viewport.width;
+        offscreen.height = viewport.height;
+        const offCtx = offscreen.getContext("2d")!;
+        await pg.render({ canvasContext: offCtx, viewport }).promise;
+        if (cancelled) return;
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         canvas.style.width = `${viewport.width / dpr}px`;
         canvas.style.height = `${viewport.height / dpr}px`;
         const ctx = canvas.getContext("2d")!;
-        await pg.render({ canvasContext: ctx, viewport }).promise;
+        ctx.drawImage(offscreen, 0, 0);
       }
     }
     renderAll();
     return () => { cancelled = true; };
-  }, [pdf, renderZoom, numPages]);
+  }, [pdf, zoom, numPages]);
 
   // Track the currently visible page from scroll position.
   useEffect(() => {
