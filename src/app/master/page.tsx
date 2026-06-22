@@ -580,8 +580,15 @@ function PreviewPane({
   const [pdf, setPdf] = useState<any>(null);
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(100);
+  const [renderZoom, setRenderZoom] = useState(100);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  // Debounce zoom changes so rapid trackpad scrolling doesn't re-render constantly.
+  useEffect(() => {
+    const timeout = setTimeout(() => setRenderZoom(zoom), 120);
+    return () => clearTimeout(timeout);
+  }, [zoom]);
   const [error, setError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useClickAway<HTMLDivElement>(exportOpen, () => setExportOpen(false));
@@ -621,7 +628,7 @@ function PreviewPane({
     return () => { cancelled = true; };
   }, [pdfSrc, updatedAt, compiledPdfUrl]);
 
-  // Render all pages at current zoom with device-pixel-ratio scaling.
+  // Render all pages at the debounced zoom with device-pixel-ratio scaling.
   useEffect(() => {
     if (!pdf || numPages === 0) return;
     let cancelled = false;
@@ -632,7 +639,7 @@ function PreviewPane({
         const canvas = pageRefs.current[i - 1];
         if (!canvas) continue;
         const pg = await pdf.getPage(i);
-        const viewport = pg.getViewport({ scale: (zoom / 100) * dpr });
+        const viewport = pg.getViewport({ scale: (renderZoom / 100) * dpr });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         canvas.style.width = `${viewport.width / dpr}px`;
@@ -643,25 +650,25 @@ function PreviewPane({
     }
     renderAll();
     return () => { cancelled = true; };
-  }, [pdf, zoom, numPages]);
+  }, [pdf, renderZoom, numPages]);
 
-  // Track the currently visible page while scrolling.
+  // Track the currently visible page from scroll position.
   useEffect(() => {
-    if (!viewerRef.current || numPages === 0) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) {
-          const idx = pageRefs.current.findIndex((c) => c === visible.target);
-          if (idx !== -1) setPage(idx + 1);
-        }
-      },
-      { root: viewerRef.current, threshold: [0, 0.25, 0.5, 0.75, 1] }
-    );
-    pageRefs.current.forEach((c) => c && observer.observe(c));
-    return () => observer.disconnect();
+    const el = viewerRef.current;
+    if (!el || numPages === 0) return;
+    const root = el;
+    function onScroll() {
+      const top = root.scrollTop + 24;
+      let best = 0;
+      pageRefs.current.forEach((canvas, i) => {
+        if (!canvas) return;
+        if (canvas.offsetTop <= top) best = i;
+      });
+      setPage(best + 1);
+    }
+    root.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => root.removeEventListener("scroll", onScroll);
   }, [pdf, numPages, zoom]);
 
   // Trackpad / ctrl+wheel zoom inside the viewer.
