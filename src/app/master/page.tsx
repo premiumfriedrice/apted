@@ -398,10 +398,9 @@ export default function MasterPage() {
                   </span>
                 )}
                 <span className={[
-                  "flex items-center gap-1 text-label-sm font-label-sm",
-                  isDirty ? "text-tertiary" : "text-on-surface-variant",
+                  "text-label-sm font-label-sm",
+                  isDirty ? "text-tertiary" : "text-green-600",
                 ].join(" ")}>
-                  <span className="material-symbols-outlined text-[14px]">{isDirty ? "circle" : "check_circle"}</span>
                   {isDirty ? "Unsaved changes" : "Saved"}
                 </span>
               </div>
