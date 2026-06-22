@@ -902,7 +902,7 @@ function PreviewPane({
                 <canvas
                   key={i}
                   ref={(el) => { pageRefs.current[i] = el; }}
-                  className="bg-white shadow-2xl"
+                  className="bg-white shadow-2xl shrink-0"
                 />
               ))}
             </div>
