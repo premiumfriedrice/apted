@@ -5,7 +5,7 @@
 // the app — dump every job, project, and side-gig here. The tailor step will
 // curate per JD.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AchievementItem,
   Bullet,
@@ -121,10 +121,12 @@ const dangerBtnCls =
 
 export default function MasterPage() {
   const [resume, setResume] = useState<Resume | null>(null);
+  const [savedResume, setSavedResume] = useState<Resume | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<"structured" | "latex" | "json">("structured");
   const [jsonText, setJsonText] = useState("");
   const [customTex, setCustomTex] = useState<string | null>(null);
+  const [savedCustomTex, setSavedCustomTex] = useState<string | null>(null);
   const [compiledPdfUrl, setCompiledPdfUrl] = useState<string | null>(null);
   const compiledPdfUrlRef = useRef<string | null>(null);
   useEffect(() => {
@@ -142,6 +144,23 @@ export default function MasterPage() {
   const [showField, setShowField] = useState<Record<string, boolean>>({});
   const [previewWidth, setPreviewWidth] = useState<number>(50);
   const [resizing, setResizing] = useState<boolean>(false);
+
+  const isDirty = useMemo(() => {
+    if (editorMode === "structured") {
+      return JSON.stringify(resume) !== JSON.stringify(savedResume);
+    }
+    if (editorMode === "json") {
+      try {
+        return JSON.stringify(JSON.parse(jsonText)) !== JSON.stringify(savedResume);
+      } catch {
+        return true;
+      }
+    }
+    if (editorMode === "latex") {
+      return customTex !== savedCustomTex;
+    }
+    return false;
+  }, [editorMode, resume, savedResume, jsonText, customTex, savedCustomTex]);
 
   // Preview resizing via mouse drag on the resizer bar.
   const resizeState = useRef<{
@@ -186,7 +205,9 @@ export default function MasterPage() {
       const stored = d.content as Resume;
       const map = d.piiMap as RedactionMap | null;
       setPiiMap(map);
-      setResume(map ? injectResume(stored, map) : stored);
+      const content = map ? injectResume(stored, map) : stored;
+      setResume(content);
+      setSavedResume(content);
       setUpdatedAt(d.updatedAt ?? null);
       setJsonText(JSON.stringify(map ? injectResume(stored, map) : stored, null, 2));
     });
@@ -259,9 +280,11 @@ export default function MasterPage() {
       const savedContent = savedMap ? injectResume(data.content, savedMap) : data.content;
       setPiiMap(savedMap);
       setResume(savedContent);
+      setSavedResume(savedContent);
       setUpdatedAt(data.updatedAt ?? null);
       setJsonText(JSON.stringify(savedContent, null, 2));
       setShowField({});
+      if (customTex !== null) setSavedCustomTex(customTex);
 
       // When editing LaTeX, Save also compiles the custom source for preview.
       if (editorMode === "latex" && customTex?.trim()) {
@@ -307,7 +330,9 @@ export default function MasterPage() {
       try {
         const res = await fetch("/api/master/tex");
         if (!res.ok) throw new Error(await res.text());
-        setCustomTex(await res.text());
+        const tex = await res.text();
+        setCustomTex(tex);
+        setSavedCustomTex(tex);
       } catch (e) {
         setStatus({ kind: "err", msg: e instanceof Error ? e.message : "failed to load .tex" });
         return;
@@ -363,6 +388,23 @@ export default function MasterPage() {
                   JSON
                 </button>
               </div>
+              <div className="flex items-center gap-3">
+                {status.msg && (
+                  <span className={[
+                    "text-label-sm font-label-sm truncate max-w-[16rem]",
+                    status.kind === "err" ? "text-error" : "text-on-surface-variant",
+                  ].join(" ")}>
+                    {status.msg}
+                  </span>
+                )}
+                <span className={[
+                  "flex items-center gap-1 text-label-sm font-label-sm",
+                  isDirty ? "text-tertiary" : "text-on-surface-variant",
+                ].join(" ")}>
+                  <span className="material-symbols-outlined text-[14px]">{isDirty ? "circle" : "check_circle"}</span>
+                  {isDirty ? "Unsaved changes" : "Saved"}
+                </span>
+              </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setShowImport(true)} className={smallBtnCls}>
                   <span className="material-symbols-outlined text-[18px]">upload</span> Import from PDF
@@ -379,12 +421,6 @@ export default function MasterPage() {
               ].join(" ")}
             >
               <div className={["w-full flex flex-col", editorMode === "latex" ? "h-full max-w-none" : "max-w-[800px] gap-lg"].join(" ")}>
-                {status.msg && (
-                  <div className={`text-label-md font-label-md ${status.kind === "err" ? "text-error" : "text-on-surface-variant"}`}>
-                    {status.msg}
-                  </div>
-                )}
-
                 {editorMode === "json" && (
                 <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
                   <h3 className="text-headline-md font-headline-md text-on-surface mb-md">JSON</h3>
