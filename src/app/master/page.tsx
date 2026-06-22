@@ -728,7 +728,7 @@ function PreviewPane({
           <input
             value={exportName}
             onChange={(e) => setExportName(e.target.value)}
-            className="bg-transparent border-none focus:ring-0 outline-none p-0 text-label-md font-label-md text-inverse-on-surface max-w-[16rem]"
+            className="bg-transparent border-none focus:ring-0 outline-none p-0 text-label-md font-label-md text-inverse-on-surface max-w-[28rem]"
             aria-label="Export filename"
           />
         </span>
