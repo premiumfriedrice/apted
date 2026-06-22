@@ -60,20 +60,59 @@ function moveInArray<T>(arr: T[], idx: number, delta: number): T[] {
   return out;
 }
 
+function reorderArray<T>(arr: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return arr;
+  const out = arr.slice();
+  const [moved] = out.splice(from, 1);
+  out.splice(to, 0, moved);
+  return out;
+}
+
+function useDragReorder(onReorder: (from: number, to: number) => void) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dropIdx, setDropIdx] = useState<number | null>(null);
+  return (idx: number) => ({
+    draggable: true,
+    onDragStart: () => setDragIdx(idx),
+    onDragOver: () => setDropIdx(idx),
+    onDrop: () => {
+      if (dragIdx !== null && dropIdx !== null && dragIdx !== dropIdx) {
+        onReorder(dragIdx, dropIdx);
+      }
+      setDragIdx(null);
+      setDropIdx(null);
+    },
+    onDragEnd: () => {
+      setDragIdx(null);
+      setDropIdx(null);
+    },
+    isDragOver: dropIdx === idx && dragIdx !== idx,
+  });
+}
+
+// Material-style utility classes used across the redesigned editor.
 const inputCls =
-  "w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-neutral-500 focus:outline-none";
+  "w-full border border-outline-variant rounded-lg px-3 py-2 text-body-md bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary outline-none";
+const ghostInputCls =
+  "w-full bg-transparent border-b border-transparent hover:border-outline-variant focus:border-primary focus:ring-0 outline-none px-1 py-1";
 const smallBtnCls =
-  "rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-100 disabled:opacity-40";
+  "px-3 py-2 text-on-surface-variant dark:text-surface-variant text-label-md font-label-md hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors duration-200 rounded";
 const primaryBtnCls =
-  "rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white hover:bg-neutral-800 disabled:opacity-40";
+  "bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200";
 const dangerBtnCls =
-  "rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs text-red-600 hover:bg-red-50";
+  "text-on-surface-variant hover:text-error p-1 transition-colors";
 
 export default function MasterPage() {
   const [resume, setResume] = useState<Resume | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [showJson, setShowJson] = useState(false);
+  const [editorMode, setEditorMode] = useState<"structured" | "latex" | "json">("structured");
   const [jsonText, setJsonText] = useState("");
+  const [customTex, setCustomTex] = useState<string | null>(null);
+  const [compiledPdfUrl, setCompiledPdfUrl] = useState<string | null>(null);
+  const compiledPdfUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    compiledPdfUrlRef.current = compiledPdfUrl;
+  }, [compiledPdfUrl]);
   const [status, setStatus] = useState<{ kind: "ok" | "err" | null; msg: string }>({
     kind: null, msg: "",
   });
@@ -84,10 +123,58 @@ export default function MasterPage() {
   const [piiMap, setPiiMap] = useState<RedactionMap | null>(null);
   // Per-field visibility toggles for PII masking (PRE-54).
   const [showField, setShowField] = useState<Record<string, boolean>>({});
+  const [activeSection, setActiveSection] = useState<string>("contact");
+  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
+  const [previewWidth, setPreviewWidth] = useState<number>(40);
+  const [resizing, setResizing] = useState<"sidebar" | "preview" | null>(null);
+
+  // Sidebar / preview resizing via mouse drag on the resizer bars.
+  const resizeState = useRef<{
+    kind: "sidebar" | "preview";
+    startX: number;
+    startValue: number;
+    mainWidth: number;
+  } | null>(null);
+
+  function startResize(kind: "sidebar" | "preview", e: React.MouseEvent) {
+    e.preventDefault();
+    // Main content width = viewport minus sidebar and the two 1px resizer bars.
+    const mainWidth = Math.max(1, window.innerWidth - sidebarWidth - 2);
+    resizeState.current = {
+      kind,
+      startX: e.clientX,
+      startValue: kind === "sidebar" ? sidebarWidth : previewWidth,
+      mainWidth,
+    };
+    setResizing(kind);
+
+    function onMove(ev: MouseEvent) {
+      const state = resizeState.current;
+      if (!state) return;
+      const delta = ev.clientX - state.startX;
+      if (state.kind === "sidebar") {
+        setSidebarWidth(Math.max(180, Math.min(400, state.startValue + delta)));
+      } else {
+        // previewWidth is stored as a percentage of the main content area.
+        // The resizer is the preview's left edge, so dragging left widens it.
+        const pctDelta = -(delta / state.mainWidth) * 100;
+        setPreviewWidth(Math.max(20, Math.min(75, state.startValue + pctDelta)));
+      }
+    }
+
+    function onUp() {
+      resizeState.current = null;
+      setResizing(null);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   useEffect(() => {
     fetch("/api/master").then((r) => r.json()).then((d) => {
-      // Reconstruct real resume from redacted content + piiMap (PRE-54).
       const stored = d.content as Resume;
       const map = d.piiMap as RedactionMap | null;
       setPiiMap(map);
@@ -125,15 +212,11 @@ export default function MasterPage() {
       return { ...r, sections: [...r.sections, sec] };
     });
 
-  // Append items parsed from prose into the targeted section. Items come
-  // from /api/master/parse-prose already shaped for the section's kind.
   function appendItemsToSection(sectionIdx: number, items: ExperienceItem[] | ProjectItem[] | EducationItem[]) {
     setResume((r) => {
       if (!r) return r;
       const sections = r.sections.map((s, i) => {
         if (i !== sectionIdx) return s;
-        // Type-safe widening: items are guaranteed to match the section's kind
-        // because the caller pulled `kind` from the same section.
         if (s.kind === "experience") return { ...s, items: [...s.items, ...(items as ExperienceItem[])] };
         if (s.kind === "projects") return { ...s, items: [...s.items, ...(items as ProjectItem[])] };
         if (s.kind === "education") return { ...s, items: [...s.items, ...(items as EducationItem[])] };
@@ -144,8 +227,6 @@ export default function MasterPage() {
     setStatus({ kind: "ok", msg: `Added ${items.length} item${items.length === 1 ? "" : "s"} from prose — review and Save.` });
   }
 
-  // Replace the entire resume with imported content. Caller confirms if the
-  // current resume is non-empty.
   function applyImportedResume(next: Resume) {
     setResume(next);
     setJsonText(JSON.stringify(next, null, 2));
@@ -157,7 +238,7 @@ export default function MasterPage() {
     setSaving(true);
     setStatus({ kind: null, msg: "" });
     try {
-      const payload = showJson ? JSON.parse(jsonText) : resume;
+      const payload = editorMode === "json" ? JSON.parse(jsonText) : resume;
       const res = await fetch("/api/master", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -165,7 +246,6 @@ export default function MasterPage() {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      // Inject PII from returned piiMap so UI shows real data (PRE-54).
       const savedMap = data.piiMap as RedactionMap | null;
       const savedContent = savedMap ? injectResume(data.content, savedMap) : data.content;
       setPiiMap(savedMap);
@@ -173,6 +253,23 @@ export default function MasterPage() {
       setUpdatedAt(data.updatedAt ?? null);
       setJsonText(JSON.stringify(savedContent, null, 2));
       setShowField({});
+
+      // When editing LaTeX, Save also compiles the custom source for preview.
+      if (editorMode === "latex" && customTex?.trim()) {
+        const compileRes = await fetch("/api/master/compile", {
+          method: "POST",
+          headers: { "content-type": "application/x-tex" },
+          body: customTex,
+        });
+        if (!compileRes.ok) throw new Error(await compileRes.text());
+        const blob = await compileRes.blob();
+        const url = URL.createObjectURL(blob);
+        setCompiledPdfUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+      }
+
       setStatus({ kind: "ok", msg: "Saved" });
     } catch (e) {
       setStatus({ kind: "err", msg: e instanceof Error ? e.message : "save failed" });
@@ -181,13 +278,11 @@ export default function MasterPage() {
     }
   }
 
-  function toggleJson() {
-    if (showJson) {
-      // Returning to structured view — apply textbox changes to state if valid.
+  async function switchMode(mode: "structured" | "latex" | "json") {
+    if (mode === "structured" && editorMode === "json") {
       try {
         const parsed = JSON.parse(jsonText);
         setResume(parsed);
-        // Clear piiMap so ContactBlock doesn't mask edited JSON.
         setPiiMap(null);
         setShowField({});
         setStatus({ kind: "ok", msg: "Switched to structured view. Save to re-redact PII." });
@@ -195,86 +290,194 @@ export default function MasterPage() {
         setStatus({ kind: "err", msg: "JSON is invalid — fix or revert before switching back." });
         return;
       }
-    } else {
+    }
+    if (mode === "json" && editorMode !== "json") {
       setJsonText(JSON.stringify(resume, null, 2));
     }
-    setShowJson(!showJson);
+    if (mode === "latex" && customTex === null) {
+      try {
+        const res = await fetch("/api/master/tex");
+        if (!res.ok) throw new Error(await res.text());
+        setCustomTex(await res.text());
+      } catch (e) {
+        setStatus({ kind: "err", msg: e instanceof Error ? e.message : "failed to load .tex" });
+        return;
+      }
+    }
+    setEditorMode(mode);
   }
 
+  // Clean up compiled PDF blob URL on unmount.
+  useEffect(() => () => {
+    if (compiledPdfUrlRef.current) {
+      URL.revokeObjectURL(compiledPdfUrlRef.current);
+    }
+  }, []);
+
   if (!resume) {
-    return <main className="mx-auto max-w-4xl px-6 py-8 text-sm text-neutral-500">Loading…</main>;
+    return (
+      <div className="h-full flex items-center justify-center text-body-md text-on-surface-variant">
+        Loading…
+      </div>
+    );
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Master resume</h1>
-        <div className="flex items-center gap-3">
-          {status.msg && (
-            <span className={`text-xs ${status.kind === "err" ? "text-red-600" : "text-neutral-500"}`}>
-              {status.msg}
-            </span>
-          )}
-          <button onClick={() => setShowImport(true)} className={smallBtnCls} title="Upload a PDF or paste resume text — Claude extracts the structure">
-            Import from PDF / text
-          </button>
-          <button onClick={toggleJson} className={smallBtnCls}>
-            {showJson ? "Structured view" : "JSON view"}
-          </button>
-          <button onClick={save} disabled={saving} className={primaryBtnCls}>
-            {saving ? "Saving…" : "Save"}
-          </button>
+    <div className="h-full flex flex-col font-body-md text-body-md text-on-surface bg-background dark:bg-on-background" style={{ zoom: 0.9 }}>
+      {/* Full-screen overlay during resize so iframes/panels don&apos;t steal mouse events. */}
+      {resizing && <div className="fixed inset-0 z-[60] cursor-col-resize" />}
+      {/* TopNavBar */}
+      <header className="bg-surface-container-lowest dark:bg-surface-dim text-primary dark:text-primary-fixed w-full h-16 sticky top-0 border-b border-outline-variant dark:border-outline flex items-center px-lg w-full z-50">
+        <div className="flex items-center gap-md">
+          <span className="text-[22px] font-medium tracking-tight text-on-surface dark:text-inverse-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>apted</span>
+          <div className="hidden lg:block text-on-surface-variant dark:text-surface-variant text-body-sm font-body-sm border-l border-outline-variant dark:border-outline pl-md ml-md">
+            The master resume is your complete career record. Add everything — the tailor curates per job.
+          </div>
         </div>
-      </div>
-      <p className="mt-2 text-sm text-neutral-600">
-        This is the only source of truth. Dump every job, project, and side-gig here, even ones outside your current target role. The tailor step picks what fits each JD.
-      </p>
+      </header>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_520px]">
-        <div>
-          {showJson ? (
-            <textarea
-              value={jsonText}
-              onChange={(e) => setJsonText(e.target.value)}
-              spellCheck={false}
-              rows={30}
-              className="w-full rounded-md border border-neutral-300 bg-white p-3 font-mono text-xs shadow-sm focus:border-neutral-500 focus:outline-none"
-            />
-          ) : (
-            <div className="space-y-6">
-              <ContactBlock contact={resume.contact} onChange={updateContact} piiMap={piiMap} showField={showField} onToggleField={(field) => setShowField((s) => ({ ...s, [field]: !s[field] }))} />
+      {/* Main Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* SideNavBar */}
+        <SideNavBar
+          sections={resume.sections}
+          active={activeSection}
+          onSelect={setActiveSection}
+          onReorder={(next) => setResume((r) => r ? { ...r, sections: next } : r)}
+          width={sidebarWidth}
+        />
 
-              {resume.sections.map((section, idx) => {
-                const proseKind =
-                  section.kind === "experience" || section.kind === "projects" || section.kind === "education"
-                    ? (section.kind as ProseKind)
-                    : null;
-                return (
-                  <SectionBlock
-                    key={section.id}
-                    section={section}
-                    collapsed={!!collapsed[section.id]}
-                    onToggleCollapse={() =>
-                      setCollapsed((c) => ({ ...c, [section.id]: !c[section.id] }))
-                    }
-                    onChange={(next) => updateSection(idx, () => next)}
-                    onMoveUp={() => moveSection(idx, -1)}
-                    onMoveDown={() => moveSection(idx, 1)}
-                    isFirst={idx === 0}
-                    isLast={idx === resume.sections.length - 1}
-                    onAddFromProse={
-                      proseKind ? () => setProseModal({ sectionIdx: idx, kind: proseKind }) : undefined
-                    }
-                  />
-                );
-              })}
+        {/* Resizer 1 */}
+        <div
+          onMouseDown={(e) => startResize("sidebar", e)}
+          className="hidden md:flex w-1 bg-surface border-r border-outline-variant hover:bg-surface-container-high cursor-col-resize shrink-0 items-center justify-center relative z-10 group select-none"
+        >
+          <div className="h-8 w-[2px] bg-outline-variant group-hover:bg-on-surface-variant rounded-full" />
+        </div>
 
-              <AddSectionMenu existing={resume.sections.map((s) => s.kind)} onAdd={addSection} />
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-background">
+          {/* Left Column (Editor) */}
+          <div className="flex-1 w-full flex flex-col overflow-hidden">
+            <div className="px-lg pt-lg pb-sm flex items-center justify-between gap-sm shrink-0">
+              <div className="flex items-center gap-sm">
+                <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? primaryBtnCls : smallBtnCls}>
+                  Structured
+                </button>
+                <button onClick={() => switchMode("latex")} className={editorMode === "latex" ? primaryBtnCls : smallBtnCls}>
+                  LaTeX
+                </button>
+                <button onClick={() => switchMode("json")} className={editorMode === "json" ? primaryBtnCls : smallBtnCls}>
+                  JSON
+                </button>
+              </div>
+              <div className="flex items-center gap-sm">
+                <button onClick={() => setShowImport(true)} className={smallBtnCls}>
+                  Import from PDF
+                </button>
+                <button onClick={save} disabled={saving} className={primaryBtnCls}>
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+            <div
+              className={[
+                "flex-1 w-full px-lg flex flex-col gap-lg items-center",
+                editorMode === "latex" ? "overflow-hidden pb-0" : "overflow-y-auto pb-[100px]",
+              ].join(" ")}
+            >
+              <div className={["w-full flex flex-col", editorMode === "latex" ? "h-full max-w-none" : "max-w-[800px] gap-lg"].join(" ")}>
+                {status.msg && (
+                  <div className={`text-label-md font-label-md ${status.kind === "err" ? "text-error" : "text-on-surface-variant"}`}>
+                    {status.msg}
+                  </div>
+                )}
 
-        <PreviewPane updatedAt={updatedAt} />
+                {editorMode === "json" && (
+                <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+                  <h3 className="text-headline-md font-headline-md text-on-surface mb-md">JSON</h3>
+                  <textarea
+                    value={jsonText}
+                    onChange={(e) => setJsonText(e.target.value)}
+                    spellCheck={false}
+                    rows={30}
+                    className="w-full rounded-lg border border-outline-variant bg-surface p-3 font-mono text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </section>
+              )}
+
+              {editorMode === "latex" && (
+                <div className="flex flex-col h-full w-full">
+                  <textarea
+                    value={customTex ?? ""}
+                    onChange={(e) => setCustomTex(e.target.value)}
+                    spellCheck={false}
+                    className="flex-1 w-full bg-surface font-mono text-xs p-3 focus:outline-none resize-none"
+                  />
+                </div>
+              )}
+
+              {editorMode === "structured" && (
+                <>
+                  <section id="contact">
+                    <ContactCard
+                      contact={resume.contact}
+                      onChange={updateContact}
+                      piiMap={piiMap}
+                      showField={showField}
+                      onToggleField={(field) => setShowField((s) => ({ ...s, [field]: !s[field] }))}
+                    />
+                  </section>
+
+                  {resume.sections.map((section, idx) => {
+                    const proseKind =
+                      section.kind === "experience" || section.kind === "projects" || section.kind === "education"
+                        ? (section.kind as ProseKind)
+                        : null;
+                    return (
+                      <section key={section.id} id={section.id}>
+                        <SectionCard
+                          section={section}
+                          collapsed={!!collapsed[section.id]}
+                          onToggleCollapse={() =>
+                            setCollapsed((c) => ({ ...c, [section.id]: !c[section.id] }))
+                          }
+                          onChange={(next) => updateSection(idx, () => next)}
+                          onMoveUp={() => moveSection(idx, -1)}
+                          onMoveDown={() => moveSection(idx, 1)}
+                          isFirst={idx === 0}
+                          isLast={idx === resume.sections.length - 1}
+                          onAddFromProse={
+                            proseKind ? () => setProseModal({ sectionIdx: idx, kind: proseKind }) : undefined
+                          }
+                        />
+                      </section>
+                    );
+                  })}
+
+                  <AddSectionMenu existing={resume.sections.map((s) => s.kind)} onAdd={addSection} />
+                </>
+              )}
+              </div>
+            </div>
+          </div>
+
+          {/* Resizer 2 */}
+          <div
+            onMouseDown={(e) => startResize("preview", e)}
+            className="hidden lg:flex w-1 bg-surface border-l border-outline-variant hover:bg-surface-container-high cursor-col-resize shrink-0 items-center justify-center relative z-10 group select-none"
+          >
+            <div className="h-8 w-[2px] bg-outline-variant group-hover:bg-on-surface-variant rounded-full" />
+          </div>
+
+          {/* Right Column (Preview Pane) */}
+          <PreviewPane
+            updatedAt={updatedAt}
+            width={previewWidth}
+            editorMode={editorMode}
+            compiledPdfUrl={compiledPdfUrl}
+          />
+        </main>
       </div>
 
       {proseModal && (
@@ -298,51 +501,162 @@ export default function MasterPage() {
           }}
         />
       )}
-    </main>
+    </div>
   );
 }
 
-// -- Preview --------------------------------------------------------------
+// -- SideNavBar ----------------------------------------------------------
 
-function PreviewPane({ updatedAt }: { updatedAt: string | null }) {
-  const version = updatedAt ? new Date(updatedAt).getTime() : 0;
-  const pdfSrc = `/api/master/pdf?v=${version}`;
+function SideNavBar({
+  sections,
+  active,
+  onSelect,
+  onReorder,
+  width,
+}: {
+  sections: Section[];
+  active: string;
+  onSelect: (id: string) => void;
+  onReorder: (next: Section[]) => void;
+  width: number;
+}) {
+  const iconByKind: Record<Section["kind"], string> = {
+    experience: "work",
+    projects: "rebase_edit",
+    education: "school",
+    skills: "psychology",
+    achievements: "verified",
+  };
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragIdRef = useRef<string | null>(null);
+
+  function handleDrop(targetId: string) {
+    const dragId = dragIdRef.current;
+    dragIdRef.current = null;
+    setDragOverId(null);
+    if (!dragId || dragId === targetId) return;
+    const fromIdx = sections.findIndex((s) => s.id === dragId);
+    const toIdx = sections.findIndex((s) => s.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const next = sections.slice();
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    onReorder(next);
+  }
+
+  const Item = ({
+    id,
+    icon,
+    label,
+    draggable,
+  }: {
+    id: string;
+    icon: string;
+    label: string;
+    draggable?: boolean;
+  }) => {
+    const selected = active === id;
+    const isOver = dragOverId === id && dragOverId !== dragIdRef.current;
+    return (
+      <a
+        href={`#${id}`}
+        draggable={draggable}
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", id);
+          e.dataTransfer.effectAllowed = "move";
+          dragIdRef.current = id;
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDragOverId(id);
+        }}
+        onDragLeave={() => setDragOverId((cur) => (cur === id ? null : cur))}
+        onDrop={(e) => {
+          e.preventDefault();
+          handleDrop(id);
+        }}
+        onDragEnd={() => {
+          dragIdRef.current = null;
+          setDragOverId(null);
+        }}
+        onClick={() => onSelect(id)}
+        className={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+          selected
+            ? "text-primary dark:text-primary-fixed font-semibold bg-primary-container dark:bg-secondary-container"
+            : "text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-highest",
+          isOver ? "ring-2 ring-primary ring-inset" : "",
+        ].join(" ")}
+      >
+        <span className="material-symbols-outlined text-[16px] text-on-surface-variant cursor-grab opacity-50 hover:opacity-100">drag_indicator</span>
+        <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>{icon}</span>
+        <span className="text-label-md font-label-md">{label}</span>
+      </a>
+    );
+  };
+
   return (
-    <aside className="lg:sticky lg:top-8 lg:self-start">
-      <div className="rounded-lg border border-neutral-200 bg-white shadow-sm">
-        <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Preview
-          </h2>
-          <a
-            href="/api/master/tex"
-            download
-            className="rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-100"
-          >
-            Download .tex
-          </a>
-        </header>
-        {updatedAt ? (
+    <nav
+      className="hidden md:flex flex-col p-md gap-sm bg-surface-container-low dark:bg-surface-container-high shrink-0 overflow-y-auto"
+      style={{ width }}
+    >
+      <div className="mb-lg px-2">
+        <h2 className="text-headline-md font-headline-md font-bold text-primary">Editor Sections</h2>
+        <p className="text-label-md font-label-md text-on-surface-variant">Resume Structure</p>
+      </div>
+      <Item id="contact" icon="person" label="Contact" />
+      {sections.map((s) => (
+        <Item key={s.id} id={s.id} icon={iconByKind[s.kind]} label={s.title} draggable />
+      ))}
+    </nav>
+  );
+}
+
+// -- Preview Pane --------------------------------------------------------
+
+function PreviewPane({
+  updatedAt,
+  width,
+  editorMode,
+  compiledPdfUrl,
+}: {
+  updatedAt: string | null;
+  width: number;
+  editorMode: "structured" | "latex" | "json";
+  compiledPdfUrl: string | null;
+}) {
+  const version = updatedAt ? new Date(updatedAt).getTime() : 0;
+  const pdfSrc = editorMode === "latex" && compiledPdfUrl ? compiledPdfUrl : `/api/master/pdf?v=${version}`;
+
+  return (
+    <div className="hidden lg:flex flex-col bg-surface relative" style={{ width: `${width}%` }}>
+      <div className="h-12 border-b border-outline-variant bg-surface-container-lowest flex items-center px-md sticky top-0 z-10">
+        <span className="text-label-md font-label-md text-on-surface font-semibold flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px]">visibility</span> Preview
+        </span>
+      </div>
+      <div className="flex-1 overflow-hidden flex justify-center bg-surface-container">
+        {updatedAt || compiledPdfUrl ? (
           <iframe
-            key={version}
+            key={pdfSrc}
             src={pdfSrc}
             title="Master resume PDF preview"
-            className="block h-[calc(100vh-180px)] min-h-[600px] w-full rounded-b-lg bg-neutral-50"
+            className="bg-white w-full h-full shadow-sm border border-outline-variant"
           />
         ) : (
-          <div className="px-4 py-8 text-center text-xs text-neutral-500">Loading…</div>
+          <div className="bg-white w-full h-full shadow-sm border border-outline-variant p-8 flex items-center justify-center text-body-sm text-on-surface-variant">
+            Loading preview…
+          </div>
         )}
-        <p className="border-t border-neutral-200 px-4 py-2 text-[11px] text-neutral-500">
-          Requires the compile-service running at <code>COMPILE_SERVICE_URL</code>. Refreshes after each Save.
-        </p>
       </div>
-    </aside>
+    </div>
   );
 }
 
-// -- Contact --------------------------------------------------------------
+// -- Contact -------------------------------------------------------------
 
-function ContactBlock({
+function ContactCard({
   contact,
   onChange,
   piiMap,
@@ -358,133 +672,149 @@ function ContactBlock({
   const links = contact.links ?? [];
   const setLinks = (next: { label: string; href: string }[]) => onChange({ links: next });
 
-  // Mask a PII field value for display (PRE-54).
   const mask = (field: string, real: string) => {
     if (!piiMap) return real;
     if (showField[field]) return real;
-    // Show placeholder based on field type.
     if (field === "name") return "[NAME]";
     if (field === "phone") return "[PHONE]";
     if (field === "email") return "[EMAIL]";
     return real;
   };
 
-  // Auto-unmask when user focuses a masked field so they edit real data.
   const handleFocus = (field: string, real: string, onChangeFn: (value: string) => void) => {
     if (piiMap && !showField[field]) {
       onToggleField(field);
-      // Replace the placeholder with real value so user edits real data.
       onChangeFn(real);
     }
   };
 
-  const toggleBtnCls = "rounded border border-neutral-300 bg-white px-1.5 py-0.5 text-[10px] text-neutral-500 hover:bg-neutral-100";
-
   return (
-    <section className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Contact</h2>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Labeled label="Name">
-          <div className="flex gap-1">
-            <input
-              className={inputCls}
-              value={mask("name", contact.name)}
-              onFocus={() => handleFocus("name", contact.name, (v) => onChange({ name: v }))}
-              onChange={(e) => onChange({ name: e.target.value })}
-            />
-            {piiMap && (
-              <button type="button" onClick={() => onToggleField("name")} className={toggleBtnCls} title="Show/hide">
-                {showField.name ? "👁" : "👁‍🗨"}
+    <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col gap-md">
+      <h3 className="text-headline-md font-headline-md text-on-surface flex items-center gap-2">
+        <span className="material-symbols-outlined text-[20px] text-on-surface-variant">person</span>
+        Contact Info
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        <Labeled
+          label="Full Name"
+          action={
+            piiMap ? (
+              <button type="button" onClick={() => onToggleField("name")} className="text-on-surface-variant hover:text-primary p-0 leading-none">
+                <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>{showField.name ? "visibility" : "visibility_off"}</span>
               </button>
-            )}
-          </div>
+            ) : null
+          }
+        >
+          <input
+            className={inputCls}
+            type="text"
+            value={mask("name", contact.name)}
+            onFocus={() => handleFocus("name", contact.name, (v) => onChange({ name: v }))}
+            onChange={(e) => onChange({ name: e.target.value })}
+          />
         </Labeled>
-        <Labeled label="Phone">
-          <div className="flex gap-1">
-            <input
-              className={inputCls}
-              value={mask("phone", contact.phone ?? "")}
-              onFocus={() => handleFocus("phone", contact.phone ?? "", (v) => onChange({ phone: v }))}
-              onChange={(e) => onChange({ phone: e.target.value })}
-            />
-            {piiMap && (
-              <button type="button" onClick={() => onToggleField("phone")} className={toggleBtnCls} title="Show/hide">
-                {showField.phone ? "👁" : "👁‍🗨"}
-              </button>
-            )}
-          </div>
+        <Labeled label="Title / Role">
+          <input
+            className={inputCls}
+            type="text"
+            value={contact.title ?? ""}
+            onChange={(e) => onChange({ title: e.target.value })}
+          />
         </Labeled>
-        <Labeled label="Email" wide>
-          <div className="flex gap-1">
-            <input
-              className={inputCls}
-              value={mask("email", contact.email ?? "")}
-              onFocus={() => handleFocus("email", contact.email ?? "", (v) => onChange({ email: v }))}
-              onChange={(e) => onChange({ email: e.target.value })}
-            />
-            {piiMap && (
-              <button type="button" onClick={() => onToggleField("email")} className={toggleBtnCls} title="Show/hide">
-                {showField.email ? "👁" : "👁‍🗨"}
+        <Labeled
+          label="Email"
+          action={
+            piiMap ? (
+              <button type="button" onClick={() => onToggleField("email")} className="text-on-surface-variant hover:text-primary p-0 leading-none">
+                <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>{showField.email ? "visibility" : "visibility_off"}</span>
               </button>
-            )}
-          </div>
+            ) : null
+          }
+        >
+          <input
+            className={inputCls}
+            type="email"
+            value={mask("email", contact.email ?? "")}
+            onFocus={() => handleFocus("email", contact.email ?? "", (v) => onChange({ email: v }))}
+            onChange={(e) => onChange({ email: e.target.value })}
+          />
+        </Labeled>
+        <Labeled
+          label="Phone"
+          action={
+            piiMap ? (
+              <button type="button" onClick={() => onToggleField("phone")} className="text-on-surface-variant hover:text-primary p-0 leading-none">
+                <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>{showField.phone ? "visibility" : "visibility_off"}</span>
+              </button>
+            ) : null
+          }
+        >
+          <input
+            className={inputCls}
+            type="tel"
+            value={mask("phone", contact.phone ?? "")}
+            onFocus={() => handleFocus("phone", contact.phone ?? "", (v) => onChange({ phone: v }))}
+            onChange={(e) => onChange({ phone: e.target.value })}
+          />
         </Labeled>
       </div>
-      <div className="mt-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">Links</span>
-          <button
-            onClick={() => setLinks([...links, { label: "", href: "" }])}
-            className={smallBtnCls}
-          >
-            + Add link
-          </button>
-        </div>
-        <div className="mt-2 space-y-2">
+      <div className="border-t border-outline-variant pt-md mt-sm flex flex-col gap-sm">
+        <h4 className="text-label-md font-label-md text-on-surface-variant">Links</h4>
+        <div className="flex flex-col gap-xs">
           {links.map((l, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                className={`${inputCls} sm:max-w-[180px]`}
-                placeholder="Label (e.g. GitHub)"
-                value={l.label}
-                onChange={(e) =>
-                  setLinks(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
-                }
-              />
-              <input
-                className={inputCls}
-                placeholder="https://…"
-                value={l.href}
-                onChange={(e) =>
-                  setLinks(links.map((x, j) => (j === i ? { ...x, href: e.target.value } : x)))
-                }
-              />
-              <button
-                onClick={() => setLinks(links.filter((_, j) => j !== i))}
-                className={dangerBtnCls}
-              >
-                Remove
+            <div key={i} className="flex items-center gap-sm">
+              <div className="flex-1 flex items-center border border-outline-variant rounded-lg bg-surface px-2 h-8">
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant mr-2">link</span>
+                <input
+                  className="bg-transparent border-none p-0 w-full text-body-md focus:ring-0 outline-none"
+                  placeholder="Label"
+                  type="text"
+                  value={l.label}
+                  onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                />
+              </div>
+              <div className="flex-[2] flex items-center border border-outline-variant rounded-lg bg-surface px-2 h-8 relative">
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant mr-2">language</span>
+                <input
+                  className="bg-transparent border-none p-0 w-full text-body-md focus:ring-0 outline-none"
+                  placeholder="https://…"
+                  type="text"
+                  value={l.href}
+                  onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, href: e.target.value } : x)))}
+                />
+              </div>
+              <button onClick={() => setLinks(links.filter((_, j) => j !== i))} className="text-on-surface-variant hover:text-error p-0 leading-none h-8 flex items-center">
+                <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
             </div>
           ))}
         </div>
+        <button
+          onClick={() => setLinks([...links, { label: "", href: "" }])}
+          className="text-primary text-label-md font-label-md flex items-center gap-1 self-start mt-1 hover:underline"
+        >
+          <span className="material-symbols-outlined text-[16px]">add</span> Add link
+        </button>
       </div>
     </section>
   );
 }
 
-function Labeled({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
+function Labeled({ label, children, wide, action }: { label: string; children: React.ReactNode; wide?: boolean; action?: React.ReactNode }) {
   return (
-    <label className={`flex flex-col gap-1 text-xs text-neutral-600 ${wide ? "sm:col-span-2" : ""}`}>
-      <span className="font-medium uppercase tracking-wide">{label}</span>
+    <label className={`flex flex-col gap-1 text-label-md font-label-md text-on-surface-variant ${wide ? "md:col-span-2" : ""}`}>
+      <span className="flex items-center gap-1 w-full justify-between">
+        {label}
+        {action}
+      </span>
       {children}
     </label>
   );
 }
 
-// -- Section --------------------------------------------------------------
+// -- Section -------------------------------------------------------------
 
-function SectionBlock({
+function SectionCard({
   section, collapsed, onToggleCollapse, onChange, onMoveUp, onMoveDown, isFirst, isLast, onAddFromProse,
 }: {
   section: Section;
@@ -497,30 +827,40 @@ function SectionBlock({
   isLast: boolean;
   onAddFromProse?: () => void;
 }) {
-  const itemCount = section.items.length;
+  const iconByKind: Record<Section["kind"], string> = {
+    experience: "work",
+    projects: "rebase_edit",
+    education: "school",
+    skills: "psychology",
+    achievements: "verified",
+  };
+
   return (
-    <section className="rounded-lg border border-neutral-200 bg-white shadow-sm">
-      <header className="flex items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3">
-        <div className="flex flex-1 items-center gap-3">
-          <button onClick={onToggleCollapse} className="text-xs text-neutral-500 hover:text-neutral-800" aria-label="Toggle">
-            {collapsed ? "▸" : "▾"}
-          </button>
+    <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col gap-md">
+      <div className="flex justify-between items-center cursor-pointer" onClick={onToggleCollapse}>
+        <h3 className="text-headline-md font-headline-md text-on-surface flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px] text-on-surface-variant">{iconByKind[section.kind]}</span>
           <input
-            className={`${inputCls} max-w-xs font-medium`}
+            className="bg-transparent border-none focus:ring-0 outline-none p-0 text-headline-md font-headline-md"
             value={section.title}
+            onClick={(e) => e.stopPropagation()}
             onChange={(e) => onChange({ ...section, title: e.target.value })}
           />
-          <span className="text-xs text-neutral-500">
-            {itemCount} {itemCount === 1 ? "item" : "items"} · {section.kind}
-          </span>
-        </div>
+        </h3>
         <div className="flex items-center gap-1">
-          <button onClick={onMoveUp} disabled={isFirst} className={smallBtnCls} aria-label="Move up">↑</button>
-          <button onClick={onMoveDown} disabled={isLast} className={smallBtnCls} aria-label="Move down">↓</button>
+          <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} disabled={isFirst} className={smallBtnCls} aria-label="Move up">
+            <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} disabled={isLast} className={smallBtnCls} aria-label="Move down">
+            <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }} className={smallBtnCls} aria-label="Toggle">
+            <span className="material-symbols-outlined text-[20px]">{collapsed ? "expand_more" : "expand_less"}</span>
+          </button>
         </div>
-      </header>
+      </div>
       {!collapsed && (
-        <div className="space-y-4 p-4">
+        <div className="flex flex-col gap-md">
           {section.kind === "experience" && <ExpSectionBody section={section} onChange={onChange} onAddFromProse={onAddFromProse} />}
           {section.kind === "projects" && <ProjSectionBody section={section} onChange={onChange} onAddFromProse={onAddFromProse} />}
           {section.kind === "education" && <EduSectionBody section={section} onChange={onChange} onAddFromProse={onAddFromProse} />}
@@ -542,13 +882,13 @@ function SectionFooter({
   onAddFromProse?: () => void;
 }) {
   return (
-    <div className="flex gap-2 pt-2">
-      <button onClick={onAdd} className={smallBtnCls}>
-        + Add {label}
+    <div className="flex flex-col gap-sm">
+      <button onClick={onAdd} className="w-full py-3 border-2 border-dashed border-outline-variant rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+        <span className="material-symbols-outlined text-[18px]">add</span> Add {label}
       </button>
       {onAddFromProse && (
-        <button onClick={onAddFromProse} className={smallBtnCls} title="Describe in prose and let Claude parse it">
-          ✎ Add from prose
+        <button onClick={onAddFromProse} className="w-full py-2 border border-outline-variant rounded-lg text-primary font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+          <span className="material-symbols-outlined text-[16px]">auto_awesome</span> Add from prose
         </button>
       )}
     </div>
@@ -559,6 +899,7 @@ function SectionFooter({
 
 function ExpSectionBody({ section, onChange, onAddFromProse }: { section: ExpSection; onChange: (s: Section) => void; onAddFromProse?: () => void }) {
   const setItems = (items: ExperienceItem[]) => onChange({ ...section, items });
+  const drag = useDragReorder((from, to) => setItems(reorderArray(section.items, from, to)));
   return (
     <>
       {section.items.map((it, i) => (
@@ -569,46 +910,64 @@ function ExpSectionBody({ section, onChange, onAddFromProse }: { section: ExpSec
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
           isFirst={i === 0}
           isLast={i === section.items.length - 1}
+          {...drag(i)}
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Labeled label="Title">
-              <input className={inputCls} value={it.title}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
-            </Labeled>
-            <Labeled label="Organization">
-              <input className={inputCls} value={it.org}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, org: e.target.value } : x))} />
-            </Labeled>
-            <Labeled label="Location">
-              <input className={inputCls} value={it.location ?? ""}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, location: e.target.value } : x))} />
-            </Labeled>
-            <div className="grid grid-cols-2 gap-3">
-              <Labeled label="Start">
-                <input className={inputCls} placeholder="May 2024" value={it.start ?? ""}
-                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, start: e.target.value } : x))} />
-              </Labeled>
-              <Labeled label="End">
-                <input className={inputCls} placeholder="Present" value={it.end ?? ""}
-                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, end: e.target.value } : x))} />
-              </Labeled>
+          <div className="flex flex-col gap-sm w-full">
+            {/* Jake layout: title (left) | dates (right) */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-sm">
+              <input
+                className={`${ghostInputCls} flex-1 text-headline-md font-headline-md`}
+                placeholder="Job Title"
+                type="text"
+                value={it.title}
+                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+              />
+              <input
+                className={`${ghostInputCls} sm:w-48 text-right text-body-sm font-body-sm text-on-surface-variant`}
+                placeholder="Dates"
+                type="text"
+                value={`${it.start ?? ""}${it.end ? ` - ${it.end}` : ""}`}
+                onChange={(e) => {
+                  const [start, end] = e.target.value.split(" - ");
+                  setItems(section.items.map((x, j) => j === i ? { ...x, start: start ?? "", end: end ?? "" } : x));
+                }}
+              />
             </div>
+            {/* Jake layout: company (left) | location (right) */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-sm">
+              <input
+                className={`${ghostInputCls} flex-1 text-body-sm font-body-sm text-on-surface-variant`}
+                placeholder="Company"
+                type="text"
+                value={it.org}
+                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, org: e.target.value } : x))}
+              />
+              <input
+                className={`${ghostInputCls} sm:w-48 text-right text-body-sm font-body-sm text-on-surface-variant`}
+                placeholder="Location"
+                type="text"
+                value={it.location ?? ""}
+                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, location: e.target.value } : x))}
+              />
+            </div>
+            <ProseInput
+              value={it.notes ?? ""}
+              onChange={(v) => setItems(section.items.map((x, j) => j === i ? { ...x, notes: v } : x))}
+              bullets={it.bullets}
+              onGenerate={(bs, notes) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs, notes } : x))}
+            />
+            <BulletList
+              bullets={it.bullets}
+              onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
+            />
+            <TagsInput
+              tags={it.tags ?? []}
+              onChange={(tags) => setItems(section.items.map((x, j) => j === i ? { ...x, tags } : x))}
+            />
           </div>
-          <BulletList
-            bullets={it.bullets}
-            onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
-          />
-          <NotesInput
-            value={it.notes ?? ""}
-            onChange={(v) => setItems(section.items.map((x, j) => j === i ? { ...x, notes: v } : x))}
-          />
-          <TagsInput
-            tags={it.tags ?? []}
-            onChange={(tags) => setItems(section.items.map((x, j) => j === i ? { ...x, tags } : x))}
-          />
         </ItemFrame>
       ))}
-      <SectionFooter label="experience" onAdd={() => setItems([...section.items, newExp()])} onAddFromProse={onAddFromProse} />
+      <SectionFooter label="Experience" onAdd={() => setItems([...section.items, newExp()])} onAddFromProse={onAddFromProse} />
     </>
   );
 }
@@ -617,6 +976,7 @@ function ExpSectionBody({ section, onChange, onAddFromProse }: { section: ExpSec
 
 function ProjSectionBody({ section, onChange, onAddFromProse }: { section: ProjSection; onChange: (s: Section) => void; onAddFromProse?: () => void }) {
   const setItems = (items: ProjectItem[]) => onChange({ ...section, items });
+  const drag = useDragReorder((from, to) => setItems(reorderArray(section.items, from, to)));
   return (
     <>
       {section.items.map((it, i) => (
@@ -627,42 +987,57 @@ function ProjSectionBody({ section, onChange, onAddFromProse }: { section: ProjS
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
           isFirst={i === 0}
           isLast={i === section.items.length - 1}
+          {...drag(i)}
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Labeled label="Name">
-              <input className={inputCls} value={it.name}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-            </Labeled>
-            <Labeled label="Stack">
-              <input className={inputCls} placeholder="Python, FastAPI, Postgres" value={it.stack ?? ""}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, stack: e.target.value } : x))} />
-            </Labeled>
-            <div className="grid grid-cols-2 gap-3 sm:col-span-2">
-              <Labeled label="Start">
-                <input className={inputCls} value={it.start ?? ""}
-                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, start: e.target.value } : x))} />
-              </Labeled>
-              <Labeled label="End">
-                <input className={inputCls} value={it.end ?? ""}
-                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, end: e.target.value } : x))} />
-              </Labeled>
+          <div className="flex flex-col gap-sm w-full">
+            {/* Jake layout: name | stack (left) | dates (right) */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-sm">
+              <div className="flex-1 flex flex-col sm:flex-row items-start gap-2">
+                <input
+                  className={`${ghostInputCls} flex-1 text-headline-md font-headline-md`}
+                  placeholder="Project Name"
+                  type="text"
+                  value={it.name}
+                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                />
+                <span className="hidden sm:inline text-on-surface-variant self-center">|</span>
+                <input
+                  className={`${ghostInputCls} sm:w-40 text-headline-md font-headline-md text-on-surface-variant`}
+                  placeholder="Stack"
+                  type="text"
+                  value={it.stack ?? ""}
+                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, stack: e.target.value } : x))}
+                />
+              </div>
+              <input
+                className={`${ghostInputCls} sm:w-48 text-right text-body-sm font-body-sm text-on-surface-variant`}
+                placeholder="Dates"
+                type="text"
+                value={`${it.start ?? ""}${it.end ? ` - ${it.end}` : ""}`}
+                onChange={(e) => {
+                  const [start, end] = e.target.value.split(" - ");
+                  setItems(section.items.map((x, j) => j === i ? { ...x, start: start ?? "", end: end ?? "" } : x));
+                }}
+              />
             </div>
+            <ProseInput
+              value={it.notes ?? ""}
+              onChange={(v) => setItems(section.items.map((x, j) => j === i ? { ...x, notes: v } : x))}
+              bullets={it.bullets}
+              onGenerate={(bs, notes) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs, notes } : x))}
+            />
+            <BulletList
+              bullets={it.bullets}
+              onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
+            />
+            <TagsInput
+              tags={it.tags ?? []}
+              onChange={(tags) => setItems(section.items.map((x, j) => j === i ? { ...x, tags } : x))}
+            />
           </div>
-          <BulletList
-            bullets={it.bullets}
-            onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
-          />
-          <NotesInput
-            value={it.notes ?? ""}
-            onChange={(v) => setItems(section.items.map((x, j) => j === i ? { ...x, notes: v } : x))}
-          />
-          <TagsInput
-            tags={it.tags ?? []}
-            onChange={(tags) => setItems(section.items.map((x, j) => j === i ? { ...x, tags } : x))}
-          />
         </ItemFrame>
       ))}
-      <SectionFooter label="project" onAdd={() => setItems([...section.items, newProj()])} onAddFromProse={onAddFromProse} />
+      <SectionFooter label="Project" onAdd={() => setItems([...section.items, newProj()])} onAddFromProse={onAddFromProse} />
     </>
   );
 }
@@ -671,6 +1046,7 @@ function ProjSectionBody({ section, onChange, onAddFromProse }: { section: ProjS
 
 function EduSectionBody({ section, onChange, onAddFromProse }: { section: EduSection; onChange: (s: Section) => void; onAddFromProse?: () => void }) {
   const setItems = (items: EducationItem[]) => onChange({ ...section, items });
+  const drag = useDragReorder((from, to) => setItems(reorderArray(section.items, from, to)));
   return (
     <>
       {section.items.map((it, i) => (
@@ -681,42 +1057,58 @@ function EduSectionBody({ section, onChange, onAddFromProse }: { section: EduSec
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
           isFirst={i === 0}
           isLast={i === section.items.length - 1}
+          {...drag(i)}
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Labeled label="School">
-              <input className={inputCls} value={it.school}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, school: e.target.value } : x))} />
-            </Labeled>
-            <Labeled label="Degree">
-              <input className={inputCls} value={it.degree ?? ""}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, degree: e.target.value } : x))} />
-            </Labeled>
-            <Labeled label="Location">
-              <input className={inputCls} value={it.location ?? ""}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, location: e.target.value } : x))} />
-            </Labeled>
-            <div className="grid grid-cols-2 gap-3">
-              <Labeled label="Start">
-                <input className={inputCls} value={it.start ?? ""}
-                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, start: e.target.value } : x))} />
-              </Labeled>
-              <Labeled label="End">
-                <input className={inputCls} value={it.end ?? ""}
-                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, end: e.target.value } : x))} />
-              </Labeled>
+          <div className="flex flex-col gap-sm w-full">
+            {/* Jake layout: school (left) | location (right) */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-sm">
+              <input
+                className={`${ghostInputCls} flex-1 text-headline-md font-headline-md`}
+                placeholder="School"
+                type="text"
+                value={it.school}
+                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, school: e.target.value } : x))}
+              />
+              <input
+                className={`${ghostInputCls} sm:w-48 text-right text-body-sm font-body-sm text-on-surface-variant`}
+                placeholder="Location"
+                type="text"
+                value={it.location ?? ""}
+                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, location: e.target.value } : x))}
+              />
             </div>
+            {/* Jake layout: degree (left) | dates (right) */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-sm">
+              <input
+                className={`${ghostInputCls} flex-1 text-body-sm font-body-sm text-on-surface-variant`}
+                placeholder="Degree"
+                type="text"
+                value={it.degree ?? ""}
+                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, degree: e.target.value } : x))}
+              />
+              <input
+                className={`${ghostInputCls} sm:w-48 text-right text-body-sm font-body-sm text-on-surface-variant`}
+                placeholder="Dates"
+                type="text"
+                value={`${it.start ?? ""}${it.end ? ` - ${it.end}` : ""}`}
+                onChange={(e) => {
+                  const [start, end] = e.target.value.split(" - ");
+                  setItems(section.items.map((x, j) => j === i ? { ...x, start: start ?? "", end: end ?? "" } : x));
+                }}
+              />
+            </div>
+            <BulletList
+              bullets={it.bullets}
+              onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
+            />
+            <TagsInput
+              tags={it.tags ?? []}
+              onChange={(tags) => setItems(section.items.map((x, j) => j === i ? { ...x, tags } : x))}
+            />
           </div>
-          <BulletList
-            bullets={it.bullets}
-            onChange={(bs) => setItems(section.items.map((x, j) => j === i ? { ...x, bullets: bs } : x))}
-          />
-          <TagsInput
-            tags={it.tags ?? []}
-            onChange={(tags) => setItems(section.items.map((x, j) => j === i ? { ...x, tags } : x))}
-          />
         </ItemFrame>
       ))}
-      <SectionFooter label="education" onAdd={() => setItems([...section.items, newEdu()])} onAddFromProse={onAddFromProse} />
+      <SectionFooter label="Education" onAdd={() => setItems([...section.items, newEdu()])} onAddFromProse={onAddFromProse} />
     </>
   );
 }
@@ -725,6 +1117,7 @@ function EduSectionBody({ section, onChange, onAddFromProse }: { section: EduSec
 
 function SkillSectionBody({ section, onChange }: { section: SkillSection; onChange: (s: Section) => void }) {
   const setItems = (items: SkillGroup[]) => onChange({ ...section, items });
+  const drag = useDragReorder((from, to) => setItems(reorderArray(section.items, from, to)));
   return (
     <>
       {section.items.map((g, i) => (
@@ -735,21 +1128,70 @@ function SkillSectionBody({ section, onChange }: { section: SkillSection; onChan
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
           isFirst={i === 0}
           isLast={i === section.items.length - 1}
+          {...drag(i)}
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Labeled label="Category">
-              <input className={inputCls} placeholder="Languages" value={g.category}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, category: e.target.value } : x))} />
-            </Labeled>
-            <label className="sm:col-span-2 flex flex-col gap-1 text-xs text-neutral-600">
-              <span className="font-medium uppercase tracking-wide">Items (comma-separated)</span>
-              <input className={inputCls} placeholder="TypeScript, Python, Go" value={g.items}
-                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, items: e.target.value } : x))} />
+          <div className="flex flex-col gap-sm w-full">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Labeled label="Category">
+                <input
+                  className={inputCls}
+                  placeholder="Languages"
+                  value={g.category}
+                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, category: e.target.value } : x))}
+                />
+              </Labeled>
+              <label className="sm:col-span-2 flex flex-col gap-1 text-label-md font-label-md text-on-surface-variant">
+                <span>Items (comma-separated)</span>
+                <input
+                  className={inputCls}
+                  placeholder="TypeScript, Python, Go"
+                  value={g.items}
+                  onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, items: e.target.value } : x))}
+                />
+              </label>
+            </div>
+          </div>
+        </ItemFrame>
+      ))}
+      <SectionFooter label="Skill Group" onAdd={() => setItems([...section.items, newSkill()])} />
+    </>
+  );
+}
+
+// -- Achievements --------------------------------------------------------
+
+function AchieveSectionBody({ section, onChange }: { section: AchieveSection; onChange: (s: Section) => void }) {
+  const setItems = (items: AchievementItem[]) => onChange({ ...section, items });
+  const drag = useDragReorder((from, to) => setItems(reorderArray(section.items, from, to)));
+  return (
+    <>
+      {section.items.map((it, i) => (
+        <ItemFrame
+          key={it.id}
+          onMoveUp={() => setItems(moveInArray(section.items, i, -1))}
+          onMoveDown={() => setItems(moveInArray(section.items, i, 1))}
+          onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
+          isFirst={i === 0}
+          isLast={i === section.items.length - 1}
+          {...drag(i)}
+        >
+          <div className="flex flex-col gap-sm w-full">
+            <label className="flex flex-col gap-1 text-label-md font-label-md text-on-surface-variant">
+              <span>Achievement</span>
+              <input
+                className={inputCls}
+                placeholder='1st Place Overall - TAMUHack 2026 Hackathon (650+ competitors)'
+                value={it.text}
+                onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
+              />
+              <span className="text-body-sm font-body-sm text-on-surface-variant">
+                Use " - " (space-dash-space) to split bold title from detail.
+              </span>
             </label>
           </div>
         </ItemFrame>
       ))}
-      <SectionFooter label="skill group" onAdd={() => setItems([...section.items, newSkill()])} />
+      <SectionFooter label="Achievement" onAdd={() => setItems([...section.items, newAchievement()])} />
     </>
   );
 }
@@ -774,48 +1216,23 @@ function AddSectionMenu({
   const missing = kinds.filter((k) => !existing.includes(k));
   if (missing.length === 0) return null;
   return (
-    <div className="flex items-center gap-2 rounded-md border border-dashed border-neutral-300 bg-white p-3 text-xs">
-      <span className="text-neutral-500">Add section:</span>
-      {missing.map((k) => (
-        <button key={k} onClick={() => onAdd(k)} className={smallBtnCls}>
-          + {labelByKind[k]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// -- Achievements --------------------------------------------------------
-
-function AchieveSectionBody({ section, onChange }: { section: AchieveSection; onChange: (s: Section) => void }) {
-  const setItems = (items: AchievementItem[]) => onChange({ ...section, items });
-  return (
-    <>
-      {section.items.map((it, i) => (
-        <ItemFrame
-          key={it.id}
-          onMoveUp={() => setItems(moveInArray(section.items, i, -1))}
-          onMoveDown={() => setItems(moveInArray(section.items, i, 1))}
-          onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
-          isFirst={i === 0}
-          isLast={i === section.items.length - 1}
-        >
-          <label className="flex flex-col gap-1 text-xs text-neutral-600">
-            <span className="font-medium uppercase tracking-wide">Achievement</span>
-            <input
-              className={inputCls}
-              placeholder="1st Place Overall - TAMUHack 2026 Hackathon (650+ competitors)"
-              value={it.text}
-              onChange={(e) => setItems(section.items.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
-            />
-            <span className="text-[10px] text-neutral-400">
-              Use " - " (space-dash-space) to split bold title from detail.
-            </span>
-          </label>
-        </ItemFrame>
-      ))}
-      <SectionFooter label="achievement" onAdd={() => setItems([...section.items, newAchievement()])} />
-    </>
+    <button className="w-full py-3 border-2 border-dashed border-outline-variant rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+      <span className="material-symbols-outlined text-[18px]">add</span>
+      <select
+        className="bg-transparent border-none outline-none text-on-surface-variant font-label-md text-label-md cursor-pointer"
+        onChange={(e) => {
+          const kind = e.target.value as Section["kind"];
+          if (kind) onAdd(kind);
+          e.target.value = "";
+        }}
+        value=""
+      >
+        <option value="">Add section</option>
+        {missing.map((k) => (
+          <option key={k} value={k}>{labelByKind[k]}</option>
+        ))}
+      </select>
+    </button>
   );
 }
 
@@ -823,6 +1240,7 @@ function AchieveSectionBody({ section, onChange }: { section: AchieveSection; on
 
 function ItemFrame({
   children, onMoveUp, onMoveDown, onDelete, isFirst, isLast,
+  draggable, onDragStart, onDragOver, onDrop, isDragOver,
 }: {
   children: React.ReactNode;
   onMoveUp: () => void;
@@ -830,15 +1248,46 @@ function ItemFrame({
   onDelete: () => void;
   isFirst: boolean;
   isLast: boolean;
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragOver?: () => void;
+  onDrop?: () => void;
+  isDragOver?: boolean;
 }) {
   return (
-    <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
-      <div className="mb-2 flex items-center justify-end gap-1">
-        <button onClick={onMoveUp} disabled={isFirst} className={smallBtnCls} aria-label="Move up">↑</button>
-        <button onClick={onMoveDown} disabled={isLast} className={smallBtnCls} aria-label="Move down">↓</button>
-        <button onClick={onDelete} className={dangerBtnCls}>Delete</button>
+    <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver?.();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop?.();
+      }}
+      className={[
+        "border rounded-lg p-md flex flex-col gap-sm relative bg-surface-bright transition-all",
+        isDragOver ? "border-primary ring-1 ring-primary" : "border-outline-variant",
+      ].join(" ")}
+    >
+      <div className="absolute left-0 top-0 bottom-0 w-7 flex flex-col items-center justify-center opacity-30 hover:opacity-100 cursor-grab border-r border-outline-variant bg-surface">
+        <span className="material-symbols-outlined text-[18px] text-on-surface-variant">drag_indicator</span>
       </div>
-      <div className="space-y-3">{children}</div>
+      <div className="pl-lg flex flex-col gap-sm w-full">
+        {children}
+      </div>
+      <div className="absolute right-2 top-2 flex flex-col gap-1 opacity-0 hover:opacity-100 transition-opacity">
+        <button onClick={onMoveUp} disabled={isFirst} className={smallBtnCls} aria-label="Move up">
+          <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
+        </button>
+        <button onClick={onMoveDown} disabled={isLast} className={smallBtnCls} aria-label="Move down">
+          <span className="material-symbols-outlined text-[14px]">arrow_downward</span>
+        </button>
+        <button onClick={onDelete} className={dangerBtnCls} aria-label="Delete">
+          <span className="material-symbols-outlined text-[14px]">close</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -851,45 +1300,51 @@ function BulletList({
   bullets: Bullet[];
   onChange: (bullets: Bullet[]) => void;
 }) {
+  const drag = useDragReorder((from, to) => onChange(reorderArray(bullets, from, to)));
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">Bullets</span>
-        <button onClick={() => onChange([...bullets, newBullet()])} className={smallBtnCls}>
-          + Add bullet
+    <div className="flex flex-col gap-1 mt-2 border-t border-outline-variant pt-sm">
+      <h4 className="text-label-md font-label-md text-on-surface-variant">Curated Bullets</h4>
+      <div className="flex flex-col gap-1">
+        {bullets.map((b, i) => {
+          const d = drag(i);
+          return (
+            <div
+              key={b.id}
+              draggable
+              onDragStart={d.onDragStart}
+              onDragOver={d.onDragOver}
+              onDrop={d.onDrop}
+              onDragEnd={d.onDragEnd}
+              className={[
+                "flex items-start gap-1 group rounded transition-all",
+                d.isDragOver ? "ring-1 ring-primary bg-surface-container-low" : "",
+              ].join(" ")}
+            >
+              <span className="material-symbols-outlined text-[16px] text-on-surface-variant cursor-grab mt-1 opacity-50 group-hover:opacity-100">drag_indicator</span>
+              <textarea
+                rows={2}
+                className="flex-1 bg-surface-container-lowest border border-outline-variant rounded p-1.5 text-body-sm font-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-y"
+                value={b.text}
+                onChange={(e) => onChange(bullets.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
+              />
+              <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => onChange(moveInArray(bullets, i, -1))} disabled={i === 0} className="text-on-surface-variant hover:text-on-surface p-0 leading-none">
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>arrow_upward</span>
+                </button>
+                <button onClick={() => onChange(moveInArray(bullets, i, 1))} disabled={i === bullets.length - 1} className="text-on-surface-variant hover:text-on-surface p-0 leading-none">
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>arrow_downward</span>
+                </button>
+                <button onClick={() => onChange(bullets.filter((_, j) => j !== i))} className="text-on-surface-variant hover:text-error p-0 leading-none">
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>close</span>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        <button onClick={() => onChange([...bullets, newBullet()])} className="text-on-surface-variant text-label-md font-label-md flex items-center gap-1 self-start hover:text-on-surface">
+          <span className="material-symbols-outlined text-[14px]">add</span> Add bullet manually
         </button>
       </div>
-      <ul className="mt-2 space-y-2">
-        {bullets.map((b, i) => (
-          <li key={b.id} className="flex items-start gap-2">
-            <textarea
-              rows={1}
-              className={`${inputCls} flex-1 resize-y`}
-              value={b.text}
-              onChange={(e) => onChange(bullets.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
-            />
-            <div className="flex flex-col gap-1">
-              <button
-                onClick={() => onChange(moveInArray(bullets, i, -1))}
-                disabled={i === 0}
-                className={smallBtnCls}
-                aria-label="Move up"
-              >↑</button>
-              <button
-                onClick={() => onChange(moveInArray(bullets, i, 1))}
-                disabled={i === bullets.length - 1}
-                className={smallBtnCls}
-                aria-label="Move down"
-              >↓</button>
-            </div>
-            <button
-              onClick={() => onChange(bullets.filter((_, j) => j !== i))}
-              className={dangerBtnCls}
-              aria-label="Delete"
-            >×</button>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -910,24 +1365,20 @@ function TagsInput({
     onChange([...tags, clean]);
   };
   return (
-    <div>
-      <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-        Tags <span className="font-normal lowercase text-neutral-400">(soft signal for the tailor step — e.g. swe, sales, leadership)</span>
-      </span>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        {tags.map((t) => (
-          <span key={t} className="inline-flex items-center gap-1 rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700">
-            {t}
-            <button
-              onClick={() => onChange(tags.filter((x) => x !== t))}
-              className="text-neutral-500 hover:text-red-600"
-              aria-label={`Remove ${t}`}
-            >×</button>
-          </span>
-        ))}
+    <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-outline-variant">
+      {tags.map((t) => (
+        <span key={t} className="bg-surface-container-high text-on-surface text-label-sm font-label-sm px-1.5 py-0.5 rounded-full border border-outline-variant inline-flex items-center gap-1">
+          {t}
+          <button onClick={() => onChange(tags.filter((x) => x !== t))} className="text-on-surface-variant hover:text-error" aria-label={`Remove ${t}`}>
+            <span className="material-symbols-outlined text-[10px]">close</span>
+          </button>
+        </span>
+      ))}
+      <div className="inline-flex items-center text-on-surface-variant text-label-sm px-1.5 py-0.5 rounded-full border border-dashed border-outline-variant hover:bg-surface">
+        <span className="material-symbols-outlined text-[12px] mr-1">add</span>
         <input
-          className={`${inputCls} max-w-[200px]`}
-          placeholder="add tag, then enter"
+          className="bg-transparent border-none outline-none text-label-sm font-label-sm w-20 focus:w-32 transition-all"
+          placeholder="Tag"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -951,18 +1402,171 @@ function TagsInput({
   );
 }
 
-function NotesInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+// -- Prose / Brain dump --------------------------------------------------
+
+function ProseInput({
+  value,
+  onChange,
+  bullets,
+  onGenerate,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  bullets: Bullet[];
+  onGenerate: (bullets: Bullet[], notes: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generate() {
+    if (!value.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/master/generate-bullets", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ itemId: "unused", prose: value, existingBullets: bullets }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          data && typeof data === "object" && "error" in data
+            ? String(data.error)
+            : `HTTP ${res.status}`,
+        );
+      }
+      onGenerate(data.bullets ?? bullets, data.notes ?? value);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "generation failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="mt-3">
-      <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-        Notes <span className="font-normal lowercase text-neutral-400">(raw detail for tailoring — metrics, scope, outcomes. Never shown on the resume.)</span>
-      </span>
+    <div className="flex flex-col gap-1 mt-1">
+      <label className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Brain dump / Raw Notes</label>
       <textarea
-        className={`${inputCls} mt-1 min-h-[80px] w-full resize-y`}
-        placeholder="E.g. Built a notification system that handles 10k events/sec, reduced latency from 5s to 300ms, adopted by 3 teams"
+        className="w-full bg-[#FFFBF2] dark:bg-surface-container-high border-none rounded-lg p-2 text-body-md focus:ring-2 focus:ring-primary outline-none resize-y"
+        placeholder="Dump everything you remember... led a team of 5, increased conversion by 20%, redesigned the core dashboard..."
+        rows={3}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+      <button
+        onClick={generate}
+        disabled={busy || !value.trim()}
+        className="self-start mt-1 bg-surface border border-outline-variant text-primary text-label-md font-label-md px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-surface-container-low transition-colors disabled:opacity-50"
+      >
+        <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+        {busy ? "Generating…" : "Generate Bullets"}
+      </button>
+      {error && <p className="text-body-sm text-error">{error}</p>}
+    </div>
+  );
+}
+
+// -- Date ----------------------------------------------------------------
+
+const MONTHS = [
+  { value: "1", label: "January" },
+  { value: "2", label: "February" },
+  { value: "3", label: "March" },
+  { value: "4", label: "April" },
+  { value: "5", label: "May" },
+  { value: "6", label: "June" },
+  { value: "7", label: "July" },
+  { value: "8", label: "August" },
+  { value: "9", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
+
+function parseDate(s: string): { month: string; year: string; present: boolean } {
+  if (!s) return { month: "", year: "", present: false };
+  if (s.toLowerCase() === "present") return { month: "", year: "", present: true };
+  const match = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (match) {
+    const idx = MONTHS.findIndex((m) => m.label.toLowerCase() === match[1].toLowerCase());
+    if (idx !== -1) return { month: String(idx + 1), year: match[2], present: false };
+  }
+  const yearMatch = s.match(/\b(\d{4})\b/);
+  return { month: "", year: yearMatch ? yearMatch[1] : "", present: false };
+}
+
+function formatDate(month: string, year: string): string {
+  if (!month || !year) return "";
+  const m = MONTHS.find((x) => x.value === month);
+  return m ? `${m.label} ${year}` : "";
+}
+
+function DateInput({
+  value,
+  onChange,
+  allowPresent,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  allowPresent?: boolean;
+}) {
+  const parsed = parseDate(value);
+  const [month, setMonth] = useState(parsed.month);
+  const [year, setYear] = useState(parsed.year);
+  const [present, setPresent] = useState(parsed.present);
+
+  useEffect(() => {
+    const p = parseDate(value);
+    setMonth(p.month);
+    setYear(p.year);
+    setPresent(p.present);
+  }, [value]);
+
+  function update(nextMonth: string, nextYear: string, nextPresent: boolean) {
+    setMonth(nextMonth);
+    setYear(nextYear);
+    setPresent(nextPresent);
+    if (nextPresent) {
+      onChange("Present");
+    } else if (nextMonth && nextYear) {
+      onChange(formatDate(nextMonth, nextYear));
+    } else {
+      onChange("");
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <select
+        className={inputCls}
+        value={month}
+        disabled={present}
+        onChange={(e) => update(e.target.value, year, false)}
+      >
+        <option value="">Month</option>
+        {MONTHS.map((m) => (
+          <option key={m.value} value={m.value}>{m.label}</option>
+        ))}
+      </select>
+      <input
+        type="number"
+        className={inputCls}
+        placeholder="Year"
+        value={year}
+        disabled={present}
+        onChange={(e) => update(month, e.target.value, false)}
+      />
+      {allowPresent && (
+        <label className="col-span-2 flex items-center gap-2 text-body-sm font-body-sm text-on-surface-variant">
+          <input
+            type="checkbox"
+            checked={present}
+            onChange={(e) => update(month, year, e.target.checked)}
+          />
+          Present
+        </label>
+      )}
     </div>
   );
 }
@@ -983,22 +1587,22 @@ function ModalShell({
   footer: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-surface-container-lowest shadow-xl border border-outline-variant"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between border-b border-neutral-200 px-5 py-3">
+        <header className="flex items-start justify-between border-b border-outline-variant px-5 py-3">
           <div>
-            <h2 className="text-base font-semibold">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-xs text-neutral-500">{subtitle}</p>}
+            <h2 className="text-headline-md font-headline-md text-on-surface">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-body-sm text-on-surface-variant">{subtitle}</p>}
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-sm text-neutral-500 hover:text-neutral-900">
-            ✕
+          <button onClick={onClose} aria-label="Close" className="text-on-surface-variant hover:text-on-surface">
+            <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </header>
         <div className="flex-1 overflow-auto px-5 py-4">{children}</div>
-        <footer className="flex items-center justify-end gap-2 border-t border-neutral-200 px-5 py-3">{footer}</footer>
+        <footer className="flex items-center justify-end gap-2 border-t border-outline-variant px-5 py-3">{footer}</footer>
       </div>
     </div>
   );
@@ -1067,7 +1671,7 @@ function AddFromProseModal({
       onClose={onClose}
       footer={
         <>
-          {error && <span className="mr-auto text-xs text-red-600">{error}</span>}
+          {error && <span className="mr-auto text-body-sm text-error">{error}</span>}
           <button onClick={onClose} className={smallBtnCls} disabled={busy}>
             Cancel
           </button>
@@ -1083,9 +1687,9 @@ function AddFromProseModal({
         onChange={(e) => setProse(e.target.value)}
         placeholder={labels[kind].placeholder}
         rows={10}
-        className="w-full resize-none rounded-md border border-neutral-300 p-3 text-sm focus:border-neutral-500 focus:outline-none"
+        className="w-full resize-none rounded-lg border border-outline-variant bg-surface p-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none"
       />
-      <p className="mt-2 text-xs text-neutral-500">
+      <p className="mt-2 text-body-sm text-on-surface-variant">
         Tip: include dates and your role/title explicitly so Claude doesn&apos;t have to guess. Bullets and metrics come straight from what you write — anything not in the prose stays empty.
       </p>
     </ModalShell>
@@ -1097,11 +1701,7 @@ function AddFromProseModal({
 type ImportMode = "paste" | "upload";
 
 async function extractPdfText(file: File): Promise<string> {
-  // Dynamic import — pdfjs-dist is ~500kb gzipped, no reason to ship it on
-  // every /master visit. CDN worker keeps the Next bundle slim and avoids the
-  // webpack/Turbopack worker-config dance.
   const pdfjsLib = await import("pdfjs-dist");
-  // The CDN URL must match the installed package version exactly.
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
   const data = new Uint8Array(await file.arrayBuffer());
   const pdf = await pdfjsLib.getDocument({ data }).promise;
@@ -1178,7 +1778,7 @@ function ImportResumeModal({
       onClose={onClose}
       footer={
         <>
-          {error && <span className="mr-auto text-xs text-red-600">{error}</span>}
+          {error && <span className="mr-auto text-body-sm text-error">{error}</span>}
           <button onClick={onClose} className={smallBtnCls} disabled={busy}>
             Cancel
           </button>
@@ -1191,20 +1791,20 @@ function ImportResumeModal({
       <div className="mb-3 flex gap-2">
         <button
           onClick={() => setMode("paste")}
-          className={`rounded-md px-3 py-1 text-xs ${mode === "paste" ? "bg-neutral-900 text-white" : "border border-neutral-300"}`}
+          className={`rounded-lg px-3 py-1 text-label-md font-label-md ${mode === "paste" ? "bg-primary text-on-primary" : "border border-outline-variant text-on-surface-variant"}`}
         >
           Paste text
         </button>
         <button
           onClick={() => setMode("upload")}
-          className={`rounded-md px-3 py-1 text-xs ${mode === "upload" ? "bg-neutral-900 text-white" : "border border-neutral-300"}`}
+          className={`rounded-lg px-3 py-1 text-label-md font-label-md ${mode === "upload" ? "bg-primary text-on-primary" : "border border-outline-variant text-on-surface-variant"}`}
         >
           Upload PDF
         </button>
       </div>
 
       {mode === "upload" && (
-        <div className="mb-3 rounded-md border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-600">
+        <div className="mb-3 rounded-lg border border-dashed border-outline-variant p-4 text-center text-body-md text-on-surface-variant bg-surface">
           <input
             ref={fileInputRef}
             type="file"
@@ -1218,8 +1818,8 @@ function ImportResumeModal({
           <button onClick={() => fileInputRef.current?.click()} className={smallBtnCls}>
             Choose a PDF
           </button>
-          {pdfStatus && <div className="mt-2 text-xs text-neutral-500">{pdfStatus}</div>}
-          <p className="mt-3 text-xs text-neutral-500">
+          {pdfStatus && <div className="mt-2 text-body-sm text-on-surface-variant">{pdfStatus}</div>}
+          <p className="mt-3 text-body-sm text-on-surface-variant">
             Text PDFs only — scanned image PDFs won&apos;t produce extractable text.
           </p>
         </div>
@@ -1234,9 +1834,9 @@ function ImportResumeModal({
             : "Extracted text will appear here. You can edit before importing."
         }
         rows={14}
-        className="w-full resize-none rounded-md border border-neutral-300 p-3 font-mono text-xs focus:border-neutral-500 focus:outline-none"
+        className="w-full resize-none rounded-lg border border-outline-variant bg-surface p-3 font-mono text-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
       />
-      <p className="mt-2 text-xs text-neutral-500">
+      <p className="mt-2 text-body-sm text-on-surface-variant">
         Claude is told to be faithful to your input — it won&apos;t invent dates or metrics. You can still edit everything after import.
       </p>
     </ModalShell>

@@ -83,6 +83,7 @@ export const Section = z.discriminatedUnion("kind", [
 
 export const Contact = z.object({
   name: z.string(),
+  title: z.string().optional(),
   phone: z.string().default(""),
   email: z.string().default(""),
   links: z.array(z.object({ label: z.string(), href: z.string() })).default([]),
