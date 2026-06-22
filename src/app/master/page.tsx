@@ -897,7 +897,7 @@ function PreviewPane({
               {error}
             </div>
           ) : (
-            <div className="min-w-full flex flex-col items-center py-6 gap-4">
+            <div className="min-w-full w-fit flex flex-col items-center py-6 gap-4">
               {Array.from({ length: numPages }, (_, i) => (
                 <canvas
                   key={i}
