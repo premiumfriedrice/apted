@@ -584,9 +584,9 @@ function PreviewPane({
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // Debounce zoom changes so rapid trackpad scrolling doesn't re-render constantly.
+  // Debounce zoom changes slightly to avoid re-rendering on every trackpad tick.
   useEffect(() => {
-    const timeout = setTimeout(() => setRenderZoom(zoom), 120);
+    const timeout = setTimeout(() => setRenderZoom(zoom), 60);
     return () => clearTimeout(timeout);
   }, [zoom]);
   const [error, setError] = useState<string | null>(null);
