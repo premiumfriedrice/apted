@@ -349,23 +349,23 @@ export default function MasterPage() {
         <main className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-background">
           {/* Left Column (Editor) */}
           <div className="flex-1 w-full flex flex-col overflow-hidden">
-            <div className="px-lg pt-lg pb-sm flex items-center justify-between gap-sm shrink-0">
-              <div className="flex items-center gap-sm">
-                <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? primaryBtnCls : smallBtnCls}>
+            <div className="h-12 border-b border-inverse-on-surface/10 bg-inverse-surface flex items-center justify-between px-md shrink-0 sticky top-0 z-10">
+              <div className="flex items-center gap-1">
+                <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? previewPrimaryBtnCls : previewBtnCls}>
                   Structured
                 </button>
-                <button onClick={() => switchMode("latex")} className={editorMode === "latex" ? primaryBtnCls : smallBtnCls}>
+                <button onClick={() => switchMode("latex")} className={editorMode === "latex" ? previewPrimaryBtnCls : previewBtnCls}>
                   LaTeX
                 </button>
-                <button onClick={() => switchMode("json")} className={editorMode === "json" ? primaryBtnCls : smallBtnCls}>
+                <button onClick={() => switchMode("json")} className={editorMode === "json" ? previewPrimaryBtnCls : previewBtnCls}>
                   JSON
                 </button>
               </div>
-              <div className="flex items-center gap-sm">
-                <button onClick={() => setShowImport(true)} className={smallBtnCls}>
-                  Import from PDF
+              <div className="flex items-center gap-1">
+                <button onClick={() => setShowImport(true)} className={previewBtnCls}>
+                  <span className="material-symbols-outlined text-[18px]">upload</span> Import from PDF
                 </button>
-                <button onClick={save} disabled={saving} className={primaryBtnCls}>
+                <button onClick={save} disabled={saving} className={previewPrimaryBtnCls}>
                   {saving ? "Saving…" : "Save"}
                 </button>
               </div>
@@ -518,6 +518,8 @@ async function fetchBlob(input: string | URL, init?: RequestInit) {
 
 const previewBtnCls =
   "px-3 py-2 text-inverse-on-surface text-label-md font-label-md hover:bg-white/10 transition-colors duration-200 rounded flex items-center gap-1";
+const previewPrimaryBtnCls =
+  "bg-inverse-on-surface text-inverse-surface text-label-md font-label-md px-4 py-2 rounded hover:bg-inverse-on-surface/90 transition-colors duration-200";
 const previewIconBtnCls =
   "p-2 text-inverse-on-surface hover:bg-white/10 transition-colors duration-200 rounded disabled:opacity-30";
 
