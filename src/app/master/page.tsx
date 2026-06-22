@@ -111,7 +111,7 @@ const inputCls =
 const ghostInputCls =
   "w-full bg-transparent border-b border-transparent hover:border-outline-variant focus:border-primary focus:ring-0 outline-none px-1 py-1";
 const smallBtnCls =
-  "px-3 py-2 text-on-surface-variant dark:text-surface-variant text-label-md font-label-md hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors duration-200 rounded";
+  "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant dark:text-surface-variant text-label-md font-label-md hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors duration-200 rounded";
 const primaryBtnCls =
   "bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200";
 const dangerBtnCls =
