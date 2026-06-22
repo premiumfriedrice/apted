@@ -136,6 +136,26 @@ cd extension && npm run build    # extension build (must succeed)
 - The score could be: `(# of JD terms found in resume text) / (# of JD terms) * 100`.
 - This is a display-only feature — no backend changes needed beyond what already exists.
 
+### 6. Section-level and bullet-level comments in the preview pane
+
+**What to do**: Let the user annotate the tailored resume in the preview pane with comments — at the section level (e.g. "drop this section"), at the item level (e.g. "rewrite this job"), or at the bullet level (e.g. "make this more concise", "add a metric here"). When the user hits "Re-tailor", all pending comments are sent to the tailor endpoint and the LLM takes them into account when regenerating.
+
+**Key data flow**:
+- The drawer currently shows the tailored resume as a PDF in an iframe (`#apted-preview-embed`). The PDF is not directly annotatable — it's a binary rendered by the compile service.
+- There are two possible approaches:
+  - **Option A — Overlay comments on the PDF**: Render comment pins/notes as absolutely positioned DOM elements on top of the PDF iframe. User clicks a pin to add/edit a comment. Comments are keyed to a section/item/bullet by matching against the current draft's JSON structure. This lets the user visually point at what they want changed.
+  - **Option B — Structured comment list**: Instead of overlaying, show a comments panel next to the preview. Each comment has a target selector (section/item/bullet) the user picks from a dropdown or by tapping an element in a structured view of the resume. Less visually intuitive but simpler to implement.
+- Comments are stored in `state` in the drawer (not persisted to DB — they're ephemeral session annotations).
+- On re-tailor, the comments are passed as a structured array: `[{ target: { sectionId, itemId?, bulletId? }, text: "user comment" }]`.
+- The tailor endpoint needs to accept this and pass it to the LLM as additional instructions: "The user has the following comments on the current draft: [comments]. Incorporate these when re-tailoring."
+
+**Backend changes needed**:
+- `/api/tailor` route already accepts `jobDescription`. Needs to also accept an optional `comments` array and pass it through to the tailor user prompt.
+- `tailorUserPrompt()` in `src/lib/prompts/user.ts` needs to append the comments as additional instructions.
+- No DB schema change — comments are session-only and not persisted.
+
+**UI approach**: Start with Option A — render a structured view of the resume below or next to the PDF (using the existing draft JSON), let the user click a section/item/bullet and type a comment inline. A "Re-tailor with comments" button sends all comments to the endpoint. This avoids the complexity of overlaying on the PDF iframe.
+
 ## Related Linear Issues
 
 - PRE-76: Resizable PDF preview iframe in drawer (related to sizing)
