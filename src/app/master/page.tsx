@@ -416,21 +416,19 @@ export default function MasterPage() {
             <div
               className={[
                 "flex-1 w-full px-lg flex flex-col gap-lg items-center",
-                editorMode === "latex" ? "overflow-hidden pb-0" : "overflow-y-auto pb-[100px]",
+                editorMode === "latex" || editorMode === "json" ? "overflow-hidden pb-0" : "overflow-y-auto pb-[100px] pt-6",
               ].join(" ")}
             >
-              <div className={["w-full flex flex-col", editorMode === "latex" ? "h-full max-w-none" : "max-w-[800px] gap-lg"].join(" ")}>
+              <div className={["w-full flex flex-col", editorMode === "latex" || editorMode === "json" ? "h-full max-w-none" : "max-w-[800px] gap-lg"].join(" ")}>
                 {editorMode === "json" && (
-                <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-                  <h3 className="text-headline-md font-headline-md text-on-surface mb-md">JSON</h3>
+                <div className="flex flex-col h-full w-full">
                   <textarea
                     value={jsonText}
                     onChange={(e) => setJsonText(e.target.value)}
                     spellCheck={false}
-                    rows={30}
-                    className="w-full rounded-lg border border-outline-variant bg-surface p-3 font-mono text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                    className="flex-1 w-full bg-surface font-mono text-xs p-3 focus:outline-none resize-none"
                   />
-                </section>
+                </div>
               )}
 
               {editorMode === "latex" && (
