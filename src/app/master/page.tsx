@@ -725,12 +725,10 @@ function PreviewPane({
     <div className="hidden lg:flex flex-col bg-inverse-surface relative" style={{ width: `${width}%` }}>
       <div className="h-12 border-b border-inverse-on-surface/10 bg-inverse-surface flex items-center justify-between px-md sticky top-0 z-10">
         <span className="text-label-md font-label-md text-inverse-on-surface font-semibold flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px]">visibility</span>
-          Preview
           <input
             value={exportName}
             onChange={(e) => setExportName(e.target.value)}
-            className="bg-transparent border-b border-inverse-on-surface/30 focus:border-inverse-on-surface outline-none text-label-md font-label-md min-w-[6rem] max-w-[14rem] px-1"
+            className="bg-transparent border-none focus:ring-0 outline-none p-0 text-label-md font-label-md text-inverse-on-surface max-w-[16rem]"
             aria-label="Export filename"
           />
         </span>
