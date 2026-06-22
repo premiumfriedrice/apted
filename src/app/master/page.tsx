@@ -114,6 +114,8 @@ const smallBtnCls =
   "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant dark:text-surface-variant text-label-md font-label-md hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors duration-200 rounded";
 const primaryBtnCls =
   "bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200";
+const modeActiveBtnCls =
+  "bg-surface-container-high text-on-surface text-label-md font-label-md px-3 py-2 rounded font-semibold";
 const dangerBtnCls =
   "text-on-surface-variant hover:text-error p-1 transition-colors";
 
@@ -351,13 +353,13 @@ export default function MasterPage() {
           <div className="flex-1 w-full flex flex-col overflow-hidden">
             <div className="h-12 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-md shrink-0 sticky top-0 z-10">
               <div className="flex items-center gap-1">
-                <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? primaryBtnCls : smallBtnCls}>
+                <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? modeActiveBtnCls : smallBtnCls}>
                   Structured
                 </button>
-                <button onClick={() => switchMode("latex")} className={editorMode === "latex" ? primaryBtnCls : smallBtnCls}>
+                <button onClick={() => switchMode("latex")} className={editorMode === "latex" ? modeActiveBtnCls : smallBtnCls}>
                   LaTeX
                 </button>
-                <button onClick={() => switchMode("json")} className={editorMode === "json" ? primaryBtnCls : smallBtnCls}>
+                <button onClick={() => switchMode("json")} className={editorMode === "json" ? modeActiveBtnCls : smallBtnCls}>
                   JSON
                 </button>
               </div>
