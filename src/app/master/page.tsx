@@ -317,7 +317,6 @@ export default function MasterPage() {
         setResume(parsed);
         setPiiMap(null);
         setShowField({});
-        setStatus({ kind: "ok", msg: "Switched to structured view. Save to re-redact PII." });
       } catch {
         setStatus({ kind: "err", msg: "JSON is invalid — fix or revert before switching back." });
         return;
