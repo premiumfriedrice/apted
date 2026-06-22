@@ -90,6 +90,21 @@ function useDragReorder(onReorder: (from: number, to: number) => void) {
   });
 }
 
+function useClickAway<T extends HTMLElement>(enabled: boolean, onClickAway: () => void) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClickAway();
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [enabled, onClickAway]);
+  return ref;
+}
+
 // Material-style utility classes used across the redesigned editor.
 const inputCls =
   "w-full border border-outline-variant rounded-lg px-3 py-2 text-body-md bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary outline-none";
@@ -124,8 +139,8 @@ export default function MasterPage() {
   // Per-field visibility toggles for PII masking (PRE-54).
   const [showField, setShowField] = useState<Record<string, boolean>>({});
   const [activeSection, setActiveSection] = useState<string>("contact");
-  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
-  const [previewWidth, setPreviewWidth] = useState<number>(40);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(220);
+  const [previewWidth, setPreviewWidth] = useState<number>(50);
   const [resizing, setResizing] = useState<"sidebar" | "preview" | null>(null);
 
   // Sidebar / preview resizing via mouse drag on the resizer bars.
@@ -153,7 +168,7 @@ export default function MasterPage() {
       if (!state) return;
       const delta = ev.clientX - state.startX;
       if (state.kind === "sidebar") {
-        setSidebarWidth(Math.max(180, Math.min(400, state.startValue + delta)));
+        setSidebarWidth(Math.max(0, Math.min(400, state.startValue + delta)));
       } else {
         // previewWidth is stored as a percentage of the main content area.
         // The resizer is the preview's left edge, so dragging left widens it.
@@ -345,6 +360,7 @@ export default function MasterPage() {
           onSelect={setActiveSection}
           onReorder={(next) => setResume((r) => r ? { ...r, sections: next } : r)}
           width={sidebarWidth}
+          onExpand={() => setSidebarWidth(220)}
         />
 
         {/* Resizer 1 */}
@@ -476,6 +492,8 @@ export default function MasterPage() {
             width={previewWidth}
             editorMode={editorMode}
             compiledPdfUrl={compiledPdfUrl}
+            resume={resume}
+            customTex={customTex}
           />
         </main>
       </div>
@@ -513,13 +531,16 @@ function SideNavBar({
   onSelect,
   onReorder,
   width,
+  onExpand,
 }: {
   sections: Section[];
   active: string;
   onSelect: (id: string) => void;
   onReorder: (next: Section[]) => void;
   width: number;
+  onExpand: () => void;
 }) {
+  const collapsed = width < 60;
   const iconByKind: Record<Section["kind"], string> = {
     experience: "work",
     projects: "rebase_edit",
@@ -596,6 +617,19 @@ function SideNavBar({
     );
   };
 
+  if (collapsed) {
+    return (
+      <nav
+        className="hidden md:flex flex-col items-center py-md bg-surface-container-low dark:bg-surface-container-high shrink-0"
+        style={{ width }}
+      >
+        <button onClick={onExpand} className="p-1 text-on-surface-variant hover:text-on-surface rounded" aria-label="Expand sidebar">
+          <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+        </button>
+      </nav>
+    );
+  }
+
   return (
     <nav
       className="hidden md:flex flex-col p-md gap-sm bg-surface-container-low dark:bg-surface-container-high shrink-0 overflow-y-auto"
@@ -613,6 +647,25 @@ function SideNavBar({
   );
 }
 
+// -- PDF helpers ---------------------------------------------------------
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function fetchBlob(input: string | URL, init?: RequestInit) {
+  const res = await fetch(input, init);
+  if (!res.ok) throw new Error(await res.text());
+  return res.blob();
+}
+
 // -- Preview Pane --------------------------------------------------------
 
 function PreviewPane({
@@ -620,32 +673,190 @@ function PreviewPane({
   width,
   editorMode,
   compiledPdfUrl,
+  resume,
+  customTex,
 }: {
   updatedAt: string | null;
   width: number;
   editorMode: "structured" | "latex" | "json";
   compiledPdfUrl: string | null;
+  resume: Resume | null;
+  customTex: string | null;
 }) {
   const version = updatedAt ? new Date(updatedAt).getTime() : 0;
   const pdfSrc = editorMode === "latex" && compiledPdfUrl ? compiledPdfUrl : `/api/master/pdf?v=${version}`;
+  const [pdf, setPdf] = useState<any>(null);
+  const [page, setPage] = useState(1);
+  const [numPages, setNumPages] = useState(0);
+  const [zoom, setZoom] = useState(100);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useClickAway<HTMLDivElement>(exportOpen, () => setExportOpen(false));
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        const doc = await pdfjsLib.getDocument(pdfSrc).promise;
+        if (cancelled) return;
+        setPdf(doc);
+        setNumPages(doc.numPages);
+        setPage(1);
+        // Fit first page to viewer width on initial load.
+        const container = viewerRef.current;
+        if (container) {
+          const firstPage = await doc.getPage(1);
+          const unscaled = firstPage.getViewport({ scale: 1 });
+          const targetWidth = container.clientWidth - 48; // 24px padding each side
+          if (targetWidth > 0 && unscaled.width > 0) {
+            setZoom(Math.round((targetWidth / unscaled.width) * 100));
+          }
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "failed to load PDF");
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (updatedAt || compiledPdfUrl) load();
+    return () => { cancelled = true; };
+  }, [pdfSrc, updatedAt, compiledPdfUrl]);
+
+  useEffect(() => {
+    if (!pdf || !canvasRef.current) return;
+    let cancelled = false;
+    async function render() {
+      try {
+        const pg = await pdf.getPage(page);
+        if (cancelled) return;
+        const viewport = pg.getViewport({ scale: zoom / 100 });
+        const canvas = canvasRef.current!;
+        const ctx = canvas.getContext("2d")!;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await pg.render({ canvasContext: ctx, viewport }).promise;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "failed to render page");
+      }
+    }
+    render();
+    return () => { cancelled = true; };
+  }, [pdf, page, zoom]);
+
+  async function exportAs(kind: "pdf" | "tex" | "json") {
+    try {
+      if (kind === "pdf") {
+        const blob = await fetchBlob(pdfSrc);
+        downloadBlob(blob, "apted-master.pdf");
+      } else if (kind === "tex") {
+        if (editorMode === "latex" && customTex) {
+          downloadBlob(new Blob([customTex], { type: "application/x-tex" }), "apted-master.tex");
+        } else {
+          const blob = await fetchBlob("/api/master/tex");
+          downloadBlob(blob, "apted-master.tex");
+        }
+      } else if (kind === "json" && resume) {
+        downloadBlob(new Blob([JSON.stringify(resume, null, 2)], { type: "application/json" }), "apted-master.json");
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "export failed");
+    }
+    setExportOpen(false);
+  }
 
   return (
-    <div className="hidden lg:flex flex-col bg-surface relative" style={{ width: `${width}%` }}>
-      <div className="h-12 border-b border-outline-variant bg-surface-container-lowest flex items-center px-md sticky top-0 z-10">
-        <span className="text-label-md font-label-md text-on-surface font-semibold flex items-center gap-2">
+    <div className="hidden lg:flex flex-col bg-inverse-surface relative" style={{ width: `${width}%` }}>
+      <div className="h-12 border-b border-black/10 bg-inverse-surface flex items-center justify-between px-md sticky top-0 z-10">
+        <span className="text-label-md font-label-md text-inverse-on-surface font-semibold flex items-center gap-2">
           <span className="material-symbols-outlined text-[18px]">visibility</span> Preview
         </span>
+        <div className="flex items-center gap-1">
+          <div ref={exportRef} className="relative">
+            <button
+              onClick={() => setExportOpen((s) => !s)}
+              className="flex items-center gap-1 px-2 py-1 rounded text-label-md font-label-md text-inverse-on-surface hover:bg-white/10"
+            >
+              <span className="material-symbols-outlined text-[18px]">download</span> Export
+              <span className="material-symbols-outlined text-[16px]">expand_more</span>
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg py-1 min-w-[9rem] z-20">
+                {(["pdf", "tex", "json"] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => exportAs(k)}
+                    className="w-full text-left px-3 py-1.5 text-body-md font-body-md text-on-surface hover:bg-surface-container capitalize"
+                  >
+                    Export as {k.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="w-px h-5 bg-inverse-on-surface/20 mx-1" />
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1 || !pdf}
+            className="p-1 rounded text-inverse-on-surface hover:bg-white/10 disabled:opacity-30"
+            aria-label="Previous page"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+          </button>
+          <div className="flex items-center gap-1 px-2 py-1 rounded bg-black/20 text-body-sm font-body-sm text-inverse-on-surface min-w-[4rem] justify-center">
+            {page}<span className="text-inverse-on-surface/60">/</span>{numPages || "-"}
+          </div>
+          <button
+            onClick={() => setPage((p) => Math.min(numPages || 1, p + 1))}
+            disabled={page >= (numPages || 1) || !pdf}
+            className="p-1 rounded text-inverse-on-surface hover:bg-white/10 disabled:opacity-30"
+            aria-label="Next page"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+          </button>
+          <div className="w-px h-5 bg-inverse-on-surface/20 mx-1" />
+          <button
+            onClick={() => setZoom((z) => Math.max(25, z - 25))}
+            disabled={!pdf}
+            className="p-1 rounded text-inverse-on-surface hover:bg-white/10 disabled:opacity-30"
+            aria-label="Zoom out"
+          >
+            <span className="material-symbols-outlined text-[18px]">remove</span>
+          </button>
+          <span className="text-body-sm font-body-sm text-inverse-on-surface min-w-[3rem] text-center">{zoom}%</span>
+          <button
+            onClick={() => setZoom((z) => Math.min(300, z + 25))}
+            disabled={!pdf}
+            className="p-1 rounded text-inverse-on-surface hover:bg-white/10 disabled:opacity-30"
+            aria-label="Zoom in"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+          </button>
+        </div>
       </div>
-      <div className="flex-1 overflow-hidden flex justify-center bg-surface-container">
+      <div ref={viewerRef} className="flex-1 overflow-y-auto bg-inverse-surface">
         {updatedAt || compiledPdfUrl ? (
-          <iframe
-            key={pdfSrc}
-            src={pdfSrc}
-            title="Master resume PDF preview"
-            className="bg-white w-full h-full shadow-sm border border-outline-variant"
-          />
+          loading ? (
+            <div className="w-full h-full flex items-center justify-center text-body-sm text-inverse-on-surface/70">
+              Loading preview…
+            </div>
+          ) : error ? (
+            <div className="w-full h-full flex items-center justify-center text-body-sm text-error px-8 text-center">
+              {error}
+            </div>
+          ) : (
+            <div className="flex justify-center py-6 min-h-full">
+              <canvas ref={canvasRef} className="bg-white shadow-2xl" />
+            </div>
+          )
         ) : (
-          <div className="bg-white w-full h-full shadow-sm border border-outline-variant p-8 flex items-center justify-center text-body-sm text-on-surface-variant">
+          <div className="w-full h-full flex items-center justify-center text-body-sm text-inverse-on-surface/70">
             Loading preview…
           </div>
         )}
@@ -905,11 +1116,7 @@ function ExpSectionBody({ section, onChange, onAddFromProse }: { section: ExpSec
       {section.items.map((it, i) => (
         <ItemFrame
           key={it.id}
-          onMoveUp={() => setItems(moveInArray(section.items, i, -1))}
-          onMoveDown={() => setItems(moveInArray(section.items, i, 1))}
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
-          isFirst={i === 0}
-          isLast={i === section.items.length - 1}
           {...drag(i)}
         >
           <div className="flex flex-col gap-sm w-full">
@@ -982,11 +1189,7 @@ function ProjSectionBody({ section, onChange, onAddFromProse }: { section: ProjS
       {section.items.map((it, i) => (
         <ItemFrame
           key={it.id}
-          onMoveUp={() => setItems(moveInArray(section.items, i, -1))}
-          onMoveDown={() => setItems(moveInArray(section.items, i, 1))}
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
-          isFirst={i === 0}
-          isLast={i === section.items.length - 1}
           {...drag(i)}
         >
           <div className="flex flex-col gap-sm w-full">
@@ -1052,11 +1255,7 @@ function EduSectionBody({ section, onChange, onAddFromProse }: { section: EduSec
       {section.items.map((it, i) => (
         <ItemFrame
           key={it.id}
-          onMoveUp={() => setItems(moveInArray(section.items, i, -1))}
-          onMoveDown={() => setItems(moveInArray(section.items, i, 1))}
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
-          isFirst={i === 0}
-          isLast={i === section.items.length - 1}
           {...drag(i)}
         >
           <div className="flex flex-col gap-sm w-full">
@@ -1123,11 +1322,7 @@ function SkillSectionBody({ section, onChange }: { section: SkillSection; onChan
       {section.items.map((g, i) => (
         <ItemFrame
           key={g.id}
-          onMoveUp={() => setItems(moveInArray(section.items, i, -1))}
-          onMoveDown={() => setItems(moveInArray(section.items, i, 1))}
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
-          isFirst={i === 0}
-          isLast={i === section.items.length - 1}
           {...drag(i)}
         >
           <div className="flex flex-col gap-sm w-full">
@@ -1168,11 +1363,7 @@ function AchieveSectionBody({ section, onChange }: { section: AchieveSection; on
       {section.items.map((it, i) => (
         <ItemFrame
           key={it.id}
-          onMoveUp={() => setItems(moveInArray(section.items, i, -1))}
-          onMoveDown={() => setItems(moveInArray(section.items, i, 1))}
           onDelete={() => setItems(section.items.filter((_, j) => j !== i))}
-          isFirst={i === 0}
-          isLast={i === section.items.length - 1}
           {...drag(i)}
         >
           <div className="flex flex-col gap-sm w-full">
@@ -1239,24 +1430,22 @@ function AddSectionMenu({
 // -- Item frame ----------------------------------------------------------
 
 function ItemFrame({
-  children, onMoveUp, onMoveDown, onDelete, isFirst, isLast,
+  children, onDelete,
   draggable, onDragStart, onDragOver, onDrop, isDragOver,
 }: {
   children: React.ReactNode;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
   onDelete: () => void;
-  isFirst: boolean;
-  isLast: boolean;
   draggable?: boolean;
   onDragStart?: () => void;
   onDragOver?: () => void;
   onDrop?: () => void;
   isDragOver?: boolean;
 }) {
+  const [showDelete, setShowDelete] = useState(false);
+  const handleRef = useClickAway<HTMLDivElement>(showDelete, () => setShowDelete(false));
   return (
     <div
-      draggable={draggable}
+      draggable={!showDelete && draggable}
       onDragStart={onDragStart}
       onDragOver={(e) => {
         e.preventDefault();
@@ -1271,22 +1460,28 @@ function ItemFrame({
         isDragOver ? "border-primary ring-1 ring-primary" : "border-outline-variant",
       ].join(" ")}
     >
-      <div className="absolute left-0 top-0 bottom-0 w-7 flex flex-col items-center justify-center opacity-30 hover:opacity-100 cursor-grab border-r border-outline-variant bg-surface">
-        <span className="material-symbols-outlined text-[18px] text-on-surface-variant">drag_indicator</span>
+      <div
+        ref={handleRef}
+        onClick={() => setShowDelete((s) => !s)}
+        className={[
+          "absolute left-0 top-0 bottom-0 w-7 flex flex-col items-center justify-center border-r border-outline-variant bg-surface select-none",
+          showDelete ? "opacity-100 cursor-pointer" : "opacity-30 hover:opacity-100 cursor-grab",
+        ].join(" ")}
+      >
+        {showDelete ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="text-error hover:text-error-container"
+            aria-label="Delete"
+          >
+            <span className="material-symbols-outlined text-[18px]">delete</span>
+          </button>
+        ) : (
+          <span className="material-symbols-outlined text-[18px] text-on-surface-variant">drag_indicator</span>
+        )}
       </div>
       <div className="pl-lg flex flex-col gap-sm w-full">
         {children}
-      </div>
-      <div className="absolute right-2 top-2 flex flex-col gap-1 opacity-0 hover:opacity-100 transition-opacity">
-        <button onClick={onMoveUp} disabled={isFirst} className={smallBtnCls} aria-label="Move up">
-          <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-        </button>
-        <button onClick={onMoveDown} disabled={isLast} className={smallBtnCls} aria-label="Move down">
-          <span className="material-symbols-outlined text-[14px]">arrow_downward</span>
-        </button>
-        <button onClick={onDelete} className={dangerBtnCls} aria-label="Delete">
-          <span className="material-symbols-outlined text-[14px]">close</span>
-        </button>
       </div>
     </div>
   );
@@ -1305,46 +1500,70 @@ function BulletList({
     <div className="flex flex-col gap-1 mt-2 border-t border-outline-variant pt-sm">
       <h4 className="text-label-md font-label-md text-on-surface-variant">Curated Bullets</h4>
       <div className="flex flex-col gap-1">
-        {bullets.map((b, i) => {
-          const d = drag(i);
-          return (
-            <div
-              key={b.id}
-              draggable
-              onDragStart={d.onDragStart}
-              onDragOver={d.onDragOver}
-              onDrop={d.onDrop}
-              onDragEnd={d.onDragEnd}
-              className={[
-                "flex items-start gap-1 group rounded transition-all",
-                d.isDragOver ? "ring-1 ring-primary bg-surface-container-low" : "",
-              ].join(" ")}
-            >
-              <span className="material-symbols-outlined text-[16px] text-on-surface-variant cursor-grab mt-1 opacity-50 group-hover:opacity-100">drag_indicator</span>
-              <textarea
-                rows={2}
-                className="flex-1 bg-surface-container-lowest border border-outline-variant rounded p-1.5 text-body-sm font-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-y"
-                value={b.text}
-                onChange={(e) => onChange(bullets.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
-              />
-              <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => onChange(moveInArray(bullets, i, -1))} disabled={i === 0} className="text-on-surface-variant hover:text-on-surface p-0 leading-none">
-                  <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>arrow_upward</span>
-                </button>
-                <button onClick={() => onChange(moveInArray(bullets, i, 1))} disabled={i === bullets.length - 1} className="text-on-surface-variant hover:text-on-surface p-0 leading-none">
-                  <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>arrow_downward</span>
-                </button>
-                <button onClick={() => onChange(bullets.filter((_, j) => j !== i))} className="text-on-surface-variant hover:text-error p-0 leading-none">
-                  <span className="material-symbols-outlined" style={{ fontSize: 14, lineHeight: 1 }}>close</span>
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        {bullets.map((b, i) => (
+          <BulletRow
+            key={b.id}
+            bullet={b}
+            drag={drag(i)}
+            onChange={(text) => onChange(bullets.map((x, j) => j === i ? { ...x, text } : x))}
+            onDelete={() => onChange(bullets.filter((_, j) => j !== i))}
+          />
+        ))}
         <button onClick={() => onChange([...bullets, newBullet()])} className="text-on-surface-variant text-label-md font-label-md flex items-center gap-1 self-start hover:text-on-surface">
           <span className="material-symbols-outlined text-[14px]">add</span> Add bullet manually
         </button>
       </div>
+    </div>
+  );
+}
+
+function BulletRow({
+  bullet,
+  drag,
+  onChange,
+  onDelete,
+}: {
+  bullet: Bullet;
+  drag: ReturnType<ReturnType<typeof useDragReorder>>;
+  onChange: (text: string) => void;
+  onDelete: () => void;
+}) {
+  const [showDelete, setShowDelete] = useState(false);
+  const handleRef = useClickAway<HTMLDivElement>(showDelete, () => setShowDelete(false));
+  return (
+    <div
+      draggable={!showDelete}
+      onDragStart={drag.onDragStart}
+      onDragOver={drag.onDragOver}
+      onDrop={drag.onDrop}
+      onDragEnd={drag.onDragEnd}
+      className={[
+        "flex items-center gap-1 group rounded transition-all",
+        drag.isDragOver ? "ring-1 ring-primary bg-surface-container-low" : "",
+      ].join(" ")}
+    >
+      <div
+        ref={handleRef}
+        onClick={() => setShowDelete((s) => !s)}
+        className={[
+          "select-none",
+          showDelete ? "cursor-pointer text-error" : "cursor-grab text-on-surface-variant opacity-50 group-hover:opacity-100",
+        ].join(" ")}
+      >
+        {showDelete ? (
+          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-error hover:text-error-container" aria-label="Delete">
+            <span className="material-symbols-outlined text-[16px]">delete</span>
+          </button>
+        ) : (
+          <span className="material-symbols-outlined text-[16px]">drag_indicator</span>
+        )}
+      </div>
+      <textarea
+        rows={2}
+        className="flex-1 bg-surface-container-lowest border border-outline-variant rounded p-1.5 text-body-sm font-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-y"
+        value={bullet.text}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
