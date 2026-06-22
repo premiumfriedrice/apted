@@ -582,6 +582,17 @@ function PreviewPane({
   const exportRef = useClickAway<HTMLDivElement>(exportOpen, () => setExportOpen(false));
   const viewerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const [exportName, setExportName] = useState<string>("MasterResume");
+  const nameInitialized = useRef(false);
+
+  // Initialize default export filename from contact name once.
+  useEffect(() => {
+    if (resume && !nameInitialized.current) {
+      nameInitialized.current = true;
+      const base = resume.contact.name.replace(/\s+/g, "").trim();
+      setExportName(base ? `${base}MasterResume` : "MasterResume");
+    }
+  }, [resume]);
 
   // Load PDF and fit first page to viewer width.
   useEffect(() => {
@@ -689,19 +700,20 @@ function PreviewPane({
   }
 
   async function exportAs(kind: "pdf" | "tex" | "json") {
+    const base = exportName.trim() || "MasterResume";
     try {
       if (kind === "pdf") {
         const blob = await fetchBlob(pdfSrc);
-        downloadBlob(blob, "apted-master.pdf");
+        downloadBlob(blob, `${base}.pdf`);
       } else if (kind === "tex") {
         if (editorMode === "latex" && customTex) {
-          downloadBlob(new Blob([customTex], { type: "application/x-tex" }), "apted-master.tex");
+          downloadBlob(new Blob([customTex], { type: "application/x-tex" }), `${base}.tex`);
         } else {
           const blob = await fetchBlob("/api/master/tex");
-          downloadBlob(blob, "apted-master.tex");
+          downloadBlob(blob, `${base}.tex`);
         }
       } else if (kind === "json" && resume) {
-        downloadBlob(new Blob([JSON.stringify(resume, null, 2)], { type: "application/json" }), "apted-master.json");
+        downloadBlob(new Blob([JSON.stringify(resume, null, 2)], { type: "application/json" }), `${base}.json`);
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : "export failed");
@@ -713,7 +725,14 @@ function PreviewPane({
     <div className="hidden lg:flex flex-col bg-inverse-surface relative" style={{ width: `${width}%` }}>
       <div className="h-12 border-b border-inverse-on-surface/10 bg-inverse-surface flex items-center justify-between px-md sticky top-0 z-10">
         <span className="text-label-md font-label-md text-inverse-on-surface font-semibold flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px]">visibility</span> Preview
+          <span className="material-symbols-outlined text-[18px]">visibility</span>
+          Preview
+          <input
+            value={exportName}
+            onChange={(e) => setExportName(e.target.value)}
+            className="bg-transparent border-b border-inverse-on-surface/30 focus:border-inverse-on-surface outline-none text-label-md font-label-md min-w-[6rem] max-w-[14rem] px-1"
+            aria-label="Export filename"
+          />
         </span>
         <div className="flex items-center gap-1">
           <div ref={exportRef} className="relative">
