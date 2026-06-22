@@ -349,23 +349,23 @@ export default function MasterPage() {
         <main className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-background">
           {/* Left Column (Editor) */}
           <div className="flex-1 w-full flex flex-col overflow-hidden">
-            <div className="h-12 border-b border-inverse-on-surface/10 bg-inverse-surface flex items-center justify-between px-md shrink-0 sticky top-0 z-10">
+            <div className="h-12 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-md shrink-0 sticky top-0 z-10">
               <div className="flex items-center gap-1">
-                <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? previewPrimaryBtnCls : previewBtnCls}>
+                <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? primaryBtnCls : smallBtnCls}>
                   Structured
                 </button>
-                <button onClick={() => switchMode("latex")} className={editorMode === "latex" ? previewPrimaryBtnCls : previewBtnCls}>
+                <button onClick={() => switchMode("latex")} className={editorMode === "latex" ? primaryBtnCls : smallBtnCls}>
                   LaTeX
                 </button>
-                <button onClick={() => switchMode("json")} className={editorMode === "json" ? previewPrimaryBtnCls : previewBtnCls}>
+                <button onClick={() => switchMode("json")} className={editorMode === "json" ? primaryBtnCls : smallBtnCls}>
                   JSON
                 </button>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => setShowImport(true)} className={previewBtnCls}>
+                <button onClick={() => setShowImport(true)} className={smallBtnCls}>
                   <span className="material-symbols-outlined text-[18px]">upload</span> Import from PDF
                 </button>
-                <button onClick={save} disabled={saving} className={previewPrimaryBtnCls}>
+                <button onClick={save} disabled={saving} className={primaryBtnCls}>
                   {saving ? "Saving…" : "Save"}
                 </button>
               </div>
