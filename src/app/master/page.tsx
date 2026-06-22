@@ -1550,7 +1550,7 @@ function BulletList({
   const drag = useDragReorder((from, to) => onChange(reorderArray(bullets, from, to)));
   return (
     <div className="flex flex-col gap-1 mt-2 border-t border-outline-variant pt-sm">
-      <h4 className="text-label-md font-label-md text-on-surface-variant">Curated Bullets</h4>
+      <h4 className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Curated Bullets</h4>
       <div className="flex flex-col gap-1">
         {bullets.map((b, i) => (
           <BulletRow
