@@ -220,7 +220,7 @@ export function createDrawerStyles(): string {
       width: 28px;
       height: 28px;
       border: 1px solid transparent;
-      border-radius: 8px;
+      border-radius: 6px;
       background: transparent;
       color: var(--apted-on-surface-variant);
       cursor: pointer;
@@ -265,7 +265,7 @@ export function createDrawerStyles(): string {
     .apted-card {
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 16px;
     }
 
@@ -328,7 +328,7 @@ export function createDrawerStyles(): string {
       background: var(--apted-surface-container-lowest);
       color: var(--apted-on-surface);
       border: 1px solid var(--apted-outline-variant);
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 8px 16px;
       font: inherit;
       font-size: 13px;
@@ -368,7 +368,7 @@ export function createDrawerStyles(): string {
     .apted-btn--sm {
       padding: 4px 10px;
       font-size: 12px;
-      border-radius: 8px;
+      border-radius: 6px;
     }
 
     .apted-btn--sm svg {
@@ -399,7 +399,7 @@ export function createDrawerStyles(): string {
       background: var(--apted-surface);
       color: var(--apted-on-surface);
       border: 1px solid var(--apted-outline-variant);
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 8px 10px;
       font: inherit;
       font-size: 13px;
@@ -432,7 +432,7 @@ export function createDrawerStyles(): string {
       background: var(--apted-surface);
       color: var(--apted-on-surface);
       border: 1px solid var(--apted-outline-variant);
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 8px 10px;
       font: inherit;
       font-size: 13px;
@@ -467,6 +467,7 @@ export function createDrawerStyles(): string {
 
     .apted-preview-body {
       background: var(--apted-surface-container-low);
+      border-radius: 6px;
       overflow: hidden;
       position: relative;
       display: block;
@@ -550,7 +551,7 @@ export function createDrawerStyles(): string {
       padding: 8px 12px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
       transition: background 0.15s, border-color 0.15s;
     }
@@ -597,12 +598,12 @@ export function createDrawerStyles(): string {
     .apted-chat-form .apted-input {
       flex: 1;
       margin-bottom: 0;
-      border-radius: 8px 0 0 8px;
+      border-radius: 6px 0 0 6px;
       border-right: none;
     }
 
     .apted-chat-form .apted-btn--primary {
-      border-radius: 0 8px 8px 0;
+      border-radius: 0 6px 6px 0;
       flex-shrink: 0;
     }
 
