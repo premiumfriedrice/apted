@@ -1,4 +1,4 @@
-import type { Resume } from "../resume";
+import type { Resume, Bullet } from "../resume";
 import type { ParseProseKind } from "../llm";
 
 const KIND_LABEL: Record<ParseProseKind, string> = {
@@ -30,6 +30,29 @@ Rules:
 - Notes: if the user provides detail beyond what fits in a one-line bullet — metrics, scope, team size, tech stack, outcomes, impact — dump it all into the notes field. Think of notes as the raw material the tailor will draw from. More detail is always better than less. Example: if the user writes "I built a notification system that handles 10k events/sec and reduced latency from 5s to 300ms, adopted by 3 teams", the bullet can be a concise one-liner but notes should capture all of that detail.
 - Missing fields → empty string. Don't fabricate dates, locations, or org names.
 - Default \`tags\` to \`[]\` unless the user explicitly tagged the entry.`;
+}
+
+export function generateBulletsUserPrompt(args: {
+  prose: string;
+  existingBullets: Bullet[];
+}) {
+  return `EXISTING BULLETS (preserve accurate ones, drop contradicted ones):
+${JSON.stringify(args.existingBullets)}
+
+NEW PROSE (source of truth for adding/updating bullets):
+${args.prose}
+
+TASK
+Merge the existing bullets with the new prose detail. Keep bullets that are still accurate, add bullets for achievements/scope mentioned in the prose but not covered, and drop bullets contradicted by the prose. Never fabricate.
+
+Generate as many bullets as the prose supports: one bullet per distinct achievement, responsibility, scope item, metric, technology, or outcome. Do not collapse multiple facts into a single bullet. Each bullet follows XYZ format when facts support it — otherwise keep it factual and concise.
+
+Return ONLY a JSON object with this exact shape:
+{
+  "bullets": [ /* merged bullet list */ ]
+}
+
+Preserve existing bullet ids where possible. Mint fresh short kebab-case ids only for genuinely new bullets.`;
 }
 
 export function importResumeUserPrompt(args: { text: string }) {
