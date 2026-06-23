@@ -171,7 +171,7 @@ export function createDrawerStyles(): string {
       width: ${DRAWSER_WIDTH}px;
       background: var(--apted-surface);
       border: 1px solid var(--apted-outline-variant);
-      border-radius: 12px;
+      border-radius: 8px;
       display: flex;
       flex-direction: column;
       pointer-events: auto;
