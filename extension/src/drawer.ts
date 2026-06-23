@@ -9,7 +9,6 @@ import type { Draft, Outcome, ScrapedJob, SimilarResume, Version } from "./types
 
 export const DRAWSER_WIDTH = 384;
 export const HANDLE_SIZE = 48;
-export const ACCENT_COLOR = "#2563eb";
 
 const SUPPORTED_URL_RE =
   /linkedin\.com\/jobs\/|greenhouse\.io|lever\.co|myworkdayjobs\.com|ashbyhq\.com/;
@@ -52,17 +51,31 @@ export function createDrawerStyles(): string {
     ${pulse}
 
     :host {
+      --apted-surface: #f8f9fa;
+      --apted-surface-container-lowest: #ffffff;
+      --apted-surface-container-low: #f3f4f5;
+      --apted-surface-container-high: #e7e8e9;
+      --apted-outline-variant: #c3c6d7;
+      --apted-on-surface: #191c1d;
+      --apted-on-surface-variant: #434655;
+      --apted-inverse-surface: #2e3132;
+      --apted-inverse-on-surface: #f0f1f2;
+      --apted-primary: #000000;
+      --apted-on-primary: #ffffff;
+      --apted-error: #b3261e;
+      --apted-success: #16a34a;
+
       position: fixed;
       top: 0;
       right: 0;
       height: 100vh;
       z-index: 2147483646;
-      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      color: #171717;
+      font: 14px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      color: var(--apted-on-surface);
       pointer-events: none;
     }
 
-    /* ── Handle: geometric "a" glyph, flush right ─────────────────────── */
+    /* ── Handle ───────────────────────────────────────────────────────── */
     .apted-handle {
       position: fixed;
       right: 0;
@@ -82,7 +95,7 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: flex-end;
       overflow: visible;
-      transition: transform 0.2s ease-out, right 0.2s ease-out, width 0.15s ease, height 0.15s ease, background 0.15s ease;
+      transition: transform 0.2s ease-out, right 0.2s ease-out;
     }
 
     .apted-handle:not(.apted-handle--open):hover {
@@ -92,14 +105,8 @@ export function createDrawerStyles(): string {
     .apted-handle--open {
       right: 12px;
       transform: translateX(-360px) translateY(7px);
-      justify-content: flex-end;
-      overflow: visible;
       opacity: 0;
       pointer-events: none;
-    }
-
-    .apted-handle--open:hover {
-      transform: translateX(-360px) translateY(7px);
     }
 
     .apted-handle--disabled {
@@ -115,7 +122,7 @@ export function createDrawerStyles(): string {
       font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 56px;
       font-weight: 400;
-      color: #111;
+      color: var(--apted-primary);
       line-height: 1;
       transition: font-size 0.2s ease-out, color 0.15s ease;
       display: flex;
@@ -130,18 +137,9 @@ export function createDrawerStyles(): string {
     .apted-handle--open .apted-handle-glyph {
       font-size: 18px;
       font-weight: 500;
-      color: #000;
-      opacity: 1;
       text-rendering: geometricPrecision;
     }
 
-    .apted-handle--open:hover .apted-handle-glyph {
-      color: #000;
-      opacity: 1;
-      text-rendering: geometricPrecision;
-    }
-
-    /* ── Blue dot badge ───────────────────────────────────────────────── */
     .apted-handle-dot {
       position: absolute;
       top: 2px;
@@ -149,8 +147,8 @@ export function createDrawerStyles(): string {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #2563eb;
-      border: 1.5px solid #fff;
+      background: var(--apted-primary);
+      border: 1.5px solid var(--apted-surface-container-lowest);
       display: none;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
     }
@@ -159,22 +157,21 @@ export function createDrawerStyles(): string {
       display: block;
     }
 
-    /* ── Pulse animation on the glyph ─────────────────────────────────── */
     .apted-handle--pulse .apted-handle-glyph {
       animation: apted-pulse 1.8s ease-in-out 2;
       transform-origin: center;
     }
 
-    /* ── Drawer: card overlay matching Simplified layout ──────────────── */
+    /* ── Drawer shell ─────────────────────────────────────────────────── */
     .apted-drawer {
       position: fixed;
       top: 12px;
       right: 12px;
       bottom: 12px;
       width: ${DRAWSER_WIDTH}px;
-      background: #fff;
-      border: 1px solid #e5e5e5;
-      border-radius: 6px;
+      background: var(--apted-surface);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 12px;
       display: flex;
       flex-direction: column;
       pointer-events: auto;
@@ -183,8 +180,8 @@ export function createDrawerStyles(): string {
       transform: translateX(calc(100% + 24px));
       transition: transform 0.2s ease-out;
       z-index: 2147483646;
-      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      color: #171717;
+      font: inherit;
+      color: inherit;
     }
 
     .apted-drawer--open {
@@ -196,23 +193,22 @@ export function createDrawerStyles(): string {
       position: sticky;
       top: 0;
       z-index: 10;
-      background: #fff;
-      padding: 16px 16px 12px;
-      border-bottom: 1px solid #f5f5f5;
+      height: 48px;
+      background: var(--apted-surface-container-lowest);
+      border-bottom: 1px solid var(--apted-outline-variant);
       flex-shrink: 0;
-    }
-
-    .apted-drawer-header-row {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 0 16px;
     }
 
     .apted-drawer-title {
       font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 18px;
-      font-weight: 500;
-      color: #171717;
+      line-height: 24px;
+      font-weight: 600;
+      color: var(--apted-on-surface);
       margin: 0;
       letter-spacing: -0.02em;
     }
@@ -224,29 +220,22 @@ export function createDrawerStyles(): string {
       width: 28px;
       height: 28px;
       border: 1px solid transparent;
-      border-radius: 6px;
-      background: none;
-      color: #9ca3af;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--apted-on-surface-variant);
       cursor: pointer;
       padding: 0;
       font: inherit;
-      transition: color 0.15s, border-color 0.15s;
+      transition: background 0.15s, color 0.15s;
     }
 
     .apted-header-btn:hover {
-      color: #374151;
-      border-color: #e5e5e5;
+      color: var(--apted-on-surface);
+      background: var(--apted-surface-container-low);
     }
 
     .apted-header-btn svg {
       pointer-events: none;
-    }
-
-    .apted-connection-text {
-      display: block;
-      font-size: 10px;
-      color: #9ca3af;
-      margin-top: 4px;
     }
 
     /* ── Scrollable body ──────────────────────────────────────────────── */
@@ -254,7 +243,10 @@ export function createDrawerStyles(): string {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 0 16px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
       overscroll-behavior: contain;
     }
 
@@ -265,18 +257,16 @@ export function createDrawerStyles(): string {
       background: transparent;
     }
     .apted-drawer-body::-webkit-scrollbar-thumb {
-      background: #e5e5e5;
+      background: var(--apted-outline-variant);
       border-radius: 2px;
     }
 
-    /* ── Cards within body ────────────────────────────────────────────── */
+    /* ── Cards ────────────────────────────────────────────────────────── */
     .apted-card {
-      padding: 16px 0;
-      border-bottom: 1px solid #f5f5f5;
-    }
-
-    .apted-card:last-child {
-      border-bottom: none;
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 12px;
+      padding: 16px;
     }
 
     .apted-card-row {
@@ -284,16 +274,30 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
+    }
+
+    .apted-card-row:last-child {
+      margin-bottom: 0;
     }
 
     .apted-card-title {
-      font-size: 12px;
+      font-size: 11px;
+      line-height: 14px;
       font-weight: 600;
-      color: #6b7280;
+      color: var(--apted-on-surface-variant);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
       margin: 0;
+    }
+
+    .apted-connection-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      line-height: 14px;
+      color: var(--apted-on-surface-variant);
+      margin-bottom: 12px;
     }
 
     .apted-btn-group {
@@ -301,7 +305,7 @@ export function createDrawerStyles(): string {
       gap: 4px;
     }
 
-    /* ── Backdrop (narrow viewports) ───────────────────────────────────── */
+    /* ── Backdrop ─────────────────────────────────────────────────────── */
     .apted-backdrop {
       position: fixed;
       inset: 0;
@@ -316,16 +320,16 @@ export function createDrawerStyles(): string {
       display: block;
     }
 
-    /* ── Buttons ───────────────────────────────────────────────────────── */
+    /* ── Buttons ──────────────────────────────────────────────────────── */
     .apted-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
-      border-radius: 6px;
-      padding: 7px 14px;
+      background: var(--apted-surface-container-lowest);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 8px;
+      padding: 8px 16px;
       font: inherit;
       font-size: 13px;
       font-weight: 500;
@@ -335,8 +339,8 @@ export function createDrawerStyles(): string {
     }
 
     .apted-btn:hover:not(:disabled) {
-      background: #f9fafb;
-      border-color: #d1d5db;
+      background: var(--apted-surface-container-low);
+      border-color: var(--apted-outline-variant);
     }
 
     .apted-btn:disabled {
@@ -345,26 +349,26 @@ export function createDrawerStyles(): string {
     }
 
     .apted-btn--primary {
-      background: ${ACCENT_COLOR};
-      color: #fff;
-      border-color: ${ACCENT_COLOR};
+      background: var(--apted-primary);
+      color: var(--apted-on-primary);
+      border-color: var(--apted-primary);
     }
 
     .apted-btn--primary:hover:not(:disabled) {
-      background: #1d4ed8;
-      border-color: #1d4ed8;
+      background: var(--apted-on-surface-variant);
+      border-color: var(--apted-on-surface-variant);
     }
 
     .apted-btn--success {
-      background: #16a34a;
-      color: #fff;
-      border-color: #16a34a;
+      background: var(--apted-success);
+      color: var(--apted-on-primary);
+      border-color: var(--apted-success);
     }
 
     .apted-btn--sm {
       padding: 4px 10px;
       font-size: 12px;
-      border-radius: 6px;
+      border-radius: 8px;
     }
 
     .apted-btn--sm svg {
@@ -377,27 +381,37 @@ export function createDrawerStyles(): string {
       justify-content: center;
     }
 
-    /* ── Form elements ─────────────────────────────────────────────────── */
+    .apted-btn--inverse {
+      background: transparent;
+      color: var(--apted-inverse-on-surface);
+      border-color: transparent;
+    }
+
+    .apted-btn--inverse:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* ── Form elements ────────────────────────────────────────────────── */
     .apted-input,
     .apted-textarea {
       display: block;
       width: 100%;
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
-      border-radius: 6px;
+      background: var(--apted-surface);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 8px;
       padding: 8px 10px;
       font: inherit;
       font-size: 13px;
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
       margin-bottom: 8px;
     }
 
     .apted-input:focus,
     .apted-textarea:focus {
-      border-color: ${ACCENT_COLOR};
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      border-color: var(--apted-primary);
+      box-shadow: 0 0 0 1px var(--apted-primary);
     }
 
     .apted-textarea {
@@ -410,21 +424,15 @@ export function createDrawerStyles(): string {
 
     .apted-input::placeholder,
     .apted-textarea::placeholder {
-      color: #9ca3af;
-    }
-
-    .apted-input--chat {
-      flex: 1;
-      margin-bottom: 0;
-      border-radius: 6px 0 0 6px;
-      border-right: none;
+      color: var(--apted-on-surface-variant);
+      opacity: 0.7;
     }
 
     .apted-select {
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
-      border-radius: 6px;
+      background: var(--apted-surface);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 8px;
       padding: 8px 10px;
       font: inherit;
       font-size: 13px;
@@ -432,31 +440,59 @@ export function createDrawerStyles(): string {
       outline: none;
     }
 
-    /* ── Preview ───────────────────────────────────────────────────────── */
-    .apted-preview-body {
-      border: 1px solid #e5e5e5;
-      background: #f9fafb;
-      border-radius: 6px;
+    /* ── Preview ──────────────────────────────────────────────────────── */
+    .apted-card--preview {
+      padding: 0;
       overflow: hidden;
-      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .apted-preview-header {
+      height: 40px;
+      background: var(--apted-inverse-surface);
+      color: var(--apted-inverse-on-surface);
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 8px;
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+
+    .apted-preview-header-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--apted-inverse-on-surface);
+    }
+
+    .apted-preview-body {
+      background: var(--apted-surface-container-low);
+      overflow: hidden;
+      position: relative;
+      display: block;
       min-height: 280px;
       resize: vertical;
+      flex: 1;
     }
 
     .apted-preview-body .apted-empty {
-      color: #9ca3af;
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--apted-on-surface-variant);
       text-align: center;
       font-size: 13px;
     }
 
     .apted-preview-embed {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       border: 0;
-      border-radius: 6px;
+      background: var(--apted-surface-container-lowest);
     }
 
     .apted-preview-embed[hidden] {
@@ -464,12 +500,15 @@ export function createDrawerStyles(): string {
     }
 
     .apted-preview-state {
+      position: absolute;
+      inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 10px;
       text-align: center;
-      color: #9ca3af;
+      color: var(--apted-on-surface-variant);
       font-size: 12px;
     }
 
@@ -480,8 +519,8 @@ export function createDrawerStyles(): string {
     .apted-spinner {
       width: 28px;
       height: 28px;
-      border: 3px solid #e5e5e5;
-      border-top-color: ${ACCENT_COLOR};
+      border: 3px solid var(--apted-surface-container-high);
+      border-top-color: var(--apted-primary);
       border-radius: 50%;
       animation: apted-spin 0.7s linear infinite;
     }
@@ -491,17 +530,17 @@ export function createDrawerStyles(): string {
     }
 
     .apted-preview-error-msg {
-      color: #dc2626;
+      color: var(--apted-error);
       margin: 0;
       max-width: 260px;
       word-wrap: break-word;
     }
 
-    /* ── Similar resumes ───────────────────────────────────────────────── */
+    /* ── Similar resumes ──────────────────────────────────────────────── */
     .apted-similar-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     .apted-similar-item {
@@ -509,26 +548,21 @@ export function createDrawerStyles(): string {
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      background: #fff;
-      border: 1px solid #e5e5e5;
-      border-radius: 6px;
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 8px;
       cursor: pointer;
-      transition: border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s;
     }
 
     .apted-similar-item:hover {
-      border-color: #d1d5db;
-    }
-
-    .apted-similar-score {
-      font-weight: 700;
-      font-size: 11px;
-      color: ${ACCENT_COLOR};
+      background: var(--apted-surface-container-low);
+      border-color: var(--apted-on-surface-variant);
     }
 
     .apted-similar-score-badge {
-      background: ${ACCENT_COLOR};
-      color: #fff;
+      background: var(--apted-primary);
+      color: var(--apted-on-primary);
       font-size: 11px;
       font-weight: 700;
       padding: 2px 6px;
@@ -537,7 +571,7 @@ export function createDrawerStyles(): string {
     }
 
     .apted-similar-text {
-      color: #171717;
+      color: var(--apted-on-surface);
       font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -545,43 +579,50 @@ export function createDrawerStyles(): string {
     }
 
     .apted-similar-company {
-      color: #9ca3af;
+      color: var(--apted-on-surface-variant);
     }
 
-    /* ── Footer: Chat input ────────────────────────────────────────────── */
-    .apted-drawer-footer {
-      flex-shrink: 0;
-      border-top: 1px solid #f5f5f5;
-      padding: 12px 16px;
-      background: #fff;
+    /* ── Chat card ────────────────────────────────────────────────────── */
+    .apted-card--chat {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .apted-chat-form {
       display: flex;
+      gap: 0;
+    }
+
+    .apted-chat-form .apted-input {
+      flex: 1;
+      margin-bottom: 0;
+      border-radius: 8px 0 0 8px;
+      border-right: none;
     }
 
     .apted-chat-form .apted-btn--primary {
-      border-radius: 0 6px 6px 0;
+      border-radius: 0 8px 8px 0;
       flex-shrink: 0;
     }
 
-    /* ── Status bar ────────────────────────────────────────────────────── */
+    /* ── Status bar ───────────────────────────────────────────────────── */
     .apted-status {
       font-size: 11px;
-      color: #9ca3af;
-      margin-top: 6px;
-      min-height: 16px;
+      line-height: 14px;
+      color: var(--apted-on-surface-variant);
+      min-height: 14px;
     }
 
     .apted-status--error {
-      color: #dc2626;
+      color: var(--apted-error);
     }
 
     .apted-status--ok {
-      color: #16a34a;
+      color: var(--apted-success);
     }
 
-    /* ── Utilities ─────────────────────────────────────────────────────── */
+    /* ── Utilities ────────────────────────────────────────────────────── */
     .apted-spacer {
       flex: 1;
     }
@@ -592,21 +633,21 @@ export function createDrawerStyles(): string {
       gap: 8px;
     }
 
-    /* ── Save dialog overlay ───────────────────────────────────────────── */
+    /* ── Save dialog ──────────────────────────────────────────────────── */
     .apted-dialog {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 2147483647;
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
+      background: var(--apted-surface-container-lowest);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 12px;
       padding: 20px;
       min-width: 280px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font: inherit;
     }
 
     .apted-dialog[hidden] {
@@ -615,9 +656,10 @@ export function createDrawerStyles(): string {
 
     .apted-dialog h3 {
       font-size: 15px;
+      line-height: 20px;
       font-weight: 600;
       margin: 0 0 12px;
-      color: #171717;
+      color: var(--apted-on-surface);
     }
 
     .apted-dialog label {
@@ -626,7 +668,7 @@ export function createDrawerStyles(): string {
       gap: 4px;
       margin-bottom: 10px;
       font-size: 12px;
-      color: #6b7280;
+      color: var(--apted-on-surface-variant);
     }
 
     .apted-dialog .apted-row {
@@ -644,7 +686,7 @@ export function createDrawerStyles(): string {
       display: none;
     }
 
-    /* ── Fullscreen overlay ────────────────────────────────────────────── */
+    /* ── Fullscreen overlay ───────────────────────────────────────────── */
     .apted-fullscreen-overlay {
       position: fixed;
       inset: 0;
@@ -711,32 +753,30 @@ export function createDrawerHTML(): string {
 
     <div id="apted-drawer" class="apted-drawer">
       <div class="apted-drawer-header">
-        <div class="apted-drawer-header-row">
-          <h1 class="apted-drawer-title">apted</h1>
-          <div class="apted-spacer"></div>
-          <button type="button" id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
-            <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18">
-              <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5zm7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.97l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/>
-            </svg>
-          </button>
-          <button type="button" id="apted-close-drawer" class="apted-header-btn" title="Minimize" aria-label="Minimize">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        <span id="apted-connection" class="apted-connection-text" title="API base"></span>
+        <h1 class="apted-drawer-title">apted</h1>
+        <div class="apted-spacer"></div>
+        <button type="button" id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
+          <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18">
+            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5zm7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.97l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/>
+          </svg>
+        </button>
+        <button type="button" id="apted-close-drawer" class="apted-header-btn" title="Minimize" aria-label="Minimize">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
 
       <div id="apted-drawer-body" class="apted-drawer-body">
         <div class="apted-card">
           <div class="apted-card-row">
             <h2 class="apted-card-title">Job description</h2>
-            <div class="apted-btn-group" style="margin-left:auto;">
+            <div class="apted-btn-group">
               <button id="apted-clear-jd" class="apted-btn apted-btn--sm" title="Clear job description fields">clear</button>
               <button id="apted-rescrape" class="apted-btn apted-btn--sm">scrape</button>
             </div>
           </div>
+          <span id="apted-connection" class="apted-connection-chip" title="API base"></span>
           <input id="apted-jd-company" class="apted-input" placeholder="Company" />
           <input id="apted-jd-role" class="apted-input" placeholder="Role" />
           <textarea
@@ -748,23 +788,25 @@ export function createDrawerHTML(): string {
           <button id="apted-tailor" class="apted-btn apted-btn--primary apted-btn--full">Tailor Resume</button>
         </div>
 
-        <div class="apted-card">
-          <div class="apted-card-row">
-            <button id="apted-inject-pdf" class="apted-btn apted-btn--sm" disabled>Inject to page</button>
+        <div class="apted-card apted-card--preview">
+          <div class="apted-preview-header">
+            <span class="apted-preview-header-title">Preview</span>
+            <div class="apted-spacer"></div>
             <div class="apted-btn-group">
-              <button id="apted-fullscreen-btn" class="apted-btn apted-btn--sm" title="Fullscreen" disabled>
+              <button id="apted-inject-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" disabled>Inject to page</button>
+              <button id="apted-fullscreen-btn" class="apted-btn apted-btn--inverse apted-btn--sm" title="Fullscreen" disabled>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                 </svg>
               </button>
-              <button id="apted-download-pdf" class="apted-btn apted-btn--sm" title="Download PDF" disabled>
+              <button id="apted-download-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" title="Download PDF" disabled>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
                   <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
               </button>
-              <button id="apted-save-version" class="apted-btn apted-btn--sm" title="Save version" disabled>
+              <button id="apted-save-version" class="apted-btn apted-btn--inverse apted-btn--sm" title="Save version" disabled>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                   <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -791,20 +833,21 @@ export function createDrawerHTML(): string {
           <h2 class="apted-card-title">Past tailored resumes</h2>
           <div id="apted-similar-list" class="apted-similar-list"></div>
         </div>
-      </div>
 
-      <div class="apted-drawer-footer">
-        <form id="apted-chat-form" class="apted-chat-form">
-          <input
-            id="apted-chat-input"
-            class="apted-input apted-input--chat"
-            placeholder="lead with the AI project · cut the GPA"
-            autocomplete="off"
-            disabled
-          />
-          <button id="apted-chat-send" type="submit" class="apted-btn apted-btn--primary" disabled>Send</button>
-        </form>
-        <div id="apted-status" class="apted-status" aria-live="polite"></div>
+        <div class="apted-card apted-card--chat">
+          <h2 class="apted-card-title">Edits</h2>
+          <form id="apted-chat-form" class="apted-chat-form">
+            <input
+              id="apted-chat-input"
+              class="apted-input"
+              placeholder="lead with the AI project · cut the GPA"
+              autocomplete="off"
+              disabled
+            />
+            <button id="apted-chat-send" type="submit" class="apted-btn apted-btn--primary" disabled>Send</button>
+          </form>
+          <div id="apted-status" class="apted-status" aria-live="polite"></div>
+        </div>
       </div>
     </div>
 
