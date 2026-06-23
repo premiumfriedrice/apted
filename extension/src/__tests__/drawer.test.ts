@@ -191,16 +191,16 @@ describe("createHandleSVG", () => {
     expect(css).toContain("-apple-system");
   });
 
-  it("uses bold font-weight (700) for the glyph", () => {
+  it("uses normal font-weight (400) for the glyph", () => {
     const css = createDrawerStyles();
-    expect(css).toContain("font-weight: 700");
+    expect(css).toContain("font-weight: 400");
   });
 
   it("open state does not transform glyph — handle stays separate", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-handle-glyph");
     expect(css).toContain("font-size: 56px");
-    expect(css).toContain("font-weight: 700");
+    expect(css).toContain("font-weight: 400");
     expect(css).toContain("color: var(--apted-primary)");
   });
 
@@ -290,9 +290,9 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-fullscreen-btn");
   });
 
-  it("similar resumes section uses 'Past tailored resumes' as title", () => {
+  it("similar resumes section uses 'Past Tailored Resumes' as title", () => {
     const html = createDrawerHTML();
-    expect(html).toContain("Past tailored resumes");
+    expect(html).toContain("Past Tailored Resumes");
   });
 
   it("similar resume cards have clickable styling", () => {
@@ -302,11 +302,11 @@ describe("createDrawerHTML", () => {
     expect(css).toContain("border-color: var(--apted-on-surface-variant)");
   });
 
-  it("similar resume score badge uses primary color", () => {
+  it("similar resume cards show a match score bar", () => {
     const css = createDrawerStyles();
-    expect(css).toContain(".apted-similar-score-badge");
-    expect(css).toContain("background: var(--apted-primary)");
-    expect(css).toContain("color: var(--apted-on-primary)");
+    expect(css).toContain(".apted-similar-score");
+    expect(css).toContain(".apted-similar-bar");
+    expect(css).toContain(".apted-similar-bar-fill");
   });
 
   it("preview body is natively resizable like the textarea", () => {

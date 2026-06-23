@@ -27,6 +27,7 @@ export type Msg =
   | { type: "fill-nearest-input"; pdfB64?: string; pdfFilename?: string }
   | { type: "find-similar"; jobDescription: string }
   | { type: "fetch-version-pdf"; versionId: string }
+  | { type: "get-version"; versionId: string }
   | { type: "open-drawer" }
   | { type: "open-options" };
 
@@ -51,6 +52,7 @@ export type MsgResultMap = {
   "fill-nearest-input": { ok: boolean; error?: string };
   "find-similar": { similar: SimilarResume[] };
   "fetch-version-pdf": { base64: string | null; mime: "application/pdf" };
+  "get-version": Draft;
   "open-drawer": { ok: true };
 };
 

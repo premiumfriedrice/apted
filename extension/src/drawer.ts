@@ -61,6 +61,7 @@ export function createDrawerStyles(): string {
       --apted-inverse-surface: #2e3132;
       --apted-inverse-on-surface: #f0f1f2;
       --apted-primary: #000000;
+      --apted-black-btn: #000000;
       --apted-on-primary: #ffffff;
       --apted-error: #b3261e;
       --apted-success: #16a34a;
@@ -480,11 +481,17 @@ export function createDrawerStyles(): string {
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: var(--apted-on-surface-variant);
+      gap: 4px;
+      color: var(--apted-outline);
       text-align: center;
-      font-size: 13px;
+      font-size: 11px;
+    }
+
+    .apted-preview-body .apted-empty p {
+      max-width: 160px;
     }
 
     .apted-preview-embed {
@@ -547,71 +554,145 @@ export function createDrawerStyles(): string {
     .apted-similar-item {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 10px 12px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
       cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
+      transition: border-color 0.15s;
     }
 
     .apted-similar-item:hover {
-      background: var(--apted-surface-container-low);
-      border-color: var(--apted-on-surface-variant);
+      border-color: var(--apted-outline);
     }
 
-    .apted-similar-score-badge {
-      background: var(--apted-primary);
-      color: var(--apted-on-primary);
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 999px;
-      flex-shrink: 0;
+    .apted-similar-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
     }
 
-    .apted-similar-text {
+    .apted-similar-role {
       color: var(--apted-on-surface);
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 600;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .apted-similar-company {
+    .apted-similar-when {
       color: var(--apted-on-surface-variant);
+      font-size: 11px;
     }
 
-    /* ── Chat card ────────────────────────────────────────────────────── */
-    .apted-card--chat {
+    .apted-similar-score-wrap {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .apted-similar-score {
+      color: var(--apted-on-surface);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .apted-similar-bar {
+      width: 48px;
+      height: 4px;
+      background: var(--apted-surface-variant);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .apted-similar-bar-fill {
+      height: 100%;
+      background: var(--apted-on-surface);
+    }
+
+    /* ── Footer: Chat input ───────────────────────────────────────────── */
+    .apted-drawer-footer {
+      flex-shrink: 0;
+      background: var(--apted-surface-container-lowest);
+      border-top: 1px solid var(--apted-outline-variant);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .apted-chat-form {
       display: flex;
-      gap: 0;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 6px;
+      padding: 4px;
     }
 
     .apted-chat-form .apted-input {
       flex: 1;
       margin-bottom: 0;
-      border-radius: 6px 0 0 6px;
-      border-right: none;
+      border: none;
+      background: transparent;
+      resize: none;
+      min-height: 32px;
+      max-height: 64px;
+      overflow-y: auto;
+      padding: 6px 8px;
     }
 
-    .apted-chat-form .apted-btn--primary {
-      border-radius: 0 6px 6px 0;
+    .apted-chat-form .apted-input:focus {
+      box-shadow: none;
+    }
+
+    .apted-chat-send {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 6px;
+      background: var(--apted-black-btn);
+      color: #fff;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
       flex-shrink: 0;
     }
 
-    /* ── Status bar ───────────────────────────────────────────────────── */
-    .apted-status {
-      font-size: 11px;
-      line-height: 14px;
+    .apted-chat-send:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .apted-chat-send-glyph {
+      font-family: "Outfit", sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .apted-status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+      font-size: 10px;
       color: var(--apted-on-surface-variant);
+    }
+
+    .apted-status {
+      font-size: 10px;
+      line-height: 14px;
+      color: inherit;
       min-height: 14px;
     }
 
@@ -621,6 +702,11 @@ export function createDrawerStyles(): string {
 
     .apted-status--ok {
       color: var(--apted-success);
+    }
+
+    .apted-version {
+      font-size: 10px;
+      color: var(--apted-on-surface-variant);
     }
 
     /* ── Utilities ────────────────────────────────────────────────────── */
@@ -817,7 +903,16 @@ export function createDrawerHTML(): string {
             </div>
           </div>
           <div id="apted-preview" class="apted-preview-body">
-            <div id="apted-preview-empty" class="apted-empty">No draft yet. Tailor a JD to get started.</div>
+            <div id="apted-preview-empty" class="apted-empty">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <p>No draft yet.</p>
+            </div>
             <div id="apted-preview-loading" class="apted-preview-state" hidden>
               <div class="apted-spinner"></div>
               <span>Compiling PDF…</span>
@@ -831,23 +926,32 @@ export function createDrawerHTML(): string {
         </div>
 
         <div id="apted-similar-section" class="apted-card" hidden>
-          <h2 class="apted-card-title">Past tailored resumes</h2>
+          <h2 class="apted-card-title">Past Tailored Resumes</h2>
           <div id="apted-similar-list" class="apted-similar-list"></div>
         </div>
+      </div>
 
-        <div class="apted-card apted-card--chat">
-          <h2 class="apted-card-title">Edits</h2>
-          <form id="apted-chat-form" class="apted-chat-form">
-            <input
-              id="apted-chat-input"
-              class="apted-input"
-              placeholder="lead with the AI project · cut the GPA"
-              autocomplete="off"
-              disabled
-            />
-            <button id="apted-chat-send" type="submit" class="apted-btn apted-btn--primary" disabled>Send</button>
-          </form>
-          <div id="apted-status" class="apted-status" aria-live="polite"></div>
+      <div class="apted-drawer-footer">
+        <form id="apted-chat-form" class="apted-chat-form">
+          <input
+            id="apted-chat-input"
+            class="apted-input"
+            placeholder="lead with the AI project..."
+            autocomplete="off"
+            disabled
+          />
+          <button id="apted-chat-send" type="submit" class="apted-chat-send" disabled>
+            <span class="apted-chat-send-glyph">A</span>
+          </button>
+        </form>
+        <div class="apted-status-row">
+          <div class="apted-row">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+            </svg>
+            <span id="apted-status" class="apted-status" aria-live="polite"></span>
+          </div>
+          <span class="apted-version">v1.0.4</span>
         </div>
       </div>
     </div>
@@ -1090,6 +1194,19 @@ export function createInitialState(): DrawerState {
     }
   }
 
+  function relativeTime(iso?: string): string {
+    if (!iso) return "";
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return "";
+    const diff = Date.now() - then;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days <= 0) return "today";
+    if (days === 1) return "1 day ago";
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+    return `${Math.floor(days / 30)} months ago`;
+  }
+
   function renderSimilarResumes(similar: SimilarResume[]): void {
     if (!similar?.length) {
       els.similarSection.hidden = true;
@@ -1098,17 +1215,24 @@ export function createInitialState(): DrawerState {
     els.similarSection.hidden = false;
     els.similarList.innerHTML = similar
       .slice(0, 3)
-      .map(
-        (s) => `
+      .map((s) => {
+        const score = Math.round(s.score ?? 0);
+        return `
         <div class="apted-similar-item" data-version-id="${escHtml(s.id ?? "")}">
-          <span class="apted-similar-score-badge">${s.score}%</span>
-          <span class="apted-similar-text">${escHtml(s.role)} <span class="apted-similar-company">@ ${escHtml(s.company)}</span></span>
-        </div>`,
-      )
+          <div class="apted-similar-main">
+            <span class="apted-similar-role">${escHtml(s.company)} · ${escHtml(s.role)}</span>
+            <span class="apted-similar-when">${escHtml(relativeTime(s.createdAt))}</span>
+          </div>
+          <div class="apted-similar-score-wrap">
+            <span class="apted-similar-score">${score}% Match</span>
+            <div class="apted-similar-bar">
+              <div class="apted-similar-bar-fill" style="width: ${score}%;"></div>
+            </div>
+          </div>
+        </div>`;
+      })
       .join("");
-  }
-
-  function withPdfToolbarSuppressed(url: string): string {
+  }  function withPdfToolbarSuppressed(url: string): string {
     if (!url) return url;
     const sep = url.includes("#") ? "&" : "#";
     return url + sep + "toolbar=0&navpanes=0";
@@ -1606,28 +1730,17 @@ export function createInitialState(): DrawerState {
     els.fullscreenEmbed.src = withPdfToolbarSuppressed(state.pdfObjectUrl);
     els.fullscreenOverlay.hidden = false;
   });
-  // Click a similar resume card to open its PDF in fullscreen
+  // Click a similar resume card to load it as the current draft.
   els.similarList.addEventListener("click", async (e) => {
     const item = (e.target as HTMLElement).closest(".apted-similar-item") as HTMLElement | null;
     if (!item) return;
     const versionId = item.dataset.versionId;
     if (!versionId) return;
-    setStatus("Loading PDF…");
+    setStatus("Loading past version…");
     try {
-      const reply = (await send({
-        type: "fetch-version-pdf",
-        versionId,
-      })) as { base64: string | null; mime: string };
-      if (!reply.base64) {
-        setStatus("No PDF available for this version.", "error");
-        return;
-      }
-      const bytes = Uint8Array.from(atob(reply.base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: reply.mime });
-      const url = URL.createObjectURL(blob);
-      els.fullscreenEmbed.src = url;
-      els.fullscreenOverlay.hidden = false;
-      setStatus("");
+      const draft = (await send({ type: "get-version", versionId })) as Draft;
+      setDraft(draft);
+      setStatus("Loaded past version.", "ok");
     } catch (e) {
       setStatus(errMsg(e), "error");
     }
