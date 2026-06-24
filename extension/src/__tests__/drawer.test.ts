@@ -313,7 +313,7 @@ describe("createDrawerHTML", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-preview-body");
     expect(css).toContain("resize: vertical");
-    expect(css).toContain("min-height: 280px");
+    expect(css).toContain("min-height: 180px");
   });
 
   it("preview iframe fills the preview body", () => {

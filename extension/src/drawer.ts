@@ -472,7 +472,7 @@ export function createDrawerStyles(): string {
       overflow: hidden;
       position: relative;
       display: block;
-      min-height: 280px;
+      min-height: 180px;
       resize: vertical;
       flex: 1;
     }
@@ -876,7 +876,7 @@ export function createDrawerHTML(): string {
           <textarea
             id="apted-jd-text"
             class="apted-textarea"
-            rows="5"
+            rows="4"
             placeholder="Paste a job description, or click Scrape."
           ></textarea>
           <button id="apted-tailor" class="apted-btn apted-btn--primary apted-btn--full">Tailor Resume</button>
