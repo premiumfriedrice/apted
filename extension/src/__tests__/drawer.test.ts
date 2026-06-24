@@ -290,9 +290,9 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-fullscreen-btn");
   });
 
-  it("similar resumes section uses 'Past Tailored Resumes' as title", () => {
+  it("similar resumes section uses 'Matching Resumes' as title", () => {
     const html = createDrawerHTML();
-    expect(html).toContain("Past Tailored Resumes");
+    expect(html).toContain("Matching Resumes");
   });
 
   it("similar resume cards have clickable styling", () => {

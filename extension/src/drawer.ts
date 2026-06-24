@@ -450,6 +450,40 @@ export function createDrawerStyles(): string {
       flex-shrink: 0;
     }
 
+    .apted-card--black {
+      width: 100%;
+      background: var(--apted-black-btn);
+      color: #fff;
+      border-color: var(--apted-black-btn);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .apted-card--black:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .apted-card--black:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .apted-card-black-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .apted-card-black-text {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
     .apted-preview-header {
       height: 40px;
       background: var(--apted-inverse-surface);
@@ -895,15 +929,24 @@ export function createDrawerHTML(): string {
             rows="4"
             placeholder="Paste a job description, or click Scrape."
           ></textarea>
-          <button id="apted-tailor" class="apted-btn apted-btn--primary apted-btn--full">Tailor Resume</button>
         </div>
 
         <div id="apted-similar-section" class="apted-similar-section" hidden>
-          <h2 class="apted-card-title">Past Tailored Resumes</h2>
+          <h2 class="apted-card-title">Matching Resumes</h2>
           <div id="apted-similar-list" class="apted-similar-list"></div>
+          <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
+            <span class="apted-card-black-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <path d="M8 13h2l2 6 2-6h2"/>
+              </svg>
+            </span>
+            <span class="apted-card-black-text">Tailor new draft</span>
+          </button>
         </div>
 
-        <div class="apted-card apted-card--preview">
+        <div id="apted-preview-card" class="apted-card apted-card--preview" hidden>
           <div class="apted-preview-header">
             <span class="apted-preview-header-title">Preview</span>
             <div class="apted-spacer"></div>
@@ -1118,7 +1161,7 @@ export function createInitialState(): DrawerState {
     jdCompany: $<HTMLInputElement>("apted-jd-company"),
     jdRole: $<HTMLInputElement>("apted-jd-role"),
     jdText: $<HTMLTextAreaElement>("apted-jd-text"),
-    tailor: $<HTMLButtonElement>("apted-tailor"),
+    tailorNew: $<HTMLButtonElement>("apted-tailor-new"),
     downloadPdf: $<HTMLButtonElement>("apted-download-pdf"),
     saveVersion: $<HTMLButtonElement>("apted-save-version"),
     fullscreenBtn: $<HTMLButtonElement>("apted-fullscreen-btn"),
@@ -1126,6 +1169,7 @@ export function createInitialState(): DrawerState {
     fullscreenOverlay: $<HTMLElement>("apted-fullscreen-overlay"),
     fullscreenEmbed: $<HTMLIFrameElement>("apted-fullscreen-embed"),
     drawerBody: $<HTMLElement>("apted-drawer-body"),
+    previewCard: $<HTMLElement>("apted-preview-card"),
     preview: $<HTMLElement>("apted-preview"),
     previewEmpty: $<HTMLElement>("apted-preview-empty"),
     previewLoading: $<HTMLElement>("apted-preview-loading"),
@@ -1306,8 +1350,10 @@ export function createInitialState(): DrawerState {
   function setDraft(draft: Draft | null): void {
     if (!draft) {
       invalidatePdf();
+      els.previewCard.hidden = true;
     } else if (!state.draft || state.draft.id !== draft.id) {
       invalidatePdf();
+      els.previewCard.hidden = false;
     }
     state.draft = draft;
     void refreshPdfPreview();
@@ -1488,7 +1534,7 @@ export function createInitialState(): DrawerState {
     }
     state.jobDescription = jd;
     setStatus("Tailoring… this can take 10–30s.");
-    els.tailor.disabled = true;
+    els.tailorNew.disabled = true;
     try {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
       setDraft(draft);
@@ -1498,7 +1544,7 @@ export function createInitialState(): DrawerState {
     } catch (e) {
       setStatus(errMsg(e), "error");
     } finally {
-      els.tailor.disabled = false;
+      els.tailorNew.disabled = false;
     }
   }
 
@@ -1712,7 +1758,7 @@ export function createInitialState(): DrawerState {
     state.role = "";
     schedulePersist(0);
   });
-  els.tailor.addEventListener("click", () => void doTailor());
+  els.tailorNew.addEventListener("click", () => void doTailor());
   els.injectPdf.addEventListener("click", async () => {
     if (!state.draft) return;
     els.injectPdf.disabled = true;
