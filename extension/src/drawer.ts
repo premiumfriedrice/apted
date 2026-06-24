@@ -562,8 +562,8 @@ export function createDrawerStyles(): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 14px 12px;
+      gap: 12px;
+      padding: 16px 14px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
@@ -578,13 +578,28 @@ export function createDrawerStyles(): string {
     .apted-similar-main {
       display: flex;
       flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .apted-similar-field {
+      display: flex;
+      flex-direction: column;
       gap: 2px;
       min-width: 0;
     }
 
-    .apted-similar-role {
+    .apted-similar-label {
+      color: var(--apted-on-surface-variant);
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .apted-similar-value {
       color: var(--apted-on-surface);
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1227,7 +1242,14 @@ export function createInitialState(): DrawerState {
         return `
         <div class="apted-similar-item" data-version-id="${escHtml(s.id ?? "")}">
           <div class="apted-similar-main">
-            <span class="apted-similar-role">${escHtml(s.company)} · ${escHtml(s.role)}</span>
+            <div class="apted-similar-field">
+              <span class="apted-similar-label">Company</span>
+              <span class="apted-similar-value">${escHtml(s.company)}</span>
+            </div>
+            <div class="apted-similar-field">
+              <span class="apted-similar-label">Role</span>
+              <span class="apted-similar-value">${escHtml(s.role)}</span>
+            </div>
             <span class="apted-similar-when">${escHtml(relativeTime(s.createdAt))}</span>
           </div>
           <div class="apted-similar-score-wrap">
