@@ -452,7 +452,6 @@ export function createDrawerStyles(): string {
 
     .apted-card--black {
       width: 100%;
-      min-height: 72px;
       background: var(--apted-black-btn);
       color: #fff;
       border-color: var(--apted-black-btn);
@@ -599,7 +598,6 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      min-height: 72px;
       padding: 14px 12px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
