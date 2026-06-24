@@ -447,6 +447,7 @@ export function createDrawerStyles(): string {
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      flex-shrink: 0;
     }
 
     .apted-preview-header {
@@ -472,7 +473,7 @@ export function createDrawerStyles(): string {
       overflow: hidden;
       position: relative;
       display: block;
-      min-height: 180px;
+      min-height: 440px;
       resize: vertical;
       flex: 1;
     }
@@ -897,6 +898,11 @@ export function createDrawerHTML(): string {
           <button id="apted-tailor" class="apted-btn apted-btn--primary apted-btn--full">Tailor Resume</button>
         </div>
 
+        <div id="apted-similar-section" class="apted-similar-section" hidden>
+          <h2 class="apted-card-title">Past Tailored Resumes</h2>
+          <div id="apted-similar-list" class="apted-similar-list"></div>
+        </div>
+
         <div class="apted-card apted-card--preview">
           <div class="apted-preview-header">
             <span class="apted-preview-header-title">Preview</span>
@@ -947,10 +953,6 @@ export function createDrawerHTML(): string {
           </div>
         </div>
 
-        <div id="apted-similar-section" class="apted-similar-section" hidden>
-          <h2 class="apted-card-title">Past Tailored Resumes</h2>
-          <div id="apted-similar-list" class="apted-similar-list"></div>
-        </div>
       </div>
 
       <div class="apted-drawer-footer">
