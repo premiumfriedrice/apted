@@ -512,6 +512,16 @@ export function createDrawerStyles(): string {
       flex: 1;
     }
 
+    .apted-preview-embed {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 6px;
+      background: var(--apted-surface-container-low);
+    }
+
     .apted-preview-body .apted-empty {
       position: absolute;
       inset: 0;
@@ -527,15 +537,6 @@ export function createDrawerStyles(): string {
 
     .apted-preview-body .apted-empty p {
       max-width: 160px;
-    }
-
-    .apted-preview-embed {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-      background: var(--apted-surface-container-lowest);
     }
 
     .apted-preview-embed[hidden] {
@@ -759,6 +760,19 @@ export function createDrawerStyles(): string {
 
     .apted-status--ok {
       color: var(--apted-success);
+    }
+
+    .apted-status-spinner {
+      display: inline-flex;
+      align-items: center;
+      height: 10px;
+      margin-left: 4px;
+    }
+
+    .apted-status-spinner svg {
+      width: 18px;
+      height: 18px;
+      color: var(--apted-on-surface-variant);
     }
 
     .apted-version {
@@ -1017,6 +1031,19 @@ export function createDrawerHTML(): string {
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
             </svg>
             <span id="apted-status" class="apted-status" aria-live="polite"></span>
+            <span id="apted-status-spinner" class="apted-status-spinner" hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="4" cy="12" r="2" fill="currentColor">
+                  <animate id="apted-spinner-qFRN" begin="0;apted-spinner-OcgL.end+0.25s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                </circle>
+                <circle cx="12" cy="12" r="2" fill="currentColor">
+                  <animate begin="apted-spinner-qFRN.begin+0.1s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                </circle>
+                <circle cx="20" cy="12" r="2" fill="currentColor">
+                  <animate id="apted-spinner-OcgL" begin="apted-spinner-qFRN.begin+0.2s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                </circle>
+              </svg>
+            </span>
           </div>
           <span class="apted-version">v0.1.0</span>
         </div>
@@ -1184,6 +1211,7 @@ export function createInitialState(): DrawerState {
     chatInput: $<HTMLInputElement>("apted-chat-input"),
     chatSend: $<HTMLButtonElement>("apted-chat-send"),
     status: $<HTMLElement>("apted-status"),
+    statusSpinner: $<HTMLElement>("apted-status-spinner"),
     saveBackdrop: $<HTMLElement>("apted-save-backdrop"),
     saveDialog: $<HTMLElement>("apted-save-dialog"),
     saveCompany: $<HTMLInputElement>("apted-save-company"),
@@ -1535,6 +1563,7 @@ export function createInitialState(): DrawerState {
     state.jobDescription = jd;
     setStatus("Tailoring… this can take 10–30s.");
     els.tailorNew.disabled = true;
+    els.statusSpinner.hidden = false;
     try {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
       setDraft(draft);
@@ -1545,6 +1574,7 @@ export function createInitialState(): DrawerState {
       setStatus(errMsg(e), "error");
     } finally {
       els.tailorNew.disabled = false;
+      els.statusSpinner.hidden = true;
     }
   }
 
