@@ -244,10 +244,10 @@ export function createDrawerStyles(): string {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 12px 16px;
+      padding: 8px 12px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 8px;
       overscroll-behavior: contain;
     }
 
@@ -267,7 +267,7 @@ export function createDrawerStyles(): string {
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
       border-radius: 8px;
-      padding: 16px;
+      padding: 12px;
     }
 
     .apted-card-row {
@@ -545,6 +545,13 @@ export function createDrawerStyles(): string {
     }
 
     /* ── Similar resumes ──────────────────────────────────────────────── */
+    .apted-similar-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 4px 8px;
+    }
+
     .apted-similar-list {
       display: flex;
       flex-direction: column;
@@ -556,7 +563,7 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 10px 12px;
+      padding: 14px 12px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
@@ -925,7 +932,7 @@ export function createDrawerHTML(): string {
           </div>
         </div>
 
-        <div id="apted-similar-section" class="apted-card" hidden>
+        <div id="apted-similar-section" class="apted-similar-section" hidden>
           <h2 class="apted-card-title">Past Tailored Resumes</h2>
           <div id="apted-similar-list" class="apted-similar-list"></div>
         </div>
@@ -951,7 +958,7 @@ export function createDrawerHTML(): string {
             </svg>
             <span id="apted-status" class="apted-status" aria-live="polite"></span>
           </div>
-          <span class="apted-version">v1.0.4</span>
+          <span class="apted-version">v0.1.0</span>
         </div>
       </div>
     </div>
