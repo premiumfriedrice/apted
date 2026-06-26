@@ -11,6 +11,7 @@ export type Msg =
   | { type: "scrape" }
   | { type: "extract"; url: string; title: string; company: string; jobDescription: string; source: string }
   | { type: "tailor"; jobDescription: string }
+  | { type: "cancel-tailor" }
   | { type: "edit"; draftId: string; instruction: string }
   | { type: "undo"; draftId: string }
   | {

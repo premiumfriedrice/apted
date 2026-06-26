@@ -147,6 +147,8 @@ chrome.windows.onRemoved.addListener(async (closedId) => {
   }
 });
 
+let tailorAbortController: AbortController | null = null;
+
 async function apiFetch<T>(path: string, init: RequestInit & { json?: unknown }): Promise<T> {
   const { apiBase, authToken } = await getSettings();
   if (!apiBase) throw new Error("API_BASE not set — open the options page.");
@@ -275,10 +277,27 @@ async function handle(msg: Msg): Promise<unknown> {
 
     case "tailor":
       if (!msg.jobDescription.trim()) throw new Error("Empty job description.");
-      return apiFetch<Draft>("/api/tailor", {
-        method: "POST",
-        json: { jobDescription: msg.jobDescription },
-      });
+      tailorAbortController?.abort();
+      tailorAbortController = new AbortController();
+      try {
+        const result = await apiFetch<Draft>("/api/tailor", {
+          method: "POST",
+          json: { jobDescription: msg.jobDescription },
+          signal: tailorAbortController.signal,
+        });
+        tailorAbortController = null;
+        return result;
+      } catch (e) {
+        tailorAbortController = null;
+        throw e;
+      }
+
+    case "cancel-tailor":
+      if (tailorAbortController) {
+        tailorAbortController.abort();
+        tailorAbortController = null;
+      }
+      return { ok: true };
 
     case "edit":
       if (!msg.instruction.trim()) throw new Error("Empty instruction.");

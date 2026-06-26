@@ -473,6 +473,16 @@ export function createDrawerStyles(): string {
       cursor: not-allowed;
     }
 
+    .apted-card--cancel {
+      background: var(--apted-error);
+      border-color: var(--apted-error);
+      color: #fff;
+    }
+
+    .apted-card--cancel:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
     .apted-card-black-icon {
       display: inline-flex;
       align-items: center;
@@ -1147,6 +1157,7 @@ export type DrawerState = {
   pdfForDraftUpdatedAt: string | null;
   pdfLoading: boolean;
   restoring: boolean;
+  tailoring: boolean;
   open: boolean;
 };
 
@@ -1161,6 +1172,7 @@ export function createInitialState(): DrawerState {
     pdfForDraftUpdatedAt: null,
     pdfLoading: false,
     restoring: false,
+    tailoring: false,
     open: false,
   };
 }
@@ -1634,7 +1646,40 @@ export function createInitialState(): DrawerState {
     }
   }
 
+  function setTailoring(tailoring: boolean): void {
+    state.tailoring = tailoring;
+    const btn = els.tailorNew;
+    const icon = btn.querySelector(".apted-card-black-icon svg");
+    const text = btn.querySelector(".apted-card-black-text");
+    if (tailoring) {
+      btn.classList.add("apted-card--cancel");
+      btn.disabled = false;
+      if (icon) icon.innerHTML = `<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>`;
+      if (text) text.textContent = "Cancel tailoring";
+    } else {
+      btn.classList.remove("apted-card--cancel");
+      if (icon) icon.innerHTML = `<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2l2 6 2-6h2"/>`;
+      if (text) text.textContent = "Tailor new draft";
+    }
+  }
+
+  async function cancelTailor(): Promise<void> {
+    setStatus("Cancelling…");
+    try {
+      await send({ type: "cancel-tailor" });
+    } catch {
+      /* ignore */
+    }
+    setTailoring(false);
+    els.statusSpinner.hidden = true;
+    setStatus("Tailoring cancelled.", "ok");
+  }
+
   async function doTailor(): Promise<void> {
+    if (state.tailoring) {
+      await cancelTailor();
+      return;
+    }
     const jd = els.jdText.value.trim();
     if (!jd) {
       setStatus("Paste or scrape a job description first.", "error");
@@ -1642,7 +1687,7 @@ export function createInitialState(): DrawerState {
     }
     state.jobDescription = jd;
     setStatus("Tailoring… this can take 10–30s.");
-    els.tailorNew.disabled = true;
+    setTailoring(true);
     els.statusSpinner.hidden = false;
     try {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
@@ -1651,9 +1696,13 @@ export function createInitialState(): DrawerState {
       triggerPulse();
       setStatus("Done.", "ok");
     } catch (e) {
-      setStatus(errMsg(e), "error");
+      if (errMsg(e).includes("abort")) {
+        setStatus("Tailoring cancelled.", "ok");
+      } else {
+        setStatus(errMsg(e), "error");
+      }
     } finally {
-      els.tailorNew.disabled = false;
+      setTailoring(false);
       els.statusSpinner.hidden = true;
     }
   }
