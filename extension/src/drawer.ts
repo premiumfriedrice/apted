@@ -205,8 +205,8 @@ export function createDrawerStyles(): string {
 
     .apted-drawer-title {
       font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 22px;
-      line-height: 28px;
+      font-size: 16px;
+      line-height: 20px;
       font-weight: 500;
       color: var(--apted-on-surface);
       margin: 0;
