@@ -680,6 +680,10 @@ export function createDrawerStyles(): string {
       border-color: var(--apted-outline);
     }
 
+    .apted-similar-item--active {
+      border-color: #000;
+    }
+
     .apted-current-draft-card {
       display: flex;
       align-items: center;
@@ -708,9 +712,12 @@ export function createDrawerStyles(): string {
 
     .apted-current-draft-role {
       display: block;
-      color: var(--apted-on-surface);
+      width: 100%;
+      min-height: 18px;
+      color: #191c1d;
       font-size: 14px;
       font-weight: 500;
+      line-height: 1.3;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -718,8 +725,11 @@ export function createDrawerStyles(): string {
 
     .apted-current-draft-org {
       display: block;
-      color: var(--apted-on-surface-variant);
+      width: 100%;
+      min-height: 16px;
+      color: #3f484a;
       font-size: 12px;
+      line-height: 1.3;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -748,9 +758,12 @@ export function createDrawerStyles(): string {
 
     .apted-similar-role {
       display: block;
-      color: var(--apted-on-surface);
+      width: 100%;
+      min-height: 18px;
+      color: #191c1d;
       font-size: 14px;
       font-weight: 500;
+      line-height: 1.3;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -758,8 +771,11 @@ export function createDrawerStyles(): string {
 
     .apted-similar-org {
       display: block;
-      color: var(--apted-on-surface-variant);
+      width: 100%;
+      min-height: 16px;
+      color: #3f484a;
       font-size: 12px;
+      line-height: 1.3;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1277,6 +1293,7 @@ export type DrawerState = {
   restoring: boolean;
   tailoring: boolean;
   open: boolean;
+  previewedVersionId: string | null;
 };
 
 export function createInitialState(): DrawerState {
@@ -1290,6 +1307,7 @@ export function createInitialState(): DrawerState {
     pdfForDraftUpdatedAt: null,
     pdfLoading: false,
     restoring: false,
+    previewedVersionId: null,
     tailoring: false,
     open: false,
   };
@@ -1524,8 +1542,9 @@ export function createInitialState(): DrawerState {
         const score = Math.round(s.score ?? 0);
         const company = s.company?.trim() || "Unknown company";
         const role = s.role?.trim() || "Unknown role";
+        const activeClass = state.previewedVersionId && state.previewedVersionId === s.id ? " apted-similar-item--active" : "";
         return `
-        <div class="apted-similar-item" data-version-id="${escHtml(s.id ?? "")}">
+        <div class="apted-similar-item${activeClass}" data-version-id="${escHtml(s.id ?? "")}">
           <div class="apted-similar-main">
             <span class="apted-similar-role">${escHtml(role)}</span>
             <span class="apted-similar-org">${escHtml(company)}</span>
@@ -1751,6 +1770,7 @@ export function createInitialState(): DrawerState {
           type: "find-similar",
           jobDescription: scraped.jobDescription,
         })) as { similar: SimilarResume[] };
+        state.previewedVersionId = null;
         renderSimilarResumes(similar);
       } catch {
         // Non-fatal: similar resumes are a bonus feature.
@@ -1808,6 +1828,7 @@ export function createInitialState(): DrawerState {
     els.statusSpinner.hidden = false;
     try {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
+      state.previewedVersionId = null;
       setDraft(draft);
       renderSimilarResumes(draft.similarResumes ?? []);
       triggerPulse();
@@ -2100,6 +2121,9 @@ export function createInitialState(): DrawerState {
     if (!item) return;
     const versionId = item.dataset.versionId;
     if (!versionId) return;
+    state.previewedVersionId = versionId;
+    els.similarList.querySelectorAll(".apted-similar-item--active").forEach((el) => el.classList.remove("apted-similar-item--active"));
+    item.classList.add("apted-similar-item--active");
     setStatus("Loading past version…");
     try {
       const draft = (await send({ type: "get-version", versionId })) as Draft;
