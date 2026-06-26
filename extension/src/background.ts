@@ -351,7 +351,7 @@ async function handle(msg: Msg): Promise<unknown> {
 
     case "get-version": {
       const data = await apiFetch<Draft>(
-        `/api/versions/${encodeURIComponent(msg.versionId)}`,
+        `/api/versions/${encodeURIComponent(msg.versionId)}/use`,
         { method: "POST" },
       );
       return data;
