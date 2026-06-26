@@ -170,12 +170,10 @@ export function createDrawerStyles(): string {
       right: 12px;
       bottom: 12px;
       width: ${DRAWSER_WIDTH}px;
-      background: var(--apted-surface);
-      border: 1px solid var(--apted-outline-variant);
-      border-radius: 8px;
       display: flex;
       flex-direction: column;
       pointer-events: auto;
+      border-radius: 12px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       overflow: hidden;
       transform: translateX(calc(100% + 24px));
@@ -248,7 +246,7 @@ export function createDrawerStyles(): string {
       overscroll-behavior: contain;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
-      border-radius: 12px;
+      border-top: none;
       display: flex;
       flex-direction: column;
       gap: 16px;
