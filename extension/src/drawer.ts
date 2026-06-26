@@ -673,6 +673,7 @@ export function createDrawerStyles(): string {
       border-radius: 6px;
       cursor: pointer;
       transition: border-color 0.15s;
+      color: var(--apted-on-surface);
     }
 
     .apted-similar-item:hover {
@@ -681,19 +682,20 @@ export function createDrawerStyles(): string {
 
     .apted-current-draft-card {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
       padding: 14px 12px;
       background: var(--apted-surface-container-lowest);
-      border: 1.5px solid var(--apted-primary);
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
       cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      transition: border-color 0.15s;
+      color: var(--apted-on-surface);
     }
 
     .apted-current-draft-card:hover {
-      background: var(--apted-surface-container-low);
+      border-color: var(--apted-outline);
     }
 
     .apted-current-draft-main {
