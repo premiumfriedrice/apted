@@ -701,9 +701,11 @@ export function createDrawerStyles(): string {
       flex-direction: column;
       gap: 8px;
       min-width: 0;
+      flex: 1;
     }
 
     .apted-current-draft-role {
+      display: block;
       color: var(--apted-on-surface);
       font-size: 14px;
       font-weight: 500;
@@ -713,6 +715,7 @@ export function createDrawerStyles(): string {
     }
 
     .apted-current-draft-org {
+      display: block;
       color: var(--apted-on-surface-variant);
       font-size: 12px;
       overflow: hidden;
@@ -738,9 +741,11 @@ export function createDrawerStyles(): string {
       flex-direction: column;
       gap: 8px;
       min-width: 0;
+      flex: 1;
     }
 
     .apted-similar-role {
+      display: block;
       color: var(--apted-on-surface);
       font-size: 14px;
       font-weight: 500;
@@ -750,6 +755,7 @@ export function createDrawerStyles(): string {
     }
 
     .apted-similar-org {
+      display: block;
       color: var(--apted-on-surface-variant);
       font-size: 12px;
       overflow: hidden;
