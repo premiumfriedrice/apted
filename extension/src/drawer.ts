@@ -173,6 +173,7 @@ export function createDrawerStyles(): string {
       display: flex;
       flex-direction: column;
       pointer-events: auto;
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 12px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       overflow: hidden;
@@ -245,8 +246,6 @@ export function createDrawerStyles(): string {
       padding: 16px;
       overscroll-behavior: contain;
       background: var(--apted-surface-container-lowest);
-      border: 1px solid var(--apted-outline-variant);
-      border-top: none;
       display: flex;
       flex-direction: column;
       gap: 16px;
