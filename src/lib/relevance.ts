@@ -13,6 +13,7 @@ export interface PriorVersion {
   id?: string;
   company: string;
   role: string;
+  createdAt?: string;
   tailored_content: Resume;
 }
 
