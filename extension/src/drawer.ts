@@ -563,6 +563,10 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      background: var(--apted-inverse-surface);
+      color: var(--apted-inverse-on-surface);
+      padding: 8px 12px;
+      border-radius: 6px;
     }
 
     .apted-preview-body {
