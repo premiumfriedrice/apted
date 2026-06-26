@@ -239,13 +239,19 @@ export function createDrawerStyles(): string {
       pointer-events: none;
     }
 
-    /* ── Scrollable body ──────────────────────────────────────────────── */
+    /* ── Scrollable body / card shell (matches master contact card) ───── */
     .apted-drawer-body {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 8px 12px;
+      padding: 16px;
       overscroll-behavior: contain;
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
     .apted-drawer-body::-webkit-scrollbar {
@@ -257,17 +263,6 @@ export function createDrawerStyles(): string {
     .apted-drawer-body::-webkit-scrollbar-thumb {
       background: var(--apted-outline-variant);
       border-radius: 2px;
-    }
-
-    /* ── Single card shell (matches master contact card) ──────────────── */
-    .apted-drawer-card {
-      background: var(--apted-surface-container-lowest);
-      border: 1px solid var(--apted-outline-variant);
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
     }
 
     .apted-drawer-section {
@@ -1028,8 +1023,7 @@ export function createDrawerHTML(): string {
       </div>
 
       <div id="apted-drawer-body" class="apted-drawer-body">
-        <div class="apted-drawer-card">
-          <section class="apted-drawer-section">
+        <section class="apted-drawer-section">
             <h2 class="apted-section-title">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -1216,7 +1210,6 @@ export function createDrawerHTML(): string {
           </section>
         </div>
       </div>
-    </div>
 
     <div id="apted-save-backdrop" class="apted-dialog-backdrop" hidden></div>
     <div id="apted-save-dialog" class="apted-dialog" hidden>
