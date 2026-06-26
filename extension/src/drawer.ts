@@ -1698,6 +1698,7 @@ export function createInitialState(): DrawerState {
 
   async function doScrape(): Promise<void> {
     setStatus("Scraping active tab…");
+    els.connection.textContent = "Scraping…";
     try {
       const scraped = (await send({ type: "scrape" })) as ScrapedJob;
       els.jdText.value = scraped.jobDescription;
@@ -1705,7 +1706,8 @@ export function createInitialState(): DrawerState {
       els.jdCompany.value = scraped.company;
       els.jdRole.value = scraped.title;
       schedulePersist(0);
-      setStatus(`Scraped from ${scraped.source}. Extracting fields…`, "ok");
+      setStatus(`Scraped from ${scraped.source}.`, "ok");
+      els.connection.textContent = "Extracting fields…";
 
       // Extract company/role/location via LLM for better accuracy.
       // This runs in parallel with similar-resumes so the user sees
@@ -1745,8 +1747,10 @@ export function createInitialState(): DrawerState {
         // Non-fatal: similar resumes are a bonus feature.
         els.similarSection.hidden = true;
       }
+      void refreshConnection();
     } catch (e) {
       setStatus(errMsg(e), "error");
+      void refreshConnection();
     }
   }
 
