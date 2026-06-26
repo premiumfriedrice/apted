@@ -245,9 +245,6 @@ export function createDrawerStyles(): string {
       overflow-y: auto;
       overflow-x: hidden;
       padding: 8px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
       overscroll-behavior: contain;
     }
 
@@ -260,6 +257,71 @@ export function createDrawerStyles(): string {
     .apted-drawer-body::-webkit-scrollbar-thumb {
       background: var(--apted-outline-variant);
       border-radius: 2px;
+    }
+
+    /* ── Single card shell (matches master contact card) ──────────────── */
+    .apted-drawer-card {
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .apted-drawer-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .apted-section-title {
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      color: var(--apted-on-surface);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+
+    .apted-section-title svg {
+      color: var(--apted-on-surface-variant);
+      flex-shrink: 0;
+    }
+
+    .apted-divider {
+      border: 0;
+      border-top: 1px solid var(--apted-outline-variant);
+      margin: 0;
+    }
+
+    .apted-field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .apted-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .apted-field-label {
+      font-size: 11px;
+      line-height: 14px;
+      font-weight: 500;
+      color: var(--apted-on-surface-variant);
+    }
+
+    .apted-section-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     /* ── Cards ────────────────────────────────────────────────────────── */
@@ -298,7 +360,6 @@ export function createDrawerStyles(): string {
       font-size: 11px;
       line-height: 14px;
       color: var(--apted-on-surface-variant);
-      margin-bottom: 12px;
     }
 
     .apted-btn-group {
@@ -429,6 +490,11 @@ export function createDrawerStyles(): string {
       opacity: 0.7;
     }
 
+    .apted-field .apted-input,
+    .apted-field .apted-textarea {
+      margin-bottom: 0;
+    }
+
     .apted-select {
       background: var(--apted-surface);
       color: var(--apted-on-surface);
@@ -494,21 +560,11 @@ export function createDrawerStyles(): string {
       font-weight: 500;
     }
 
-    .apted-preview-header {
-      height: 40px;
-      background: var(--apted-inverse-surface);
-      color: var(--apted-inverse-on-surface);
+    .apted-preview-actions {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      padding: 0 12px;
-      flex-shrink: 0;
-    }
-
-    .apted-preview-header-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--apted-inverse-on-surface);
     }
 
     .apted-preview-body {
@@ -594,8 +650,7 @@ export function createDrawerStyles(): string {
     .apted-similar-section {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      padding: 0 4px 8px;
+      gap: 12px;
     }
 
     .apted-similar-list {
@@ -973,146 +1028,192 @@ export function createDrawerHTML(): string {
       </div>
 
       <div id="apted-drawer-body" class="apted-drawer-body">
-        <div class="apted-card">
-          <div class="apted-card-row">
-            <h2 class="apted-card-title">Job description</h2>
-            <div class="apted-btn-group">
+        <div class="apted-drawer-card">
+          <section class="apted-drawer-section">
+            <h2 class="apted-section-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              Job description
+            </h2>
+            <div class="apted-field-grid">
+              <label class="apted-field">
+                <span class="apted-field-label">Company</span>
+                <input id="apted-jd-company" class="apted-input" placeholder="Company" />
+              </label>
+              <label class="apted-field">
+                <span class="apted-field-label">Role</span>
+                <input id="apted-jd-role" class="apted-input" placeholder="Role" />
+              </label>
+            </div>
+            <label class="apted-field">
+              <span class="apted-field-label">Description</span>
+              <textarea
+                id="apted-jd-text"
+                class="apted-textarea"
+                rows="4"
+                placeholder="Paste a job description, or click Scrape."
+              ></textarea>
+            </label>
+            <div class="apted-section-actions">
+              <span id="apted-connection" class="apted-connection-chip" title="API base"></span>
+              <div class="apted-spacer"></div>
               <button id="apted-clear-jd" class="apted-btn apted-btn--sm" title="Clear job description fields">clear</button>
               <button id="apted-rescrape" class="apted-btn apted-btn--sm">scrape</button>
             </div>
-          </div>
-          <span id="apted-connection" class="apted-connection-chip" title="API base"></span>
-          <input id="apted-jd-company" class="apted-input" placeholder="Company" />
-          <input id="apted-jd-role" class="apted-input" placeholder="Role" />
-          <textarea
-            id="apted-jd-text"
-            class="apted-textarea"
-            rows="4"
-            placeholder="Paste a job description, or click Scrape."
-          ></textarea>
-        </div>
+          </section>
 
-        <div id="apted-similar-section" class="apted-similar-section" hidden>
-          <h2 class="apted-card-title">Matching Resumes</h2>
-          <div id="apted-current-draft-card" class="apted-current-draft-card" hidden>
-            <div class="apted-current-draft-main">
-              <span class="apted-current-draft-badge">Current draft</span>
-              <div class="apted-similar-field">
-                <span class="apted-similar-label">Company</span>
-                <span id="apted-current-draft-company" class="apted-similar-value"></span>
-              </div>
-              <div class="apted-similar-field">
-                <span class="apted-similar-label">Role</span>
-                <span id="apted-current-draft-role" class="apted-similar-value"></span>
-              </div>
-            </div>
-            <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-              </svg>
-            </button>
-          </div>
-          <div id="apted-similar-list" class="apted-similar-list"></div>
-          <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
-            <span class="apted-card-black-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <path d="M8 13h2l2 6 2-6h2"/>
-              </svg>
-            </span>
-            <span class="apted-card-black-text">Tailor new draft</span>
-          </button>
-        </div>
+          <hr class="apted-divider">
 
-        <div id="apted-preview-card" class="apted-card apted-card--preview" hidden>
-          <div class="apted-preview-header">
-            <span class="apted-preview-header-title">Preview</span>
-            <div class="apted-spacer"></div>
-            <div class="apted-btn-group">
-              <button id="apted-inject-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" disabled>Inject to page</button>
-              <button id="apted-fullscreen-btn" class="apted-btn apted-btn--inverse apted-btn--sm" title="Fullscreen" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-              </button>
-              <button id="apted-download-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" title="Download PDF" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-              </button>
-              <button id="apted-save-version" class="apted-btn apted-btn--inverse apted-btn--sm" title="Save version" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <section id="apted-similar-section" class="apted-drawer-section" hidden>
+            <h2 class="apted-section-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+              Matching Resumes
+            </h2>
+            <div id="apted-current-draft-card" class="apted-current-draft-card" hidden>
+              <div class="apted-current-draft-main">
+                <span class="apted-current-draft-badge">Current draft</span>
+                <div class="apted-similar-field">
+                  <span class="apted-similar-label">Company</span>
+                  <span id="apted-current-draft-company" class="apted-similar-value"></span>
+                </div>
+                <div class="apted-similar-field">
+                  <span class="apted-similar-label">Role</span>
+                  <span id="apted-current-draft-role" class="apted-similar-value"></span>
+                </div>
+              </div>
+              <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                   <polyline points="17 21 17 13 7 13 7 21"></polyline>
                   <polyline points="7 3 7 8 15 8"></polyline>
                 </svg>
               </button>
             </div>
-          </div>
-          <div id="apted-preview" class="apted-preview-body">
-            <div id="apted-preview-empty" class="apted-empty">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <div id="apted-similar-list" class="apted-similar-list"></div>
+            <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
+              <span class="apted-card-black-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <path d="M8 13h2l2 6 2-6h2"/>
+                </svg>
+              </span>
+              <span class="apted-card-black-text">Tailor new draft</span>
+            </button>
+          </section>
+
+          <hr id="apted-preview-divider" class="apted-divider" hidden>
+
+          <section id="apted-preview-card" class="apted-drawer-section" hidden>
+            <h2 class="apted-section-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
               </svg>
-              <p>No draft yet.</p>
+              Preview
+            </h2>
+            <div class="apted-preview-actions">
+              <div class="apted-spacer"></div>
+              <div class="apted-btn-group">
+                <button id="apted-inject-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" disabled>Inject to page</button>
+                <button id="apted-fullscreen-btn" class="apted-btn apted-btn--inverse apted-btn--sm" title="Fullscreen" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                  </svg>
+                </button>
+                <button id="apted-download-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" title="Download PDF" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </button>
+                <button id="apted-save-version" class="apted-btn apted-btn--inverse apted-btn--sm" title="Save version" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div id="apted-preview-loading" class="apted-preview-state" hidden>
-              <div class="apted-spinner"></div>
-              <span>Compiling PDF…</span>
+            <div id="apted-preview" class="apted-preview-body">
+              <div id="apted-preview-empty" class="apted-empty">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <p>No draft yet.</p>
+              </div>
+              <div id="apted-preview-loading" class="apted-preview-state" hidden>
+                <div class="apted-spinner"></div>
+                <span>Compiling PDF…</span>
+              </div>
+              <div id="apted-preview-error" class="apted-preview-state" hidden>
+                <p id="apted-preview-error-msg" class="apted-preview-error-msg"></p>
+                <button id="apted-preview-retry" class="apted-btn apted-btn--primary apted-btn--sm">Retry</button>
+              </div>
+              <iframe id="apted-preview-embed" class="apted-preview-embed" title="Resume preview" hidden></iframe>
             </div>
-            <div id="apted-preview-error" class="apted-preview-state" hidden>
-              <p id="apted-preview-error-msg" class="apted-preview-error-msg"></p>
-              <button id="apted-preview-retry" class="apted-btn apted-btn--primary apted-btn--sm">Retry</button>
-            </div>
-            <iframe id="apted-preview-embed" class="apted-preview-embed" title="Resume preview" hidden></iframe>
-          </div>
-        </div>
+          </section>
 
-      </div>
+          <hr class="apted-divider">
 
-      <div class="apted-drawer-footer">
-        <form id="apted-chat-form" class="apted-chat-form">
-          <input
-            id="apted-chat-input"
-            class="apted-input"
-            placeholder="lead with the AI project..."
-            autocomplete="off"
-            disabled
-          />
-          <button id="apted-chat-send" type="submit" class="apted-chat-send" disabled>
-            <span class="apted-chat-send-glyph">A</span>
-          </button>
-        </form>
-        <div class="apted-status-row">
-          <div class="apted-row">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
-            </svg>
-            <span id="apted-status" class="apted-status" aria-live="polite"></span>
-            <span id="apted-status-spinner" class="apted-status-spinner" hidden>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="4" cy="12" r="2" fill="currentColor">
-                  <animate id="apted-spinner-qFRN" begin="0;apted-spinner-OcgL.end+0.25s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
-                </circle>
-                <circle cx="12" cy="12" r="2" fill="currentColor">
-                  <animate begin="apted-spinner-qFRN.begin+0.1s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
-                </circle>
-                <circle cx="20" cy="12" r="2" fill="currentColor">
-                  <animate id="apted-spinner-OcgL" begin="apted-spinner-qFRN.begin+0.2s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
-                </circle>
+          <section class="apted-drawer-section">
+            <h2 class="apted-section-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
-            </span>
-          </div>
-          <span class="apted-version">v0.1.0</span>
+              Chat
+            </h2>
+            <form id="apted-chat-form" class="apted-chat-form">
+              <input
+                id="apted-chat-input"
+                class="apted-input"
+                placeholder="lead with the AI project..."
+                autocomplete="off"
+                disabled
+              />
+              <button id="apted-chat-send" type="submit" class="apted-chat-send" disabled>
+                <span class="apted-chat-send-glyph">A</span>
+              </button>
+            </form>
+            <div class="apted-status-row">
+              <div class="apted-row">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                </svg>
+                <span id="apted-status" class="apted-status" aria-live="polite"></span>
+                <span id="apted-status-spinner" class="apted-status-spinner" hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <circle cx="4" cy="12" r="2" fill="currentColor">
+                      <animate id="apted-spinner-qFRN" begin="0;apted-spinner-OcgL.end+0.25s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                    </circle>
+                    <circle cx="12" cy="12" r="2" fill="currentColor">
+                      <animate begin="apted-spinner-qFRN.begin+0.1s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                    </circle>
+                    <circle cx="20" cy="12" r="2" fill="currentColor">
+                      <animate id="apted-spinner-OcgL" begin="apted-spinner-qFRN.begin+0.2s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                    </circle>
+                  </svg>
+                </span>
+              </div>
+              <span class="apted-version">v0.1.0</span>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -1467,12 +1568,15 @@ export function createInitialState(): DrawerState {
   }
 
   function setDraft(draft: Draft | null): void {
+    const previewDivider = document.getElementById("apted-preview-divider");
     if (!draft) {
       invalidatePdf();
       els.previewCard.hidden = true;
+      if (previewDivider) previewDivider.hidden = true;
     } else if (!state.draft || state.draft.id !== draft.id) {
       invalidatePdf();
       els.previewCard.hidden = false;
+      if (previewDivider) previewDivider.hidden = false;
     }
     state.draft = draft;
     void refreshPdfPreview();
