@@ -1710,8 +1710,8 @@ export function createInitialState(): DrawerState {
       els.connection.textContent = "Extracting fields…";
 
       // Extract company/role/location via LLM for better accuracy.
-      // This runs in parallel with similar-resumes so the user sees
-      // scraped fields immediately and the LLM values update shortly after.
+      // Progress lives in the JD section chip; the status bar just shows
+      // the final scrape outcome.
       const jd = scraped.jobDescription;
       if (jd.trim()) {
         try {
@@ -1727,13 +1727,9 @@ export function createInitialState(): DrawerState {
           if (extracted.company) els.jdCompany.value = extracted.company;
           if (extracted.title) els.jdRole.value = extracted.title;
           schedulePersist(0);
-          setStatus(`Extracted fields.`, "ok");
         } catch {
           // Non-fatal: scraped values are already filled in.
-          setStatus(`Scraped from ${scraped.source}.`, "ok");
         }
-      } else {
-        setStatus(`Scraped from ${scraped.source}.`, "ok");
       }
 
       // Find similar resumes after a successful scrape.
