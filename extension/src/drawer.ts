@@ -699,8 +699,25 @@ export function createDrawerStyles(): string {
     .apted-current-draft-main {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       min-width: 0;
+    }
+
+    .apted-current-draft-role {
+      color: var(--apted-on-surface);
+      font-size: 14px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .apted-current-draft-org {
+      color: var(--apted-on-surface-variant);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .apted-current-draft-badge {
@@ -719,29 +736,22 @@ export function createDrawerStyles(): string {
     .apted-similar-main {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       min-width: 0;
     }
 
-    .apted-similar-field {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    .apted-similar-label {
-      color: var(--apted-on-surface-variant);
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .apted-similar-value {
+    .apted-similar-role {
       color: var(--apted-on-surface);
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .apted-similar-org {
+      color: var(--apted-on-surface-variant);
+      font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1086,14 +1096,8 @@ export function createDrawerHTML(): string {
             <div id="apted-current-draft-card" class="apted-current-draft-card" hidden>
               <div class="apted-current-draft-main">
                 <span class="apted-current-draft-badge">Current draft</span>
-                <div class="apted-similar-field">
-                  <span class="apted-similar-label">Company</span>
-                  <span id="apted-current-draft-company" class="apted-similar-value"></span>
-                </div>
-                <div class="apted-similar-field">
-                  <span class="apted-similar-label">Role</span>
-                  <span id="apted-current-draft-role" class="apted-similar-value"></span>
-                </div>
+                <span id="apted-current-draft-role" class="apted-current-draft-role"></span>
+                <span id="apted-current-draft-company" class="apted-current-draft-org"></span>
               </div>
               <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1489,8 +1493,8 @@ export function createInitialState(): DrawerState {
     }
     const company = els.jdCompany.value.trim() || "Untitled company";
     const role = els.jdRole.value.trim() || "Untitled role";
-    els.currentDraftCompany.textContent = company;
     els.currentDraftRole.textContent = role;
+    els.currentDraftCompany.textContent = company;
     els.currentDraftCard.hidden = false;
   }
 
@@ -1510,17 +1514,13 @@ export function createInitialState(): DrawerState {
       .slice(0, 3)
       .map((s) => {
         const score = Math.round(s.score ?? 0);
+        const company = s.company?.trim() || "Unknown company";
+        const role = s.role?.trim() || "Unknown role";
         return `
         <div class="apted-similar-item" data-version-id="${escHtml(s.id ?? "")}">
           <div class="apted-similar-main">
-            <div class="apted-similar-field">
-              <span class="apted-similar-label">Company</span>
-              <span class="apted-similar-value">${escHtml(s.company)}</span>
-            </div>
-            <div class="apted-similar-field">
-              <span class="apted-similar-label">Role</span>
-              <span class="apted-similar-value">${escHtml(s.role)}</span>
-            </div>
+            <span class="apted-similar-role">${escHtml(role)}</span>
+            <span class="apted-similar-org">${escHtml(company)}</span>
             <span class="apted-similar-when">${escHtml(relativeTime(s.createdAt))}</span>
           </div>
           <div class="apted-similar-score-wrap">
