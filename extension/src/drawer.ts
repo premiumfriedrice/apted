@@ -207,10 +207,10 @@ export function createDrawerStyles(): string {
       font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 18px;
       line-height: 24px;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--apted-on-surface);
       margin: 0;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.01em;
     }
 
     .apted-header-btn {
@@ -277,6 +277,12 @@ export function createDrawerStyles(): string {
       align-items: center;
       gap: 8px;
       margin: 0;
+    }
+
+    .apted-section-title-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .apted-section-title svg {
@@ -1022,13 +1028,20 @@ export function createDrawerHTML(): string {
       <div id="apted-drawer-body" class="apted-drawer-body">
         <section class="apted-drawer-section">
             <h2 class="apted-section-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-              </svg>
-              Job description
+              <span class="apted-section-title-main">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                Job description
+              </span>
+              <div class="apted-spacer"></div>
+              <div class="apted-btn-group">
+                <button id="apted-clear-jd" class="apted-btn apted-btn--sm" title="Clear job description fields">clear</button>
+                <button id="apted-rescrape" class="apted-btn apted-btn--sm">scrape</button>
+              </div>
             </h2>
             <div class="apted-field-grid">
               <label class="apted-field">
@@ -1051,9 +1064,6 @@ export function createDrawerHTML(): string {
             </label>
             <div class="apted-section-actions">
               <span id="apted-connection" class="apted-connection-chip" title="API base"></span>
-              <div class="apted-spacer"></div>
-              <button id="apted-clear-jd" class="apted-btn apted-btn--sm" title="Clear job description fields">clear</button>
-              <button id="apted-rescrape" class="apted-btn apted-btn--sm">scrape</button>
             </div>
           </section>
 
