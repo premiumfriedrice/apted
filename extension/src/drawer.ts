@@ -611,6 +611,43 @@ export function createDrawerStyles(): string {
       border-color: var(--apted-outline);
     }
 
+    .apted-current-draft-card {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 12px;
+      background: var(--apted-surface-container-lowest);
+      border: 1.5px solid var(--apted-primary);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .apted-current-draft-card:hover {
+      background: var(--apted-surface-container-low);
+    }
+
+    .apted-current-draft-main {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .apted-current-draft-badge {
+      display: inline-flex;
+      align-self: flex-start;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--apted-primary);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
     .apted-similar-main {
       display: flex;
       flex-direction: column;
@@ -947,6 +984,26 @@ export function createDrawerHTML(): string {
 
         <div id="apted-similar-section" class="apted-similar-section" hidden>
           <h2 class="apted-card-title">Matching Resumes</h2>
+          <div id="apted-current-draft-card" class="apted-current-draft-card" hidden>
+            <div class="apted-current-draft-main">
+              <span class="apted-current-draft-badge">Current draft</span>
+              <div class="apted-similar-field">
+                <span class="apted-similar-label">Company</span>
+                <span id="apted-current-draft-company" class="apted-similar-value"></span>
+              </div>
+              <div class="apted-similar-field">
+                <span class="apted-similar-label">Role</span>
+                <span id="apted-current-draft-role" class="apted-similar-value"></span>
+              </div>
+            </div>
+            <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+            </button>
+          </div>
           <div id="apted-similar-list" class="apted-similar-list"></div>
           <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
             <span class="apted-card-black-icon">
@@ -1207,6 +1264,10 @@ export function createInitialState(): DrawerState {
 
     similarSection: $<HTMLElement>("apted-similar-section"),
     similarList: $<HTMLElement>("apted-similar-list"),
+    currentDraftCard: $<HTMLElement>("apted-current-draft-card"),
+    currentDraftCompany: $<HTMLElement>("apted-current-draft-company"),
+    currentDraftRole: $<HTMLElement>("apted-current-draft-role"),
+    currentDraftSave: $<HTMLButtonElement>("apted-current-draft-save"),
     chatForm: $<HTMLFormElement>("apted-chat-form"),
     chatInput: $<HTMLInputElement>("apted-chat-input"),
     chatSend: $<HTMLButtonElement>("apted-chat-send"),
@@ -1303,12 +1364,30 @@ export function createInitialState(): DrawerState {
     return `${Math.floor(days / 30)} months ago`;
   }
 
+  function renderCurrentDraftCard(): void {
+    if (!state.draft) {
+      els.currentDraftCard.hidden = true;
+      return;
+    }
+    const company = els.jdCompany.value.trim() || "Untitled company";
+    const role = els.jdRole.value.trim() || "Untitled role";
+    els.currentDraftCompany.textContent = company;
+    els.currentDraftRole.textContent = role;
+    els.currentDraftCard.hidden = false;
+  }
+
   function renderSimilarResumes(similar: SimilarResume[]): void {
-    if (!similar?.length) {
+    const hasContent = !!similar?.length || !!state.draft;
+    if (!hasContent) {
       els.similarSection.hidden = true;
       return;
     }
     els.similarSection.hidden = false;
+    renderCurrentDraftCard();
+    if (!similar?.length) {
+      els.similarList.innerHTML = "";
+      return;
+    }
     els.similarList.innerHTML = similar
       .slice(0, 3)
       .map((s) => {
@@ -1404,6 +1483,7 @@ export function createInitialState(): DrawerState {
     els.downloadPdf.disabled = !hasDraft;
     els.fullscreenBtn.disabled = !hasDraft;
     els.injectPdf.disabled = !hasDraft;
+    renderCurrentDraftCard();
     schedulePersist();
   }
 
@@ -1836,6 +1916,17 @@ export function createInitialState(): DrawerState {
     if (!state.draft || !state.pdfObjectUrl) return;
     els.fullscreenEmbed.src = withPdfToolbarSuppressed(state.pdfObjectUrl);
     els.fullscreenOverlay.hidden = false;
+  });
+  // Click the current draft card to focus the preview pane.
+  els.currentDraftCard.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("#apted-current-draft-save")) return;
+    if (!state.draft) return;
+    els.previewCard.hidden = false;
+    els.previewCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+  els.currentDraftSave.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showSaveDialog();
   });
   // Click a similar resume card to load it as the current draft.
   els.similarList.addEventListener("click", async (e) => {
