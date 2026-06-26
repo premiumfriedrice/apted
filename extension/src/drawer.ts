@@ -566,7 +566,7 @@ export function createDrawerStyles(): string {
     }
 
     .apted-preview-body {
-      background: var(--apted-surface-container-low);
+      background: var(--apted-inverse-surface);
       border-radius: 6px;
       overflow: hidden;
       position: relative;
@@ -583,7 +583,7 @@ export function createDrawerStyles(): string {
       height: 100%;
       border: 0;
       border-radius: 6px;
-      background: var(--apted-surface-container-low);
+      background: var(--apted-inverse-surface);
     }
 
     .apted-preview-body .apted-empty {
@@ -594,7 +594,8 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: center;
       gap: 4px;
-      color: var(--apted-outline);
+      color: var(--apted-inverse-on-surface);
+      opacity: 0.6;
       text-align: center;
       font-size: 11px;
     }
@@ -616,7 +617,7 @@ export function createDrawerStyles(): string {
       justify-content: center;
       gap: 10px;
       text-align: center;
-      color: var(--apted-on-surface-variant);
+      color: var(--apted-inverse-on-surface);
       font-size: 12px;
     }
 
@@ -627,8 +628,8 @@ export function createDrawerStyles(): string {
     .apted-spinner {
       width: 28px;
       height: 28px;
-      border: 3px solid var(--apted-surface-container-high);
-      border-top-color: var(--apted-primary);
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: var(--apted-inverse-on-surface);
       border-radius: 50%;
       animation: apted-spin 0.7s linear infinite;
     }
