@@ -694,6 +694,14 @@ export function createDrawerStyles(): string {
 
     .apted-similar-item--active {
       border-color: #000;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .apted-similar-item--active + #apted-preview-block {
+      margin-top: -8px;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
     }
 
     .apted-current-draft-card {
@@ -716,6 +724,14 @@ export function createDrawerStyles(): string {
 
     .apted-current-draft-card--active {
       border-color: #000;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .apted-current-draft-card--active + #apted-preview-block {
+      margin-top: -12px;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
     }
 
     .apted-current-draft-main {
