@@ -559,12 +559,11 @@ export function createDrawerStyles(): string {
     }
 
     #apted-preview-block {
-      margin-left: 10px;
-      border-left: 2px solid var(--apted-outline-variant);
-      padding-left: 10px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      width: 100%;
+      border-radius: 6px;
+      overflow: hidden;
     }
 
     #apted-preview-block[hidden] {
@@ -579,12 +578,12 @@ export function createDrawerStyles(): string {
       background: var(--apted-inverse-surface);
       color: var(--apted-inverse-on-surface);
       padding: 8px 12px;
-      border-radius: 6px;
+      border-radius: 0;
     }
 
     .apted-preview-body {
       background: var(--apted-inverse-surface);
-      border-radius: 6px;
+      border-radius: 0;
       overflow: hidden;
       position: relative;
       display: block;
@@ -599,7 +598,7 @@ export function createDrawerStyles(): string {
       width: 100%;
       height: 100%;
       border: 0;
-      border-radius: 6px;
+      border-radius: 0;
       background: var(--apted-inverse-surface);
     }
 
