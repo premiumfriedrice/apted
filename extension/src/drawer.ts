@@ -558,6 +558,19 @@ export function createDrawerStyles(): string {
       font-weight: 500;
     }
 
+    #apted-preview-block {
+      margin-left: 10px;
+      border-left: 2px solid var(--apted-outline-variant);
+      padding-left: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #apted-preview-block[hidden] {
+      display: none;
+    }
+
     .apted-preview-actions {
       display: flex;
       align-items: center;
@@ -700,6 +713,10 @@ export function createDrawerStyles(): string {
 
     .apted-current-draft-card:hover {
       border-color: var(--apted-outline);
+    }
+
+    .apted-current-draft-card--active {
+      border-color: #000;
     }
 
     .apted-current-draft-main {
@@ -1137,18 +1154,8 @@ export function createDrawerHTML(): string {
             </button>
           </section>
 
-          <hr id="apted-preview-divider" class="apted-divider" hidden>
-
-          <section id="apted-preview-card" class="apted-drawer-section" hidden>
-            <h2 class="apted-section-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-              </svg>
-              Preview
-            </h2>
+          <div id="apted-preview-holder" hidden></div>
+          <div id="apted-preview-block" hidden>
             <div class="apted-preview-actions">
               <div class="apted-spacer"></div>
               <div class="apted-btn-group">
@@ -1195,7 +1202,7 @@ export function createDrawerHTML(): string {
               </div>
               <iframe id="apted-preview-embed" class="apted-preview-embed" title="Resume preview" hidden></iframe>
             </div>
-          </section>
+          </div>
 
           <hr class="apted-divider">
 
@@ -1286,6 +1293,7 @@ export type DrawerState = {
   restoring: boolean;
   tailoring: boolean;
   open: boolean;
+  previewOpen: boolean;
   previewedVersionId: string | null;
 };
 
@@ -1300,6 +1308,7 @@ export function createInitialState(): DrawerState {
     pdfForDraftUpdatedAt: null,
     pdfLoading: false,
     restoring: false,
+    previewOpen: false,
     previewedVersionId: null,
     tailoring: false,
     open: false,
@@ -1394,7 +1403,8 @@ export function createInitialState(): DrawerState {
     fullscreenOverlay: $<HTMLElement>("apted-fullscreen-overlay"),
     fullscreenEmbed: $<HTMLIFrameElement>("apted-fullscreen-embed"),
     drawerBody: $<HTMLElement>("apted-drawer-body"),
-    previewCard: $<HTMLElement>("apted-preview-card"),
+    previewBlock: $<HTMLElement>("apted-preview-block"),
+    previewHolder: $<HTMLElement>("apted-preview-holder"),
     preview: $<HTMLElement>("apted-preview"),
     previewEmpty: $<HTMLElement>("apted-preview-empty"),
     previewLoading: $<HTMLElement>("apted-preview-loading"),
@@ -1517,6 +1527,40 @@ export function createInitialState(): DrawerState {
     els.currentDraftCard.hidden = false;
   }
 
+  function setActiveCard(card: HTMLElement | null): void {
+    els.similarList.querySelectorAll(".apted-similar-item--active").forEach((el) => el.classList.remove("apted-similar-item--active"));
+    els.currentDraftCard.classList.remove("apted-current-draft-card--active");
+    if (card?.classList.contains("apted-similar-item")) card.classList.add("apted-similar-item--active");
+    else if (card === els.currentDraftCard) card.classList.add("apted-current-draft-card--active");
+  }
+
+  // Move the single preview block under the active card (only one open at a time).
+  function placePreview(): void {
+    if (!state.previewOpen || !state.draft) {
+      els.previewHolder.appendChild(els.previewBlock);
+      els.previewBlock.hidden = true;
+      setActiveCard(null);
+      return;
+    }
+    let card: HTMLElement | null = null;
+    if (state.previewedVersionId) {
+      card = els.similarList.querySelector(
+        `.apted-similar-item[data-version-id="${CSS.escape(state.previewedVersionId)}"]`,
+      );
+    }
+    if (!card) {
+      // Falls back to the current draft card (e.g. a freshly tailored draft).
+      state.previewedVersionId = null;
+      card = els.currentDraftCard;
+    }
+    // Avoid reparenting (and reloading the iframe) if already in place.
+    if (els.previewBlock.parentElement !== card.parentElement || els.previewBlock.previousElementSibling !== card) {
+      card.insertAdjacentElement("afterend", els.previewBlock);
+    }
+    els.previewBlock.hidden = false;
+    setActiveCard(card);
+  }
+
   function renderSimilarResumes(similar: SimilarResume[]): void {
     const hasContent = !!similar?.length || !!state.draft;
     if (!hasContent) {
@@ -1525,8 +1569,11 @@ export function createInitialState(): DrawerState {
     }
     els.similarSection.hidden = false;
     renderCurrentDraftCard();
+    // Park the preview block so re-rendering the list doesn't destroy it.
+    els.previewHolder.appendChild(els.previewBlock);
     if (!similar?.length) {
       els.similarList.innerHTML = "";
+      placePreview();
       return;
     }
     els.similarList.innerHTML = similar
@@ -1535,7 +1582,7 @@ export function createInitialState(): DrawerState {
         const score = Math.round(s.score ?? 0);
         const company = s.company?.trim() || "Unknown company";
         const role = s.role?.trim() || "Unknown role";
-        const activeClass = state.previewedVersionId && state.previewedVersionId === s.id ? " apted-similar-item--active" : "";
+        const activeClass = state.previewOpen && state.previewedVersionId === s.id ? " apted-similar-item--active" : "";
         const r = 15;
         const circ = 2 * Math.PI * r;
         const dash = (circ * score) / 100;
@@ -1556,6 +1603,7 @@ export function createInitialState(): DrawerState {
         </div>`;
       })
       .join("");
+    placePreview();
   }  function withPdfToolbarSuppressed(url: string): string {
     if (!url) return url;
     const sep = url.includes("#") ? "&" : "#";
@@ -1597,15 +1645,9 @@ export function createInitialState(): DrawerState {
   }
 
   function setDraft(draft: Draft | null): void {
-    const previewDivider = document.getElementById("apted-preview-divider");
     if (!draft) {
       invalidatePdf();
-      els.previewCard.hidden = true;
-      if (previewDivider) previewDivider.hidden = true;
-    } else if (!state.draft || state.draft.id !== draft.id) {
-      invalidatePdf();
-      els.previewCard.hidden = false;
-      if (previewDivider) previewDivider.hidden = false;
+      state.previewOpen = false;
     }
     state.draft = draft;
     void refreshPdfPreview();
@@ -1629,6 +1671,7 @@ export function createInitialState(): DrawerState {
     els.fullscreenBtn.disabled = !hasDraft;
     els.injectPdf.disabled = !hasDraft;
     renderCurrentDraftCard();
+    placePreview();
     schedulePersist();
   }
 
@@ -1768,6 +1811,7 @@ export function createInitialState(): DrawerState {
           jobDescription: scraped.jobDescription,
         })) as { similar: SimilarResume[] };
         state.previewedVersionId = null;
+        state.previewOpen = false;
         renderSimilarResumes(similar);
       } catch {
         // Non-fatal: similar resumes are a bonus feature.
@@ -1826,6 +1870,7 @@ export function createInitialState(): DrawerState {
     try {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
       state.previewedVersionId = null;
+      state.previewOpen = true;
       setDraft(draft);
       renderSimilarResumes(draft.similarResumes ?? []);
       triggerPulse();
@@ -1995,6 +2040,8 @@ export function createInitialState(): DrawerState {
               chat: snap.chat,
             });
           } else {
+            state.previewedVersionId = null;
+            state.previewOpen = true;
             setDraft(draft);
             setStatus("Session restored.", "ok");
           }
@@ -2101,26 +2148,37 @@ export function createInitialState(): DrawerState {
     els.fullscreenEmbed.src = withPdfToolbarSuppressed(state.pdfObjectUrl);
     els.fullscreenOverlay.hidden = false;
   });
-  // Click the current draft card to focus the preview pane.
+  // Click the current draft card to toggle its inline preview pane.
   els.currentDraftCard.addEventListener("click", (e) => {
     if ((e.target as HTMLElement).closest("#apted-current-draft-save")) return;
     if (!state.draft) return;
-    els.previewCard.hidden = false;
-    els.previewCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (state.previewOpen && state.previewedVersionId === null) {
+      state.previewOpen = false;
+    } else {
+      state.previewedVersionId = null;
+      state.previewOpen = true;
+    }
+    placePreview();
+    if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
   els.currentDraftSave.addEventListener("click", (e) => {
     e.stopPropagation();
     showSaveDialog();
   });
-  // Click a similar resume card to load it as the current draft.
+  // Click a similar resume card to load it as the current draft and expand its preview.
   els.similarList.addEventListener("click", async (e) => {
     const item = (e.target as HTMLElement).closest(".apted-similar-item") as HTMLElement | null;
     if (!item) return;
     const versionId = item.dataset.versionId;
     if (!versionId) return;
+    // Toggle: if this card's preview is already open, collapse it.
+    if (state.previewOpen && state.previewedVersionId === versionId) {
+      state.previewOpen = false;
+      placePreview();
+      return;
+    }
     state.previewedVersionId = versionId;
-    els.similarList.querySelectorAll(".apted-similar-item--active").forEach((el) => el.classList.remove("apted-similar-item--active"));
-    item.classList.add("apted-similar-item--active");
+    state.previewOpen = true;
     setStatus("Loading past version…");
     try {
       const draft = (await send({ type: "get-version", versionId })) as Draft;
