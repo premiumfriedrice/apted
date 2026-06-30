@@ -844,53 +844,6 @@ export function createDrawerStyles(): string {
       color: var(--apted-on-surface);
     }
 
-    .apted-similar-right {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      flex-shrink: 0;
-    }
-
-    .apted-current-draft-right {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      flex-shrink: 0;
-    }
-
-    .apted-card-toggle {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 22px;
-      height: 22px;
-      padding: 0;
-      border: 0;
-      border-radius: 4px;
-      background: transparent;
-      color: var(--apted-on-surface-variant);
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s, transform 0.15s;
-    }
-
-    .apted-card-toggle:hover {
-      background: var(--apted-surface-variant);
-      color: var(--apted-on-surface);
-    }
-
-    .apted-similar-item--active .apted-card-toggle,
-    .apted-current-draft-card--active .apted-card-toggle {
-      display: inline-flex;
-    }
-
-    .apted-card-toggle--open svg {
-      transform: rotate(180deg);
-    }
-
     /* ── Footer: Chat input ───────────────────────────────────────────── */
     .apted-drawer-footer {
       flex-shrink: 0;
@@ -1202,20 +1155,13 @@ export function createDrawerHTML(): string {
                 <span id="apted-current-draft-role" class="apted-current-draft-role"></span>
                 <span id="apted-current-draft-company" class="apted-current-draft-org"></span>
               </div>
-              <div class="apted-current-draft-right">
-                <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                    <polyline points="7 3 7 8 15 8"></polyline>
-                  </svg>
-                </button>
-                <button id="apted-current-draft-toggle" class="apted-card-toggle" type="button" aria-label="Toggle preview">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </button>
-              </div>
+              <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+              </button>
             </div>
             <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
               <span class="apted-card-black-icon">
@@ -1494,7 +1440,6 @@ export function createInitialState(): DrawerState {
     currentDraftCompany: $<HTMLElement>("apted-current-draft-company"),
     currentDraftRole: $<HTMLElement>("apted-current-draft-role"),
     currentDraftSave: $<HTMLButtonElement>("apted-current-draft-save"),
-    currentDraftToggle: $<HTMLButtonElement>("apted-current-draft-toggle"),
     chatForm: $<HTMLFormElement>("apted-chat-form"),
     chatInput: $<HTMLInputElement>("apted-chat-input"),
     chatSend: $<HTMLButtonElement>("apted-chat-send"),
@@ -1620,7 +1565,6 @@ export function createInitialState(): DrawerState {
   // Move the single preview block under the active card (only one open at a time).
   function placePreview(): void {
     setActiveCard();
-    updateToggleStates();
     if (!state.previewOpen || !state.draft) {
       els.previewHolder.appendChild(els.previewBlock);
       els.previewBlock.hidden = true;
@@ -1645,12 +1589,6 @@ export function createInitialState(): DrawerState {
     card.classList.add(state.selectedVersionId ? "apted-similar-item--preview-open" : "apted-current-draft-card--preview-open");
   }
 
-  function updateToggleStates(): void {
-    els.currentDraftToggle.classList.toggle("apted-card-toggle--open", state.previewOpen);
-    const similarToggle = els.similarList.querySelector(".apted-similar-item--active .apted-card-toggle") as HTMLElement | null;
-    if (similarToggle) similarToggle.classList.toggle("apted-card-toggle--open", state.previewOpen);
-  }
-
   function renderSimilarResumes(similar: SimilarResume[]): void {
     const hasContent = !!similar?.length || !!state.draft;
     if (!hasContent) {
@@ -1673,15 +1611,6 @@ export function createInitialState(): DrawerState {
         const company = s.company?.trim() || "Unknown company";
         const role = s.role?.trim() || "Unknown role";
         const activeClass = state.selectedVersionId === s.id ? " apted-similar-item--active" : "";
-        const isSelected = state.selectedVersionId === s.id;
-        const toggleClass = "apted-card-toggle" + (state.previewOpen ? " apted-card-toggle--open" : "");
-        const toggleBtn = isSelected
-          ? `<button class="${toggleClass}" type="button" data-version-id="${escHtml(s.id ?? "")}" aria-label="${state.previewOpen ? "Collapse preview" : "Expand preview"}">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>`
-          : "";
         const r = 15;
         const circ = 2 * Math.PI * r;
         const dash = (circ * score) / 100;
@@ -1692,15 +1621,12 @@ export function createInitialState(): DrawerState {
             <span class="apted-similar-org">${escHtml(company)}</span>
             <span class="apted-similar-when">${escHtml(relativeTime(s.createdAt))}</span>
           </div>
-          <div class="apted-similar-right">
-            <div class="apted-similar-score-ring">
-              <svg width="40" height="40" viewBox="0 0 40 40">
-                <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-surface-variant)" stroke-width="3"/>
-                <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-on-surface)" stroke-width="3" stroke-linecap="round" stroke-dasharray="${dash} ${circ}" transform="rotate(-90 20 20)"/>
-              </svg>
-              <span class="apted-similar-score-ring-label">${score}</span>
-            </div>
-            ${toggleBtn}
+          <div class="apted-similar-score-ring">
+            <svg width="40" height="40" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-surface-variant)" stroke-width="3"/>
+              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-on-surface)" stroke-width="3" stroke-linecap="round" stroke-dasharray="${dash} ${circ}" transform="rotate(-90 20 20)"/>
+            </svg>
+            <span class="apted-similar-score-ring-label">${score}</span>
           </div>
         </div>`;
       })
@@ -2252,7 +2178,7 @@ export function createInitialState(): DrawerState {
   });
   // Click the current draft card to select it; clicking again toggles the preview.
   els.currentDraftCard.addEventListener("click", (e) => {
-    if ((e.target as HTMLElement).closest("#apted-current-draft-save, #apted-current-draft-toggle")) return;
+    if ((e.target as HTMLElement).closest("#apted-current-draft-save")) return;
     if (!state.draft) return;
     if (state.selectedVersionId === null) {
       state.previewOpen = !state.previewOpen;
@@ -2260,15 +2186,6 @@ export function createInitialState(): DrawerState {
       state.selectedVersionId = null;
       state.previewOpen = true;
     }
-    placePreview();
-    if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  });
-  // Toggle the inline preview from the current draft card.
-  els.currentDraftToggle.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (!state.draft) return;
-    state.selectedVersionId = null;
-    state.previewOpen = !state.previewOpen;
     placePreview();
     if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
@@ -2284,30 +2201,6 @@ export function createInitialState(): DrawerState {
     const versionId = item.dataset.versionId;
     if (!versionId) return;
 
-    // Toggle button on the selected card: collapse/expand the preview pane.
-    if (target.closest(".apted-card-toggle")) {
-      e.stopPropagation();
-      if (state.selectedVersionId === versionId) {
-        state.previewOpen = !state.previewOpen;
-        placePreview();
-      } else {
-        state.selectedVersionId = versionId;
-        state.previewOpen = true;
-        setActiveCard();
-        updateToggleStates();
-        setStatus("Loading past version…");
-        try {
-          const draft = (await send({ type: "get-version", versionId })) as Draft;
-          setDraft(draft);
-          setStatus("Loaded past version.", "ok");
-        } catch (err) {
-          setStatus(errMsg(err), "error");
-        }
-      }
-      if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      return;
-    }
-
     // Click card body: select it and open preview; click again to collapse while staying selected.
     if (state.selectedVersionId === versionId) {
       state.previewOpen = !state.previewOpen;
@@ -2318,7 +2211,6 @@ export function createInitialState(): DrawerState {
     state.selectedVersionId = versionId;
     state.previewOpen = true;
     setActiveCard();
-    updateToggleStates();
     setStatus("Loading past version…");
     try {
       const draft = (await send({ type: "get-version", versionId })) as Draft;
