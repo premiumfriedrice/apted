@@ -1308,6 +1308,7 @@ export type DrawerState = {
   company: string;
   role: string;
   chat: StoredChatTurn[];
+  similarResumes: SimilarResume[];
   pdfObjectUrl: string | null;
   pdfForDraftUpdatedAt: string | null;
   pdfLoading: boolean;
@@ -1325,6 +1326,7 @@ export function createInitialState(): DrawerState {
     company: "",
     role: "",
     chat: [],
+    similarResumes: [],
     pdfObjectUrl: null,
     pdfForDraftUpdatedAt: null,
     pdfLoading: false,
@@ -1469,6 +1471,7 @@ export function createInitialState(): DrawerState {
         role: els.jdRole.value,
         draftId: state.draft?.id ?? null,
         chat: state.chat,
+        similarResumes: state.similarResumes,
       });
     }, delayMs);
   }
@@ -1840,7 +1843,8 @@ export function createInitialState(): DrawerState {
         })) as { similar: SimilarResume[] };
         state.selectedVersionId = null;
         state.previewOpen = false;
-        renderSimilarResumes(similar);
+        state.similarResumes = similar;
+        renderSimilarResumes(state.similarResumes);
       } catch {
         // Non-fatal: similar resumes are a bonus feature.
         els.similarSection.hidden = true;
@@ -1899,8 +1903,9 @@ export function createInitialState(): DrawerState {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
       state.selectedVersionId = null;
       state.previewOpen = true;
+      state.similarResumes = draft.similarResumes ?? [];
       setDraft(draft);
-      renderSimilarResumes(draft.similarResumes ?? []);
+      renderSimilarResumes(state.similarResumes);
       triggerPulse();
       setStatus("Done.", "ok");
     } catch (e) {
@@ -2028,6 +2033,7 @@ export function createInitialState(): DrawerState {
       state.company = "";
       state.role = "";
       state.chat = [];
+      state.similarResumes = [];
       setDraft(null);
       invalidatePdf();
       els.previewEmbed.src = "";
@@ -2066,11 +2072,14 @@ export function createInitialState(): DrawerState {
               role: snap.role,
               draftId: null,
               chat: snap.chat,
+              similarResumes: snap.similarResumes,
             });
           } else {
             state.selectedVersionId = null;
             state.previewOpen = true;
+            state.similarResumes = snap.similarResumes ?? [];
             setDraft(draft);
+            renderSimilarResumes(state.similarResumes);
             setStatus("Session restored.", "ok");
           }
         } catch (e) {
@@ -2083,6 +2092,7 @@ export function createInitialState(): DrawerState {
               role: snap.role,
               draftId: null,
               chat: snap.chat,
+              similarResumes: snap.similarResumes,
             });
           } catch {
             /* ignore */
