@@ -1499,13 +1499,16 @@ export function createInitialState(): DrawerState {
       return;
     }
     const d = state.draft;
-    showPreviewState("loading");
+    const loadingTimer = setTimeout(() => {
+      showPreviewState("loading");
+    }, 150);
     state.pdfLoading = true;
     try {
       const { objectUrl, changed } = await fetchPdfForPreview({
         draftId: d.id,
         draftUpdatedAt: d.updatedAt,
       });
+      clearTimeout(loadingTimer);
       if (!changed && state.pdfObjectUrl === objectUrl) {
         showPreviewState("embed");
         return;
@@ -1518,6 +1521,7 @@ export function createInitialState(): DrawerState {
       els.previewEmbed.src = withPdfToolbarSuppressed(objectUrl);
       showPreviewState("embed");
     } catch (e) {
+      clearTimeout(loadingTimer);
       const msg = e instanceof Error ? e.message : String(e);
       els.previewErrorMsg.textContent = msg;
       showPreviewState("error");
