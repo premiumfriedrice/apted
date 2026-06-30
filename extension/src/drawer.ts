@@ -666,8 +666,8 @@ export function createDrawerStyles(): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 14px 12px;
+      gap: 10px;
+      padding: 10px 12px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
@@ -688,8 +688,8 @@ export function createDrawerStyles(): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 14px 12px;
+      gap: 10px;
+      padding: 10px 12px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
@@ -705,7 +705,7 @@ export function createDrawerStyles(): string {
     .apted-current-draft-main {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 4px;
       min-width: 0;
       flex: 1;
     }
@@ -751,7 +751,7 @@ export function createDrawerStyles(): string {
     .apted-similar-main {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 4px;
       min-width: 0;
       flex: 1;
     }
@@ -786,31 +786,24 @@ export function createDrawerStyles(): string {
       font-size: 11px;
     }
 
-    .apted-similar-score-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
+    .apted-similar-score-ring {
+      position: relative;
       flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
     }
 
-    .apted-similar-score {
-      color: var(--apted-on-surface);
+    .apted-similar-score-ring-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       font-size: 10px;
       font-weight: 600;
-    }
-
-    .apted-similar-bar {
-      width: 48px;
-      height: 4px;
-      background: var(--apted-surface-variant);
-      border-radius: 999px;
-      overflow: hidden;
-    }
-
-    .apted-similar-bar-fill {
-      height: 100%;
-      background: var(--apted-on-surface);
+      color: var(--apted-on-surface);
     }
 
     /* ── Footer: Chat input ───────────────────────────────────────────── */
@@ -1543,6 +1536,9 @@ export function createInitialState(): DrawerState {
         const company = s.company?.trim() || "Unknown company";
         const role = s.role?.trim() || "Unknown role";
         const activeClass = state.previewedVersionId && state.previewedVersionId === s.id ? " apted-similar-item--active" : "";
+        const r = 15;
+        const circ = 2 * Math.PI * r;
+        const dash = (circ * score) / 100;
         return `
         <div class="apted-similar-item${activeClass}" data-version-id="${escHtml(s.id ?? "")}">
           <div class="apted-similar-main">
@@ -1550,11 +1546,12 @@ export function createInitialState(): DrawerState {
             <span class="apted-similar-org">${escHtml(company)}</span>
             <span class="apted-similar-when">${escHtml(relativeTime(s.createdAt))}</span>
           </div>
-          <div class="apted-similar-score-wrap">
-            <span class="apted-similar-score">${score}% Match</span>
-            <div class="apted-similar-bar">
-              <div class="apted-similar-bar-fill" style="width: ${score}%;"></div>
-            </div>
+          <div class="apted-similar-score-ring">
+            <svg width="40" height="40" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-surface-variant)" stroke-width="3"/>
+              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-on-surface)" stroke-width="3" stroke-linecap="round" stroke-dasharray="${dash} ${circ}" transform="rotate(-90 20 20)"/>
+            </svg>
+            <span class="apted-similar-score-ring-label">${score}</span>
           </div>
         </div>`;
       })

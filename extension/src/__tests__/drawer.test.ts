@@ -302,11 +302,10 @@ describe("createDrawerHTML", () => {
     expect(css).toContain("border-color: var(--apted-on-surface-variant)");
   });
 
-  it("similar resume cards show a match score bar", () => {
+  it("similar resume cards show a match score ring", () => {
     const css = createDrawerStyles();
-    expect(css).toContain(".apted-similar-score");
-    expect(css).toContain(".apted-similar-bar");
-    expect(css).toContain(".apted-similar-bar-fill");
+    expect(css).toContain(".apted-similar-score-ring");
+    expect(css).toContain(".apted-similar-score-ring-label");
   });
 
   it("preview body is natively resizable like the textarea", () => {
