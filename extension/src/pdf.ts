@@ -14,6 +14,79 @@ type CacheEntry = {
 
 let entry: CacheEntry | null = null;
 
+const DB_NAME = "apted-pdf-cache";
+const DB_STORE = "pdfs";
+const DB_VERSION = 1;
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve(req.result);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) {
+        db.createObjectStore(DB_STORE);
+      }
+    };
+  });
+}
+
+function cacheKey(draftId: string, updatedAt: string): string {
+  return `${draftId}:${updatedAt}`;
+}
+
+async function readPersistedCache(
+  draftId: string,
+  updatedAt: string,
+): Promise<Omit<CacheEntry, "objectUrl"> | null> {
+  try {
+    const db = await openDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, "readonly");
+      const store = tx.objectStore(DB_STORE);
+      const req = store.get(cacheKey(draftId, updatedAt));
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        const value = req.result as { draftId: string; draftUpdatedAt: string; blob: Blob; etag: string } | undefined;
+        resolve(value ?? null);
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function writePersistedCache(item: Omit<CacheEntry, "objectUrl">): Promise<void> {
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      const store = tx.objectStore(DB_STORE);
+      const req = store.put(item, cacheKey(item.draftId, item.draftUpdatedAt));
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => resolve();
+    });
+  } catch {
+    // Ignore persistence failures; the fetch still succeeded.
+  }
+}
+
+async function clearPersistedCache(): Promise<void> {
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      const store = tx.objectStore(DB_STORE);
+      const req = store.clear();
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => resolve();
+    });
+  } catch {
+    // Ignore.
+  }
+}
+
 function base64ToBlob(b64: string, mime: string): Blob {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
@@ -62,6 +135,21 @@ function invalidate(): void {
   entry = null;
 }
 
+async function trySetMemoryFromPersisted(
+  args: { draftId: string; draftUpdatedAt: string },
+): Promise<boolean> {
+  const persisted = await readPersistedCache(args.draftId, args.draftUpdatedAt);
+  if (!persisted) return false;
+  entry = {
+    draftId: persisted.draftId,
+    draftUpdatedAt: persisted.draftUpdatedAt,
+    blob: persisted.blob,
+    objectUrl: URL.createObjectURL(persisted.blob),
+    etag: persisted.etag,
+  };
+  return true;
+}
+
 export async function getDraftPdfBlob(args: {
   draftId: string;
   draftUpdatedAt: string;
@@ -73,6 +161,10 @@ export async function getDraftPdfBlob(args: {
     entry.draftUpdatedAt === args.draftUpdatedAt
   ) {
     return { blob: entry.blob, etag: entry.etag };
+  }
+
+  if (await trySetMemoryFromPersisted(args)) {
+    return { blob: entry!.blob, etag: entry!.etag };
   }
 
   // If the draft has advanced (or we're switching drafts), the cached entry
@@ -100,6 +192,7 @@ export async function getDraftPdfBlob(args: {
     objectUrl: URL.createObjectURL(blob),
     etag: result.etag,
   };
+  void writePersistedCache({ ...entry });
   return { blob, etag: result.etag };
 }
 
@@ -130,6 +223,10 @@ export async function fetchPdfForPreview(args: {
     return { objectUrl: entry.objectUrl, changed: false };
   }
 
+  if (await trySetMemoryFromPersisted(args)) {
+    return { objectUrl: entry!.objectUrl, changed: false };
+  }
+
   // Different draft or newer updated_at, but maybe same underlying PDF bytes.
   // Send If-None-Match so the server can short-circuit with 304.
   const prevEtag = entry && entry.draftId === args.draftId ? entry.etag : undefined;
@@ -144,6 +241,7 @@ export async function fetchPdfForPreview(args: {
     // Server says bytes unchanged. Bump the cached entry's updatedAt so
     // future calls with this updatedAt also short-circuit locally.
     entry!.draftUpdatedAt = args.draftUpdatedAt;
+    void writePersistedCache({ ...entry!, objectUrl: entry!.objectUrl });
     return { objectUrl: entry!.objectUrl, changed: false };
   }
 
@@ -158,11 +256,13 @@ export async function fetchPdfForPreview(args: {
     objectUrl: URL.createObjectURL(blob),
     etag: result.etag,
   };
+  void writePersistedCache({ ...entry });
   return { objectUrl: entry.objectUrl, changed: true };
 }
 
 export function clearPdfCache(): void {
   invalidate();
+  void clearPersistedCache();
 }
 
 // Best-effort cleanup. Pages that never unload (service worker) won't fire
