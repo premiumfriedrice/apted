@@ -2250,14 +2250,18 @@ export function createInitialState(): DrawerState {
     els.fullscreenEmbed.src = withPdfToolbarSuppressed(state.pdfObjectUrl);
     els.fullscreenOverlay.hidden = false;
   });
-  // Click the current draft card to select it and show its preview.
+  // Click the current draft card to select it; clicking again toggles the preview.
   els.currentDraftCard.addEventListener("click", (e) => {
     if ((e.target as HTMLElement).closest("#apted-current-draft-save, #apted-current-draft-toggle")) return;
     if (!state.draft) return;
-    state.selectedVersionId = null;
-    state.previewOpen = true;
+    if (state.selectedVersionId === null) {
+      state.previewOpen = !state.previewOpen;
+    } else {
+      state.selectedVersionId = null;
+      state.previewOpen = true;
+    }
     placePreview();
-    els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
   // Toggle the inline preview from the current draft card.
   els.currentDraftToggle.addEventListener("click", (e) => {
@@ -2289,6 +2293,8 @@ export function createInitialState(): DrawerState {
       } else {
         state.selectedVersionId = versionId;
         state.previewOpen = true;
+        setActiveCard();
+        updateToggleStates();
         setStatus("Loading past version…");
         try {
           const draft = (await send({ type: "get-version", versionId })) as Draft;
@@ -2302,9 +2308,17 @@ export function createInitialState(): DrawerState {
       return;
     }
 
-    // Click card body: select it and open preview.
+    // Click card body: select it and open preview; click again to collapse while staying selected.
+    if (state.selectedVersionId === versionId) {
+      state.previewOpen = !state.previewOpen;
+      placePreview();
+      if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
+    }
     state.selectedVersionId = versionId;
     state.previewOpen = true;
+    setActiveCard();
+    updateToggleStates();
     setStatus("Loading past version…");
     try {
       const draft = (await send({ type: "get-version", versionId })) as Draft;
