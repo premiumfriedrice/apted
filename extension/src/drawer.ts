@@ -1117,6 +1117,7 @@ export function createDrawerHTML(): string {
               </svg>
               Matching Resumes
             </h2>
+            <div id="apted-similar-list" class="apted-similar-list"></div>
             <div id="apted-current-draft-card" class="apted-current-draft-card" hidden>
               <div class="apted-current-draft-main">
                 <span class="apted-current-draft-badge">Current draft</span>
@@ -1131,7 +1132,6 @@ export function createDrawerHTML(): string {
                 </svg>
               </button>
             </div>
-            <div id="apted-similar-list" class="apted-similar-list"></div>
             <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
               <span class="apted-card-black-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
