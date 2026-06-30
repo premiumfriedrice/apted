@@ -694,11 +694,14 @@ export function createDrawerStyles(): string {
 
     .apted-similar-item--active {
       border-color: #000;
+    }
+
+    .apted-similar-item--preview-open {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
     }
 
-    .apted-similar-item--active + #apted-preview-block {
+    .apted-similar-item--preview-open + #apted-preview-block {
       margin-top: -8px;
       border-top-left-radius: 0;
       border-top-right-radius: 0;
@@ -724,11 +727,14 @@ export function createDrawerStyles(): string {
 
     .apted-current-draft-card--active {
       border-color: #000;
+    }
+
+    .apted-current-draft-card--preview-open {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
     }
 
-    .apted-current-draft-card--active + #apted-preview-block {
+    .apted-current-draft-card--preview-open + #apted-preview-block {
       margin-top: -12px;
       border-top-left-radius: 0;
       border-top-right-radius: 0;
@@ -836,6 +842,53 @@ export function createDrawerStyles(): string {
       font-size: 10px;
       font-weight: 600;
       color: var(--apted-on-surface);
+    }
+
+    .apted-similar-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .apted-current-draft-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .apted-card-toggle {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--apted-on-surface-variant);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, transform 0.15s;
+    }
+
+    .apted-card-toggle:hover {
+      background: var(--apted-surface-variant);
+      color: var(--apted-on-surface);
+    }
+
+    .apted-similar-item--active .apted-card-toggle,
+    .apted-current-draft-card--active .apted-card-toggle {
+      display: inline-flex;
+    }
+
+    .apted-card-toggle--open svg {
+      transform: rotate(180deg);
     }
 
     /* ── Footer: Chat input ───────────────────────────────────────────── */
@@ -1149,13 +1202,20 @@ export function createDrawerHTML(): string {
                 <span id="apted-current-draft-role" class="apted-current-draft-role"></span>
                 <span id="apted-current-draft-company" class="apted-current-draft-org"></span>
               </div>
-              <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                  <polyline points="7 3 7 8 15 8"></polyline>
-                </svg>
-              </button>
+              <div class="apted-current-draft-right">
+                <button id="apted-current-draft-save" class="apted-btn apted-btn--inverse apted-btn--sm" type="button" title="Save version">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                </button>
+                <button id="apted-current-draft-toggle" class="apted-card-toggle" type="button" aria-label="Toggle preview">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </div>
             </div>
             <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
               <span class="apted-card-black-icon">
@@ -1309,7 +1369,7 @@ export type DrawerState = {
   tailoring: boolean;
   open: boolean;
   previewOpen: boolean;
-  previewedVersionId: string | null;
+  selectedVersionId: string | null;
 };
 
 export function createInitialState(): DrawerState {
@@ -1324,7 +1384,7 @@ export function createInitialState(): DrawerState {
     pdfLoading: false,
     restoring: false,
     previewOpen: false,
-    previewedVersionId: null,
+    selectedVersionId: null,
     tailoring: false,
     open: false,
   };
@@ -1434,6 +1494,7 @@ export function createInitialState(): DrawerState {
     currentDraftCompany: $<HTMLElement>("apted-current-draft-company"),
     currentDraftRole: $<HTMLElement>("apted-current-draft-role"),
     currentDraftSave: $<HTMLButtonElement>("apted-current-draft-save"),
+    currentDraftToggle: $<HTMLButtonElement>("apted-current-draft-toggle"),
     chatForm: $<HTMLFormElement>("apted-chat-form"),
     chatInput: $<HTMLInputElement>("apted-chat-input"),
     chatSend: $<HTMLButtonElement>("apted-chat-send"),
@@ -1542,30 +1603,38 @@ export function createInitialState(): DrawerState {
     els.currentDraftCard.hidden = false;
   }
 
-  function setActiveCard(card: HTMLElement | null): void {
+  function setActiveCard(): void {
     els.similarList.querySelectorAll(".apted-similar-item--active").forEach((el) => el.classList.remove("apted-similar-item--active"));
-    els.currentDraftCard.classList.remove("apted-current-draft-card--active");
-    if (card?.classList.contains("apted-similar-item")) card.classList.add("apted-similar-item--active");
-    else if (card === els.currentDraftCard) card.classList.add("apted-current-draft-card--active");
+    els.similarList.querySelectorAll(".apted-similar-item--preview-open").forEach((el) => el.classList.remove("apted-similar-item--preview-open"));
+    els.currentDraftCard.classList.remove("apted-current-draft-card--active", "apted-current-draft-card--preview-open");
+    if (state.selectedVersionId) {
+      const card = els.similarList.querySelector(
+        `.apted-similar-item[data-version-id="${CSS.escape(state.selectedVersionId)}"]`,
+      );
+      card?.classList.add("apted-similar-item--active");
+    } else if (state.draft) {
+      els.currentDraftCard.classList.add("apted-current-draft-card--active");
+    }
   }
 
   // Move the single preview block under the active card (only one open at a time).
   function placePreview(): void {
+    setActiveCard();
+    updateToggleStates();
     if (!state.previewOpen || !state.draft) {
       els.previewHolder.appendChild(els.previewBlock);
       els.previewBlock.hidden = true;
-      setActiveCard(null);
       return;
     }
     let card: HTMLElement | null = null;
-    if (state.previewedVersionId) {
+    if (state.selectedVersionId) {
       card = els.similarList.querySelector(
-        `.apted-similar-item[data-version-id="${CSS.escape(state.previewedVersionId)}"]`,
+        `.apted-similar-item[data-version-id="${CSS.escape(state.selectedVersionId)}"]`,
       );
     }
     if (!card) {
       // Falls back to the current draft card (e.g. a freshly tailored draft).
-      state.previewedVersionId = null;
+      state.selectedVersionId = null;
       card = els.currentDraftCard;
     }
     // Avoid reparenting (and reloading the iframe) if already in place.
@@ -1573,7 +1642,13 @@ export function createInitialState(): DrawerState {
       card.insertAdjacentElement("afterend", els.previewBlock);
     }
     els.previewBlock.hidden = false;
-    setActiveCard(card);
+    card.classList.add(state.selectedVersionId ? "apted-similar-item--preview-open" : "apted-current-draft-card--preview-open");
+  }
+
+  function updateToggleStates(): void {
+    els.currentDraftToggle.classList.toggle("apted-card-toggle--open", state.previewOpen);
+    const similarToggle = els.similarList.querySelector(".apted-similar-item--active .apted-card-toggle") as HTMLElement | null;
+    if (similarToggle) similarToggle.classList.toggle("apted-card-toggle--open", state.previewOpen);
   }
 
   function renderSimilarResumes(similar: SimilarResume[]): void {
@@ -1597,7 +1672,16 @@ export function createInitialState(): DrawerState {
         const score = Math.round(s.score ?? 0);
         const company = s.company?.trim() || "Unknown company";
         const role = s.role?.trim() || "Unknown role";
-        const activeClass = state.previewOpen && state.previewedVersionId === s.id ? " apted-similar-item--active" : "";
+        const activeClass = state.selectedVersionId === s.id ? " apted-similar-item--active" : "";
+        const isSelected = state.selectedVersionId === s.id;
+        const toggleClass = "apted-card-toggle" + (state.previewOpen ? " apted-card-toggle--open" : "");
+        const toggleBtn = isSelected
+          ? `<button class="${toggleClass}" type="button" data-version-id="${escHtml(s.id ?? "")}" aria-label="${state.previewOpen ? "Collapse preview" : "Expand preview"}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>`
+          : "";
         const r = 15;
         const circ = 2 * Math.PI * r;
         const dash = (circ * score) / 100;
@@ -1608,12 +1692,15 @@ export function createInitialState(): DrawerState {
             <span class="apted-similar-org">${escHtml(company)}</span>
             <span class="apted-similar-when">${escHtml(relativeTime(s.createdAt))}</span>
           </div>
-          <div class="apted-similar-score-ring">
-            <svg width="40" height="40" viewBox="0 0 40 40">
-              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-surface-variant)" stroke-width="3"/>
-              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-on-surface)" stroke-width="3" stroke-linecap="round" stroke-dasharray="${dash} ${circ}" transform="rotate(-90 20 20)"/>
-            </svg>
-            <span class="apted-similar-score-ring-label">${score}</span>
+          <div class="apted-similar-right">
+            <div class="apted-similar-score-ring">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-surface-variant)" stroke-width="3"/>
+                <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-on-surface)" stroke-width="3" stroke-linecap="round" stroke-dasharray="${dash} ${circ}" transform="rotate(-90 20 20)"/>
+              </svg>
+              <span class="apted-similar-score-ring-label">${score}</span>
+            </div>
+            ${toggleBtn}
           </div>
         </div>`;
       })
@@ -1825,7 +1912,7 @@ export function createInitialState(): DrawerState {
           type: "find-similar",
           jobDescription: scraped.jobDescription,
         })) as { similar: SimilarResume[] };
-        state.previewedVersionId = null;
+        state.selectedVersionId = null;
         state.previewOpen = false;
         renderSimilarResumes(similar);
       } catch {
@@ -1884,7 +1971,7 @@ export function createInitialState(): DrawerState {
     els.statusSpinner.hidden = false;
     try {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
-      state.previewedVersionId = null;
+      state.selectedVersionId = null;
       state.previewOpen = true;
       setDraft(draft);
       renderSimilarResumes(draft.similarResumes ?? []);
@@ -2055,7 +2142,7 @@ export function createInitialState(): DrawerState {
               chat: snap.chat,
             });
           } else {
-            state.previewedVersionId = null;
+            state.selectedVersionId = null;
             state.previewOpen = true;
             setDraft(draft);
             setStatus("Session restored.", "ok");
@@ -2163,16 +2250,21 @@ export function createInitialState(): DrawerState {
     els.fullscreenEmbed.src = withPdfToolbarSuppressed(state.pdfObjectUrl);
     els.fullscreenOverlay.hidden = false;
   });
-  // Click the current draft card to toggle its inline preview pane.
+  // Click the current draft card to select it and show its preview.
   els.currentDraftCard.addEventListener("click", (e) => {
-    if ((e.target as HTMLElement).closest("#apted-current-draft-save")) return;
+    if ((e.target as HTMLElement).closest("#apted-current-draft-save, #apted-current-draft-toggle")) return;
     if (!state.draft) return;
-    if (state.previewOpen && state.previewedVersionId === null) {
-      state.previewOpen = false;
-    } else {
-      state.previewedVersionId = null;
-      state.previewOpen = true;
-    }
+    state.selectedVersionId = null;
+    state.previewOpen = true;
+    placePreview();
+    els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+  // Toggle the inline preview from the current draft card.
+  els.currentDraftToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!state.draft) return;
+    state.selectedVersionId = null;
+    state.previewOpen = !state.previewOpen;
     placePreview();
     if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
@@ -2182,25 +2274,44 @@ export function createInitialState(): DrawerState {
   });
   // Click a similar resume card to load it as the current draft and expand its preview.
   els.similarList.addEventListener("click", async (e) => {
-    const item = (e.target as HTMLElement).closest(".apted-similar-item") as HTMLElement | null;
+    const target = e.target as HTMLElement;
+    const item = target.closest(".apted-similar-item") as HTMLElement | null;
     if (!item) return;
     const versionId = item.dataset.versionId;
     if (!versionId) return;
-    // Toggle: if this card's preview is already open, collapse it.
-    if (state.previewOpen && state.previewedVersionId === versionId) {
-      state.previewOpen = false;
-      placePreview();
+
+    // Toggle button on the selected card: collapse/expand the preview pane.
+    if (target.closest(".apted-card-toggle")) {
+      e.stopPropagation();
+      if (state.selectedVersionId === versionId) {
+        state.previewOpen = !state.previewOpen;
+        placePreview();
+      } else {
+        state.selectedVersionId = versionId;
+        state.previewOpen = true;
+        setStatus("Loading past version…");
+        try {
+          const draft = (await send({ type: "get-version", versionId })) as Draft;
+          setDraft(draft);
+          setStatus("Loaded past version.", "ok");
+        } catch (err) {
+          setStatus(errMsg(err), "error");
+        }
+      }
+      if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
       return;
     }
-    state.previewedVersionId = versionId;
+
+    // Click card body: select it and open preview.
+    state.selectedVersionId = versionId;
     state.previewOpen = true;
     setStatus("Loading past version…");
     try {
       const draft = (await send({ type: "get-version", versionId })) as Draft;
       setDraft(draft);
       setStatus("Loaded past version.", "ok");
-    } catch (e) {
-      setStatus(errMsg(e), "error");
+    } catch (err) {
+      setStatus(errMsg(err), "error");
     }
   });
   // Prevent wheel events from the preview iframe from bubbling to the main page
