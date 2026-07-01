@@ -12,7 +12,8 @@ type CacheEntry = {
   etag: string;
 };
 
-let entry: CacheEntry | null = null;
+const MAX_MEMORY_ENTRIES = 4;
+const entries = new Map<string, CacheEntry>();
 
 const DB_NAME = "apted-pdf-cache";
 const DB_STORE = "pdfs";
@@ -130,9 +131,41 @@ export function suggestPdfFilename(args: {
   return `${parts.join("-")}.pdf`;
 }
 
+function getEntry(draftId: string, updatedAt: string): CacheEntry | undefined {
+  const key = cacheKey(draftId, updatedAt);
+  const item = entries.get(key);
+  if (item) {
+    // Touch for LRU ordering.
+    entries.delete(key);
+    entries.set(key, item);
+  }
+  return item;
+}
+
+function setEntry(item: CacheEntry): void {
+  const key = cacheKey(item.draftId, item.draftUpdatedAt);
+  // Remove stale entry for the same draft id (different updatedAt).
+  for (const [k, v] of entries) {
+    if (v.draftId === item.draftId && k !== key) {
+      URL.revokeObjectURL(v.objectUrl);
+      entries.delete(k);
+    }
+  }
+  entries.set(key, item);
+  // Evict oldest if over limit.
+  while (entries.size > MAX_MEMORY_ENTRIES) {
+    const first = entries.keys().next().value as string;
+    const oldest = entries.get(first);
+    if (oldest) URL.revokeObjectURL(oldest.objectUrl);
+    entries.delete(first);
+  }
+}
+
 function invalidate(): void {
-  if (entry) URL.revokeObjectURL(entry.objectUrl);
-  entry = null;
+  for (const item of entries.values()) {
+    URL.revokeObjectURL(item.objectUrl);
+  }
+  entries.clear();
 }
 
 async function trySetMemoryFromPersisted(
@@ -140,13 +173,14 @@ async function trySetMemoryFromPersisted(
 ): Promise<boolean> {
   const persisted = await readPersistedCache(args.draftId, args.draftUpdatedAt);
   if (!persisted) return false;
-  entry = {
+  const item: CacheEntry = {
     draftId: persisted.draftId,
     draftUpdatedAt: persisted.draftUpdatedAt,
     blob: persisted.blob,
     objectUrl: URL.createObjectURL(persisted.blob),
     etag: persisted.etag,
   };
+  setEntry(item);
   return true;
 }
 
@@ -155,24 +189,20 @@ export async function getDraftPdfBlob(args: {
   draftUpdatedAt: string;
 }): Promise<{ blob: Blob; etag: string }> {
   // Same draft + same updated_at → reuse the cached blob.
-  if (
-    entry &&
-    entry.draftId === args.draftId &&
-    entry.draftUpdatedAt === args.draftUpdatedAt
-  ) {
-    return { blob: entry.blob, etag: entry.etag };
+  const cached = getEntry(args.draftId, args.draftUpdatedAt);
+  if (cached) {
+    return { blob: cached.blob, etag: cached.etag };
   }
 
   if (await trySetMemoryFromPersisted(args)) {
-    return { blob: entry!.blob, etag: entry!.etag };
+    const item = getEntry(args.draftId, args.draftUpdatedAt);
+    return { blob: item!.blob, etag: item!.etag };
   }
 
   // If the draft has advanced (or we're switching drafts), the cached entry
   // is no longer trustworthy. Drop it eagerly and force an unconditional
   // fetch — sending If-None-Match here risks a 304 that returns the stale
   // bytes we just decided not to trust.
-  invalidate();
-
   const result = await send<FetchPdfResult>({
     type: "fetch-pdf",
     draftId: args.draftId,
@@ -185,14 +215,15 @@ export async function getDraftPdfBlob(args: {
   }
 
   const blob = base64ToBlob(result.base64, result.mime);
-  entry = {
+  const item: CacheEntry = {
     draftId: args.draftId,
     draftUpdatedAt: args.draftUpdatedAt,
     blob,
     objectUrl: URL.createObjectURL(blob),
     etag: result.etag,
   };
-  void writePersistedCache({ ...entry });
+  setEntry(item);
+  void writePersistedCache({ ...item });
   return { blob, etag: result.etag };
 }
 
@@ -200,9 +231,9 @@ export async function getDraftPdfObjectUrl(args: {
   draftId: string;
   draftUpdatedAt: string;
 }): Promise<string> {
-  await getDraftPdfBlob(args);
-  // entry is set by getDraftPdfBlob.
-  return entry!.objectUrl;
+  const { blob, etag } = await getDraftPdfBlob(args);
+  const item = getEntry(args.draftId, args.draftUpdatedAt)!;
+  return item.objectUrl;
 }
 
 // Conditional fetch for the PDF viewer: sends If-None-Match so the server can
@@ -215,21 +246,20 @@ export async function fetchPdfForPreview(args: {
   draftUpdatedAt: string;
 }): Promise<{ objectUrl: string; changed: boolean }> {
   // Same draft + same updated_at → reuse cached object URL, no fetch needed.
-  if (
-    entry &&
-    entry.draftId === args.draftId &&
-    entry.draftUpdatedAt === args.draftUpdatedAt
-  ) {
-    return { objectUrl: entry.objectUrl, changed: false };
+  let cached = getEntry(args.draftId, args.draftUpdatedAt);
+  if (cached) {
+    return { objectUrl: cached.objectUrl, changed: false };
   }
 
   if (await trySetMemoryFromPersisted(args)) {
-    return { objectUrl: entry!.objectUrl, changed: false };
+    cached = getEntry(args.draftId, args.draftUpdatedAt)!;
+    return { objectUrl: cached.objectUrl, changed: false };
   }
 
   // Different draft or newer updated_at, but maybe same underlying PDF bytes.
   // Send If-None-Match so the server can short-circuit with 304.
-  const prevEtag = entry && entry.draftId === args.draftId ? entry.etag : undefined;
+  const staleEntry = [...entries.values()].find((e) => e.draftId === args.draftId);
+  const prevEtag = staleEntry?.etag;
 
   const result = await send<FetchPdfResult>({
     type: "fetch-pdf",
@@ -240,24 +270,24 @@ export async function fetchPdfForPreview(args: {
   if (result.kind === "not-modified") {
     // Server says bytes unchanged. Bump the cached entry's updatedAt so
     // future calls with this updatedAt also short-circuit locally.
-    entry!.draftUpdatedAt = args.draftUpdatedAt;
-    void writePersistedCache({ ...entry!, objectUrl: entry!.objectUrl });
-    return { objectUrl: entry!.objectUrl, changed: false };
+    staleEntry!.draftUpdatedAt = args.draftUpdatedAt;
+    setEntry(staleEntry!);
+    void writePersistedCache({ ...staleEntry! });
+    return { objectUrl: staleEntry!.objectUrl, changed: false };
   }
 
-  // New bytes. Drop the old cached entry and build a fresh one.
-  invalidate();
-
+  // New bytes. Build a fresh entry.
   const blob = base64ToBlob(result.base64, result.mime);
-  entry = {
+  const item: CacheEntry = {
     draftId: args.draftId,
     draftUpdatedAt: args.draftUpdatedAt,
     blob,
     objectUrl: URL.createObjectURL(blob),
     etag: result.etag,
   };
-  void writePersistedCache({ ...entry });
-  return { objectUrl: entry.objectUrl, changed: true };
+  setEntry(item);
+  void writePersistedCache({ ...item });
+  return { objectUrl: item.objectUrl, changed: true };
 }
 
 export function clearPdfCache(): void {
