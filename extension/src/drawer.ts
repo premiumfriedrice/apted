@@ -1233,7 +1233,7 @@ export function createDrawerHTML(): string {
                   <line x1="16" y1="17" x2="8" y2="17"></line>
                   <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
-                <p>No draft yet.</p>
+                <p>Compiling PDF…</p>
               </div>
               <div id="apted-preview-loading" class="apted-preview-state" hidden>
                 <div class="apted-spinner"></div>
@@ -1517,13 +1517,16 @@ export function createInitialState(): DrawerState {
     els.previewEmbed.hidden = kind !== "embed";
   }
 
+  let previewLoadingTimer: ReturnType<typeof setTimeout> | null = null;
+
   async function refreshPdfPreview(): Promise<void> {
     if (!state.draft) {
       showPreviewState("empty");
       return;
     }
     const d = state.draft;
-    const loadingTimer = setTimeout(() => {
+    if (previewLoadingTimer) clearTimeout(previewLoadingTimer);
+    previewLoadingTimer = setTimeout(() => {
       showPreviewState("loading");
     }, 150);
     state.pdfLoading = true;
@@ -1534,7 +1537,8 @@ export function createInitialState(): DrawerState {
         versionId: state.previewVersionId ?? undefined,
       });
       state.previewVersionId = null;
-      clearTimeout(loadingTimer);
+      clearTimeout(previewLoadingTimer);
+      previewLoadingTimer = null;
       if (!changed && state.pdfObjectUrl === objectUrl) {
         showPreviewState("embed");
         return;
@@ -1544,7 +1548,8 @@ export function createInitialState(): DrawerState {
       els.previewEmbed.src = withPdfToolbarSuppressed(objectUrl);
       showPreviewState("embed");
     } catch (e) {
-      clearTimeout(loadingTimer);
+      clearTimeout(previewLoadingTimer);
+      previewLoadingTimer = null;
       const msg = e instanceof Error ? e.message : String(e);
       els.previewErrorMsg.textContent = msg;
       showPreviewState("error");
