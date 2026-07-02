@@ -177,13 +177,34 @@ async function trySetMemoryFromPersisted(key: string): Promise<CacheEntry | null
   return item;
 }
 
-function createEntryFromResult(result: FetchPdfResult): CacheEntry {
-  const blob = base64ToBlob(result.base64, result.mime);
+function createEntry(blob: Blob, etag: string): CacheEntry {
   return {
     blob,
     objectUrl: URL.createObjectURL(blob),
-    etag: result.etag,
+    etag,
   };
+}
+
+function createEntryFromResult(result: Extract<FetchPdfResult, { kind: "data" }>): CacheEntry {
+  const blob = base64ToBlob(result.base64, result.mime);
+  return createEntry(blob, result.etag);
+}
+
+export async function prefetchVersionPdf(versionId: string): Promise<void> {
+  const key = versionKey(versionId);
+  if (getEntry(key)) return;
+  if (await trySetMemoryFromPersisted(key)) return;
+
+  const result = await send<{ base64: string | null; mime: string }>({
+    type: "fetch-version-pdf",
+    versionId,
+  });
+  if (!result.base64) return;
+
+  const blob = base64ToBlob(result.base64, result.mime);
+  const item = createEntry(blob, "");
+  setEntry(key, item);
+  void writePersistedCache(key, item);
 }
 
 export async function getDraftPdfBlob(args: {

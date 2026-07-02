@@ -2,7 +2,7 @@
 // Injects a handle + drawer into the page via shadow DOM.
 
 import { getSettings } from "./storage";
-import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, suggestPdfFilename } from "./pdf";
+import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, prefetchVersionPdf, suggestPdfFilename } from "./pdf";
 import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
 import type { Msg, Reply } from "./messages";
 import type { Draft, Outcome, ScrapedJob, SimilarResume, Version } from "./types";
@@ -1853,6 +1853,9 @@ export function createInitialState(): DrawerState {
         state.previewOpen = false;
         state.similarResumes = similar;
         renderSimilarResumes(state.similarResumes);
+        for (const s of similar.slice(0, 3)) {
+          if (s.id) void prefetchVersionPdf(s.id);
+        }
       } catch {
         // Non-fatal: similar resumes are a bonus feature.
         els.similarSection.hidden = true;
@@ -1914,6 +1917,9 @@ export function createInitialState(): DrawerState {
       state.similarResumes = draft.similarResumes ?? [];
       setDraft(draft);
       renderSimilarResumes(state.similarResumes);
+      for (const s of state.similarResumes.slice(0, 3)) {
+        if (s.id) void prefetchVersionPdf(s.id);
+      }
       triggerPulse();
       setStatus("Done.", "ok");
     } catch (e) {
@@ -2088,6 +2094,9 @@ export function createInitialState(): DrawerState {
             state.similarResumes = snap.similarResumes ?? [];
             setDraft(draft);
             renderSimilarResumes(state.similarResumes);
+            for (const s of state.similarResumes.slice(0, 3)) {
+              if (s.id) void prefetchVersionPdf(s.id);
+            }
             setStatus("Session restored.", "ok");
           }
         } catch (e) {
