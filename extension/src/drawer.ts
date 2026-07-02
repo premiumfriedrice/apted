@@ -1317,6 +1317,7 @@ export type DrawerState = {
   open: boolean;
   previewOpen: boolean;
   selectedVersionId: string | null;
+  previewVersionId: string | null;
 };
 
 export function createInitialState(): DrawerState {
@@ -1333,6 +1334,7 @@ export function createInitialState(): DrawerState {
     restoring: false,
     previewOpen: false,
     selectedVersionId: null,
+    previewVersionId: null,
     tailoring: false,
     open: false,
   };
@@ -1507,7 +1509,9 @@ export function createInitialState(): DrawerState {
       const { objectUrl, changed } = await fetchPdfForPreview({
         draftId: d.id,
         draftUpdatedAt: d.updatedAt,
+        versionId: state.previewVersionId ?? undefined,
       });
+      state.previewVersionId = null;
       clearTimeout(loadingTimer);
       if (!changed && state.pdfObjectUrl === objectUrl) {
         showPreviewState("embed");
@@ -2223,6 +2227,7 @@ export function createInitialState(): DrawerState {
       return;
     }
     state.selectedVersionId = versionId;
+    state.previewVersionId = versionId;
     state.previewOpen = true;
     setActiveCard();
     setStatus("Loading past version…");
