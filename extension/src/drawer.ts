@@ -776,7 +776,8 @@ export function createDrawerStyles(): string {
     .apted-current-draft-badge {
       display: inline-flex;
       align-self: flex-start;
-      padding: 2px 6px;
+      flex-shrink: 0;
+      padding: 3px 8px;
       border-radius: 4px;
       background: var(--apted-primary);
       color: #fff;
@@ -784,6 +785,8 @@ export function createDrawerStyles(): string {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      white-space: nowrap;
+      line-height: 1.2;
     }
 
     .apted-similar-main {
