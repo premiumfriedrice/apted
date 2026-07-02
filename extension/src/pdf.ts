@@ -142,19 +142,26 @@ function getEntry(key: string): CacheEntry | undefined {
 
 function setEntry(key: string, item: CacheEntry): void {
   entries.set(key, item);
-  // Evict oldest if over limit.
+  // Evict oldest if over limit. Only revoke the object URL if no other
+  // entry still references it (the same PDF may be keyed by draft + version).
   while (entries.size > MAX_MEMORY_ENTRIES) {
     const first = entries.keys().next().value as string;
     const oldest = entries.get(first);
-    if (oldest) URL.revokeObjectURL(oldest.objectUrl);
+    if (oldest) {
+      const stillReferenced = [...entries.values()].some(
+        (other, idx) => other.objectUrl === oldest.objectUrl && [...entries.keys()][idx] !== first,
+      );
+      if (!stillReferenced) URL.revokeObjectURL(oldest.objectUrl);
+    }
     entries.delete(first);
   }
 }
 
 function invalidate(): void {
-  for (const item of entries.values()) {
-    URL.revokeObjectURL(item.objectUrl);
-  }
+  // Each unique object URL is only revoked once.
+  const urls = new Set<string>();
+  for (const item of entries.values()) urls.add(item.objectUrl);
+  for (const url of urls) URL.revokeObjectURL(url);
   entries.clear();
 }
 
