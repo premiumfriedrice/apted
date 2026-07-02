@@ -588,7 +588,6 @@ export function createDrawerStyles(): string {
       position: relative;
       display: block;
       min-height: 440px;
-      resize: vertical;
       flex: 1;
     }
 
