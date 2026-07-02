@@ -1517,9 +1517,6 @@ export function createInitialState(): DrawerState {
         showPreviewState("embed");
         return;
       }
-      if (state.pdfObjectUrl && state.pdfObjectUrl !== objectUrl) {
-        URL.revokeObjectURL(state.pdfObjectUrl);
-      }
       state.pdfObjectUrl = objectUrl;
       state.pdfForDraftUpdatedAt = d.updatedAt;
       els.previewEmbed.src = withPdfToolbarSuppressed(objectUrl);
