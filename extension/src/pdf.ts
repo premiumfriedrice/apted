@@ -10,7 +10,7 @@ type CacheEntry = {
   etag: string;
 };
 
-const MAX_MEMORY_ENTRIES = 4;
+const MAX_MEMORY_ENTRIES = 8;
 const entries = new Map<string, CacheEntry>();
 
 const DB_NAME = "apted-pdf-cache";
