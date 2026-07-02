@@ -957,6 +957,10 @@ export function createDrawerStyles(): string {
       margin-left: 4px;
     }
 
+    .apted-status-spinner[hidden] {
+      display: none;
+    }
+
     .apted-status-spinner svg {
       width: 18px;
       height: 18px;
