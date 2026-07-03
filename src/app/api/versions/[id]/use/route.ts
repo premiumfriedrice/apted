@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function POST(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const r = await pool.query(
-    "SELECT company, role, job_description, tailored_content FROM resume_versions WHERE id = $1",
+    "SELECT tailored_content FROM resume_versions WHERE id = $1",
     [id],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });

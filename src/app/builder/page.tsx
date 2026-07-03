@@ -151,10 +151,13 @@ export default function BuilderPage() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          company, role,
-          jobDescription: draft.jobDescription,
           tailoredContent: draft.content,
-          outcome,
+          application: {
+            company,
+            role,
+            jobDescription: draft.jobDescription,
+            outcome,
+          },
         }),
       });
       if (!res.ok) throw new Error(await res.text());

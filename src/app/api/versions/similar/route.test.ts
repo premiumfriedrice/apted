@@ -70,8 +70,8 @@ describe("POST /api/versions/similar", () => {
   it("returns ranked similar versions with company, role, score", async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { company: "Acme", role: "React Developer", job_description: "jd1", tailored_content: {} },
-        { company: "OtherCo", role: "Python Backend", job_description: "jd2", tailored_content: {} },
+        { id: "v1", company: "Acme", role: "React Developer", tailored_content: {}, created_at: "2024-01-01T00:00:00Z" },
+        { id: "v2", company: "OtherCo", role: "Python Backend", tailored_content: {}, created_at: "2024-01-02T00:00:00Z" },
       ],
     });
     const req = new Request("http://localhost/api/versions/similar", {
@@ -94,14 +94,14 @@ describe("POST /api/versions/similar", () => {
     const { getRanker } = await import("@/lib/relevance");
     (getRanker as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
       async () => [
-        { company: "Acme", role: "React Developer", tailored_content: {}, score: 5 },
-        { company: "OtherCo", role: "Python Backend", tailored_content: {}, score: 80 },
+        { id: "v1", company: "Acme", role: "React Developer", tailored_content: {}, created_at: "2024-01-01T00:00:00Z", score: 5 },
+        { id: "v2", company: "OtherCo", role: "Python Backend", tailored_content: {}, created_at: "2024-01-02T00:00:00Z", score: 80 },
       ]
     );
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { company: "Acme", role: "React Developer", job_description: "jd1", tailored_content: {} },
-        { company: "OtherCo", role: "Python Backend", job_description: "jd2", tailored_content: {} },
+        { id: "v1", company: "Acme", role: "React Developer", tailored_content: {}, created_at: "2024-01-01T00:00:00Z" },
+        { id: "v2", company: "OtherCo", role: "Python Backend", tailored_content: {}, created_at: "2024-01-02T00:00:00Z" },
       ],
     });
     const req = new Request("http://localhost/api/versions/similar", {

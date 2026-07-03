@@ -45,14 +45,39 @@ const minResume = {
 // Mock pii_map row returned when the route queries master_pii_map (PRE-53).
 const fakePiiMapRow = { map: { contact: { name: "Test User", phone: "", email: "", links: [] }, orgs: [] } };
 
-/** Build a minimal POST body. */
-function postBody(overrides: Record<string, unknown> = {}) {
-  return {
+const fakeApplications = [
+  {
+    id: "a1",
+    versionId: "v-new",
     company: "Acme",
     role: "Engineer",
     jobDescription: "Build things",
-    tailoredContent: minResume,
     outcome: "draft",
+    createdAt: "2024-01-01T00:00:00Z",
+  },
+];
+
+function makeVersionRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "v-new",
+    tailored_content: minResume,
+    created_at: "2024-01-01T00:00:00Z",
+    pdf: fakePdf,
+    applications: fakeApplications,
+    ...overrides,
+  };
+}
+
+/** Build a minimal POST body. */
+function postBody(overrides: Record<string, unknown> = {}) {
+  return {
+    tailoredContent: minResume,
+    application: {
+      company: "Acme",
+      role: "Engineer",
+      jobDescription: "Build things",
+      outcome: "draft",
+    },
     ...overrides,
   };
 }
@@ -80,18 +105,7 @@ describe("GET /api/versions", () => {
 
   it("returns versions with base64 pdf when pdf column is populated", async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "v1",
-          company: "Acme",
-          role: "Engineer",
-          job_description: "Build things",
-          tailored_content: minResume,
-          outcome: "draft",
-          created_at: "2024-01-01T00:00:00Z",
-          pdf: fakePdf,
-        },
-      ],
+      rows: [makeVersionRow({ id: "v1" })],
     });
 
     const res = await GET(req("GET", "http://localhost/api/versions"));
@@ -101,22 +115,12 @@ describe("GET /api/versions", () => {
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe("v1");
     expect(body[0].pdfBase64).toBe(fakePdf.toString("base64"));
+    expect(body[0].applications).toEqual(fakeApplications);
   });
 
   it("returns null pdf when pdf column is null (backward compat)", async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "v1",
-          company: "Acme",
-          role: "Engineer",
-          job_description: "Build things",
-          tailored_content: minResume,
-          outcome: "draft",
-          created_at: "2024-01-01T00:00:00Z",
-          pdf: null,
-        },
-      ],
+      rows: [makeVersionRow({ id: "v1", pdf: null })],
     });
 
     const res = await GET(req("GET", "http://localhost/api/versions"));
@@ -134,9 +138,9 @@ describe("GET /api/versions", () => {
     );
 
     expect(res.status).toBe(200);
-    // Verify the filter was passed to the DB.
+    // Verify the filter was passed to the DB via HAVING on applications.
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("outcome = $1"),
+      expect.stringContaining("HAVING bool_or(a.outcome = $1)"),
       ["applied"],
     );
   });
@@ -169,20 +173,9 @@ describe("POST /api/versions", () => {
 
   it("compiles tailored content to PDF and stores it as BYTEA", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "v-new",
-          company: "Acme",
-          role: "Engineer",
-          job_description: "Build things",
-          tailored_content: minResume,
-          outcome: "draft",
-          created_at: "2024-01-01T00:00:00Z",
-          pdf: fakePdf,
-        },
-      ],
-    });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow({ applications: [] })] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
 
     const res = await POST(
       req("POST", "http://localhost/api/versions", postBody()),
@@ -196,32 +189,24 @@ describe("POST /api/versions", () => {
     // Verify the PDF was compiled.
     expect(mockCompileTexToPdf).toHaveBeenCalled();
 
-    // Verify the INSERT includes the pdf column.
-    // calls[0] is pii_map query, calls[1] is the INSERT
-    const sql = mockQuery.mock.calls[1]?.[0] as string;
-    expect(sql).toMatch(/pdf/);
-    // The pdf value should be the Buffer passed as a parameter.
+    // Verify the version INSERT includes the pdf column.
+    const versionInsert = mockQuery.mock.calls[1]?.[0] as string;
+    expect(versionInsert).toMatch(/INSERT INTO resume_versions/);
+    expect(versionInsert).toMatch(/pdf/);
     expect(mockQuery.mock.calls[1]?.[1]).toContain(fakePdf);
+
+    // Verify the application INSERT.
+    const appInsert = mockQuery.mock.calls[2]?.[0] as string;
+    expect(appInsert).toMatch(/INSERT INTO applications/);
   });
 
   it("handles compile failure gracefully — stores the version with null pdf", async () => {
     mockCompileTexToPdf.mockRejectedValueOnce(new Error("tectonic crash"));
 
     mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "v-no-pdf",
-          company: "Acme",
-          role: "Engineer",
-          job_description: "Build things",
-          tailored_content: minResume,
-          outcome: "draft",
-          created_at: "2024-01-01T00:00:00Z",
-          pdf: null,
-        },
-      ],
-    });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow({ pdf: null, applications: [] })] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow({ pdf: null })] });
 
     const res = await POST(
       req("POST", "http://localhost/api/versions", postBody()),
@@ -232,56 +217,41 @@ describe("POST /api/versions", () => {
     const body = await res.json();
     expect(body.pdfBase64).toBeNull();
 
-    // Verify the INSERT wrote null for pdf.
-    // calls[0] is pii_map query, calls[1] is the INSERT
+    // Verify the version INSERT wrote null for pdf.
     const params = mockQuery.mock.calls[1]?.[1] as unknown[];
     expect(params).toContain(null);
   });
 
-  it("rejects request when required fields are missing", async () => {
+  it("rejects request when tailoredContent is missing", async () => {
     const res = await POST(
       req("POST", "http://localhost/api/versions", {
-        company: "Acme",
-        // missing role, jobDescription, tailoredContent
+        application: { company: "Acme", role: "Engineer" },
       }),
     );
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/required/);
+    expect(body.error).toMatch(/tailoredContent required/);
   });
 
   it("defaults outcome to 'draft' when not provided", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "v3",
-          company: "Acme",
-          role: "Engineer",
-          job_description: "Desc",
-          tailored_content: minResume,
-          outcome: "draft",
-          created_at: "2024-01-01T00:00:00Z",
-          pdf: fakePdf,
-        },
-      ],
-    });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow({ applications: [] })] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
 
     const res = await POST(
       req(
         "POST",
         "http://localhost/api/versions",
-        postBody({ outcome: undefined }),
+        postBody({ application: { company: "Acme", role: "Engineer" } }),
       ),
     );
 
     expect(res.status).toBe(200);
-    // calls[0] is pii_map query, calls[1] is the INSERT
-    const sql = mockQuery.mock.calls[1]?.[0] as string;
-    // The outcome param (positional) should be 'draft'.
-    const params = mockQuery.mock.calls[1]?.[1] as string[];
-    expect(params).toContain("draft");
+    // The application INSERT should default outcome to 'draft'.
+    const appInsertParams = mockQuery.mock.calls[2]?.[1] as string[];
+    expect(appInsertParams).toContain("draft");
   });
 });
 
@@ -294,20 +264,9 @@ describe("PDF round-trip", () => {
   it("saved PDF binary survives a round-trip: save → retrieve → decode", async () => {
     // — Save —
     mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "v-rtt",
-          company: "Acme",
-          role: "Engineer",
-          job_description: "Desc",
-          tailored_content: minResume,
-          outcome: "draft",
-          created_at: "2024-01-01T00:00:00Z",
-          pdf: fakePdf,
-        },
-      ],
-    });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow({ applications: [] })] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
 
     const saveRes = await POST(
       req("POST", "http://localhost/api/versions", postBody()),
@@ -318,18 +277,7 @@ describe("PDF round-trip", () => {
 
     // — Retrieve —
     mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "v-rtt",
-          company: "Acme",
-          role: "Engineer",
-          job_description: "Desc",
-          tailored_content: minResume,
-          outcome: "draft",
-          created_at: "2024-01-01T00:00:00Z",
-          pdf: fakePdf,
-        },
-      ],
+      rows: [makeVersionRow({ id: "v-rtt" })],
     });
 
     const getRes = await GET(req("GET", "http://localhost/api/versions"));

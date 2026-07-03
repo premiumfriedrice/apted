@@ -5,59 +5,99 @@ import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
 import { injectResume } from "@/lib/redact";
+import { isOutcome } from "@/lib/applications";
 import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
-const OUTCOMES = ["draft", "applied", "interview", "offer", "rejected"] as const;
-type Outcome = (typeof OUTCOMES)[number];
-
-const SELECT =
-  "SELECT id, company, role, job_description, tailored_content, outcome, created_at, pdf FROM resume_versions";
+const SELECT = `
+  SELECT
+    v.id,
+    v.tailored_content,
+    v.created_at,
+    v.pdf,
+    COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', a.id,
+          'versionId', a.version_id,
+          'company', a.company,
+          'role', a.role,
+          'jobDescription', a.job_description,
+          'outcome', a.outcome,
+          'createdAt', a.created_at
+        ) ORDER BY a.created_at DESC
+      ) FILTER (WHERE a.id IS NOT NULL),
+      '[]'::jsonb
+    ) AS applications
+  FROM resume_versions v
+  LEFT JOIN applications a ON a.version_id = v.id
+`;
 
 function rowToJson(row: Record<string, unknown>) {
   const pdfBuf = row.pdf as Buffer | null;
   return {
     id: row.id,
-    company: row.company,
-    role: row.role,
-    jobDescription: row.job_description,
     tailoredContent: row.tailored_content,
-    outcome: row.outcome,
     createdAt: row.created_at,
     pdfBase64: pdfBuf ? pdfBuf.toString("base64") : null,
+    applications: row.applications as Array<{
+      id: string;
+      versionId: string;
+      company: string;
+      role: string;
+      jobDescription: string;
+      outcome: string;
+      createdAt: string;
+    }>,
   };
 }
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const outcome = url.searchParams.get("outcome");
-  if (outcome && !OUTCOMES.includes(outcome as Outcome)) {
+  if (outcome && !isOutcome(outcome)) {
     return NextResponse.json({ error: "invalid outcome" }, { status: 400 });
   }
+
   const r = outcome
     ? await pool.query(
-        `${SELECT} WHERE outcome = $1 ORDER BY created_at DESC`,
+        `${SELECT}
+         GROUP BY v.id
+         HAVING bool_or(a.outcome = $1)
+         ORDER BY v.created_at DESC`,
         [outcome],
       )
-    : await pool.query(`${SELECT} ORDER BY created_at DESC`);
+    : await pool.query(`${SELECT} GROUP BY v.id ORDER BY v.created_at DESC`);
   return NextResponse.json(r.rows.map(rowToJson));
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { company, role, jobDescription, tailoredContent, outcome } = body as {
-    company?: string;
-    role?: string;
-    jobDescription?: string;
+  const {
+    tailoredContent,
+    application,
+  } = body as {
     tailoredContent?: unknown;
-    outcome?: Outcome;
+    application?: {
+      company?: string;
+      role?: string;
+      jobDescription?: string;
+      outcome?: string;
+    };
   };
-  if (!company || !role || !jobDescription || !tailoredContent) {
-    return NextResponse.json({ error: "company, role, jobDescription, tailoredContent required" }, { status: 400 });
+
+  if (!tailoredContent) {
+    return NextResponse.json(
+      { error: "tailoredContent required" },
+      { status: 400 },
+    );
   }
+
   const content = Resume.parse(tailoredContent);
-  const oc: Outcome = outcome && OUTCOMES.includes(outcome) ? outcome : "draft";
+  const oc = application?.outcome && isOutcome(application.outcome)
+    ? application.outcome
+    : "draft";
 
   // Compile the resume to PDF before storing. Best-effort: if the
   // compile service is unavailable we still save the version, but pdf
@@ -76,11 +116,32 @@ export async function POST(req: Request) {
     console.warn("PDF compile failed for new version");
   }
 
+  const version = await pool.query(
+    `INSERT INTO resume_versions (tailored_content, pdf)
+     VALUES ($1::jsonb, $2)
+     RETURNING id, tailored_content, created_at, pdf`,
+    [JSON.stringify(content), pdf],
+  );
+  const versionRow = version.rows[0];
+
+  if (application?.company && application?.role) {
+    await pool.query(
+      `INSERT INTO applications (version_id, company, role, job_description, outcome)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        versionRow.id,
+        application.company,
+        application.role,
+        application.jobDescription ?? "",
+        oc,
+      ],
+    );
+  }
+
+  // Re-fetch with applications aggregated to return the same shape as GET.
   const r = await pool.query(
-    `INSERT INTO resume_versions (company, role, job_description, tailored_content, outcome, pdf)
-     VALUES ($1, $2, $3, $4::jsonb, $5, $6)
-     RETURNING id, company, role, job_description, tailored_content, outcome, created_at, pdf`,
-    [company, role, jobDescription, JSON.stringify(content), oc, pdf],
+    `${SELECT} WHERE v.id = $1 GROUP BY v.id`,
+    [versionRow.id],
   );
   return NextResponse.json(rowToJson(r.rows[0]));
 }
