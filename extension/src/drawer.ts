@@ -2,14 +2,13 @@
 // Injects a handle + drawer into the page via shadow DOM.
 
 import { getSettings } from "./storage";
-import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, suggestPdfFilename } from "./pdf";
+import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, prefetchVersionPdf, suggestPdfFilename } from "./pdf";
 import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
 import type { Msg, Reply } from "./messages";
 import type { Draft, Outcome, ScrapedJob, SimilarResume, Version } from "./types";
 
 export const DRAWSER_WIDTH = 384;
 export const HANDLE_SIZE = 48;
-export const ACCENT_COLOR = "#2563eb";
 
 const SUPPORTED_URL_RE =
   /linkedin\.com\/jobs\/|greenhouse\.io|lever\.co|myworkdayjobs\.com|ashbyhq\.com/;
@@ -52,17 +51,32 @@ export function createDrawerStyles(): string {
     ${pulse}
 
     :host {
+      --apted-surface: #f8f9fa;
+      --apted-surface-container-lowest: #ffffff;
+      --apted-surface-container-low: #f3f4f5;
+      --apted-surface-container-high: #e7e8e9;
+      --apted-outline-variant: #c3c6d7;
+      --apted-on-surface: #191c1d;
+      --apted-on-surface-variant: #434655;
+      --apted-inverse-surface: #2e3132;
+      --apted-inverse-on-surface: #f0f1f2;
+      --apted-primary: #000000;
+      --apted-black-btn: #000000;
+      --apted-on-primary: #ffffff;
+      --apted-error: #b3261e;
+      --apted-success: #16a34a;
+
       position: fixed;
       top: 0;
       right: 0;
       height: 100vh;
       z-index: 2147483646;
-      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      color: #171717;
+      font: 14px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      color: var(--apted-on-surface);
       pointer-events: none;
     }
 
-    /* ── Handle: geometric "a" glyph, flush right ─────────────────────── */
+    /* ── Handle ───────────────────────────────────────────────────────── */
     .apted-handle {
       position: fixed;
       right: 0;
@@ -82,7 +96,7 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: flex-end;
       overflow: visible;
-      transition: transform 0.2s ease-out, right 0.2s ease-out, width 0.15s ease, height 0.15s ease, background 0.15s ease;
+      transition: transform 0.2s ease-out, right 0.2s ease-out;
     }
 
     .apted-handle:not(.apted-handle--open):hover {
@@ -92,14 +106,8 @@ export function createDrawerStyles(): string {
     .apted-handle--open {
       right: 12px;
       transform: translateX(-360px) translateY(7px);
-      justify-content: flex-end;
-      overflow: visible;
       opacity: 0;
       pointer-events: none;
-    }
-
-    .apted-handle--open:hover {
-      transform: translateX(-360px) translateY(7px);
     }
 
     .apted-handle--disabled {
@@ -115,7 +123,7 @@ export function createDrawerStyles(): string {
       font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 56px;
       font-weight: 400;
-      color: #111;
+      color: var(--apted-primary);
       line-height: 1;
       transition: font-size 0.2s ease-out, color 0.15s ease;
       display: flex;
@@ -130,18 +138,9 @@ export function createDrawerStyles(): string {
     .apted-handle--open .apted-handle-glyph {
       font-size: 18px;
       font-weight: 500;
-      color: #000;
-      opacity: 1;
       text-rendering: geometricPrecision;
     }
 
-    .apted-handle--open:hover .apted-handle-glyph {
-      color: #000;
-      opacity: 1;
-      text-rendering: geometricPrecision;
-    }
-
-    /* ── Blue dot badge ───────────────────────────────────────────────── */
     .apted-handle-dot {
       position: absolute;
       top: 2px;
@@ -149,8 +148,8 @@ export function createDrawerStyles(): string {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #2563eb;
-      border: 1.5px solid #fff;
+      background: var(--apted-primary);
+      border: 1.5px solid var(--apted-surface-container-lowest);
       display: none;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
     }
@@ -159,32 +158,30 @@ export function createDrawerStyles(): string {
       display: block;
     }
 
-    /* ── Pulse animation on the glyph ─────────────────────────────────── */
     .apted-handle--pulse .apted-handle-glyph {
       animation: apted-pulse 1.8s ease-in-out 2;
       transform-origin: center;
     }
 
-    /* ── Drawer: card overlay matching Simplified layout ──────────────── */
+    /* ── Drawer shell ─────────────────────────────────────────────────── */
     .apted-drawer {
       position: fixed;
       top: 12px;
       right: 12px;
       bottom: 12px;
       width: ${DRAWSER_WIDTH}px;
-      background: #fff;
-      border: 1px solid #e5e5e5;
-      border-radius: 6px;
       display: flex;
       flex-direction: column;
       pointer-events: auto;
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 12px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       overflow: hidden;
       transform: translateX(calc(100% + 24px));
       transition: transform 0.2s ease-out;
       z-index: 2147483646;
-      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      color: #171717;
+      font: inherit;
+      color: inherit;
     }
 
     .apted-drawer--open {
@@ -196,23 +193,22 @@ export function createDrawerStyles(): string {
       position: sticky;
       top: 0;
       z-index: 10;
-      background: #fff;
-      padding: 16px 16px 12px;
-      border-bottom: 1px solid #f5f5f5;
+      height: 48px;
+      background: var(--apted-surface-container-lowest);
+      border-bottom: 1px solid var(--apted-outline-variant);
       flex-shrink: 0;
-    }
-
-    .apted-drawer-header-row {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 0 16px;
     }
 
     .apted-drawer-title {
       font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 18px;
+      font-size: 16px;
+      line-height: 20px;
       font-weight: 500;
-      color: #171717;
+      color: var(--apted-on-surface);
       margin: 0;
       letter-spacing: -0.02em;
     }
@@ -225,37 +221,34 @@ export function createDrawerStyles(): string {
       height: 28px;
       border: 1px solid transparent;
       border-radius: 6px;
-      background: none;
-      color: #9ca3af;
+      background: transparent;
+      color: var(--apted-on-surface-variant);
       cursor: pointer;
       padding: 0;
       font: inherit;
-      transition: color 0.15s, border-color 0.15s;
+      transition: background 0.15s, color 0.15s;
     }
 
     .apted-header-btn:hover {
-      color: #374151;
-      border-color: #e5e5e5;
+      color: var(--apted-on-surface);
+      background: var(--apted-surface-container-low);
     }
 
     .apted-header-btn svg {
       pointer-events: none;
     }
 
-    .apted-connection-text {
-      display: block;
-      font-size: 10px;
-      color: #9ca3af;
-      margin-top: 4px;
-    }
-
-    /* ── Scrollable body ──────────────────────────────────────────────── */
+    /* ── Scrollable body / card shell (matches master contact card) ───── */
     .apted-drawer-body {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 0 16px;
+      padding: 16px;
       overscroll-behavior: contain;
+      background: var(--apted-surface-container-lowest);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
     .apted-drawer-body::-webkit-scrollbar {
@@ -265,18 +258,76 @@ export function createDrawerStyles(): string {
       background: transparent;
     }
     .apted-drawer-body::-webkit-scrollbar-thumb {
-      background: #e5e5e5;
+      background: var(--apted-outline-variant);
       border-radius: 2px;
     }
 
-    /* ── Cards within body ────────────────────────────────────────────── */
-    .apted-card {
-      padding: 16px 0;
-      border-bottom: 1px solid #f5f5f5;
+    .apted-drawer-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
-    .apted-card:last-child {
-      border-bottom: none;
+    .apted-section-title {
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      color: var(--apted-on-surface);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+
+    .apted-section-title-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .apted-section-title svg {
+      color: var(--apted-on-surface-variant);
+      flex-shrink: 0;
+    }
+
+    .apted-divider {
+      border: 0;
+      border-top: 1px solid var(--apted-outline-variant);
+      margin: 0;
+    }
+
+    .apted-field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .apted-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .apted-field-label {
+      font-size: 11px;
+      line-height: 14px;
+      font-weight: 500;
+      color: var(--apted-on-surface-variant);
+    }
+
+    .apted-section-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Cards ────────────────────────────────────────────────────────── */
+    .apted-card {
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 8px;
+      padding: 12px;
     }
 
     .apted-card-row {
@@ -284,16 +335,29 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
+    }
+
+    .apted-card-row:last-child {
+      margin-bottom: 0;
     }
 
     .apted-card-title {
-      font-size: 12px;
+      font-size: 11px;
+      line-height: 14px;
       font-weight: 600;
-      color: #6b7280;
+      color: var(--apted-on-surface-variant);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
       margin: 0;
+    }
+
+    .apted-connection-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      line-height: 14px;
+      color: var(--apted-on-surface-variant);
     }
 
     .apted-btn-group {
@@ -301,7 +365,7 @@ export function createDrawerStyles(): string {
       gap: 4px;
     }
 
-    /* ── Backdrop (narrow viewports) ───────────────────────────────────── */
+    /* ── Backdrop ─────────────────────────────────────────────────────── */
     .apted-backdrop {
       position: fixed;
       inset: 0;
@@ -316,16 +380,16 @@ export function createDrawerStyles(): string {
       display: block;
     }
 
-    /* ── Buttons ───────────────────────────────────────────────────────── */
+    /* ── Buttons ──────────────────────────────────────────────────────── */
     .apted-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
+      background: var(--apted-surface-container-lowest);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
-      padding: 7px 14px;
+      padding: 8px 16px;
       font: inherit;
       font-size: 13px;
       font-weight: 500;
@@ -335,8 +399,8 @@ export function createDrawerStyles(): string {
     }
 
     .apted-btn:hover:not(:disabled) {
-      background: #f9fafb;
-      border-color: #d1d5db;
+      background: var(--apted-surface-container-low);
+      border-color: var(--apted-outline-variant);
     }
 
     .apted-btn:disabled {
@@ -345,20 +409,20 @@ export function createDrawerStyles(): string {
     }
 
     .apted-btn--primary {
-      background: ${ACCENT_COLOR};
-      color: #fff;
-      border-color: ${ACCENT_COLOR};
+      background: var(--apted-primary);
+      color: var(--apted-on-primary);
+      border-color: var(--apted-primary);
     }
 
     .apted-btn--primary:hover:not(:disabled) {
-      background: #1d4ed8;
-      border-color: #1d4ed8;
+      background: var(--apted-on-surface-variant);
+      border-color: var(--apted-on-surface-variant);
     }
 
     .apted-btn--success {
-      background: #16a34a;
-      color: #fff;
-      border-color: #16a34a;
+      background: var(--apted-success);
+      color: var(--apted-on-primary);
+      border-color: var(--apted-success);
     }
 
     .apted-btn--sm {
@@ -377,27 +441,37 @@ export function createDrawerStyles(): string {
       justify-content: center;
     }
 
-    /* ── Form elements ─────────────────────────────────────────────────── */
+    .apted-btn--inverse {
+      background: transparent;
+      color: var(--apted-inverse-on-surface);
+      border-color: transparent;
+    }
+
+    .apted-btn--inverse:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* ── Form elements ────────────────────────────────────────────────── */
     .apted-input,
     .apted-textarea {
       display: block;
       width: 100%;
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
+      background: var(--apted-surface);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
       padding: 8px 10px;
       font: inherit;
       font-size: 13px;
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
       margin-bottom: 8px;
     }
 
     .apted-input:focus,
     .apted-textarea:focus {
-      border-color: ${ACCENT_COLOR};
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      border-color: var(--apted-primary);
+      box-shadow: 0 0 0 1px var(--apted-primary);
     }
 
     .apted-textarea {
@@ -410,20 +484,19 @@ export function createDrawerStyles(): string {
 
     .apted-input::placeholder,
     .apted-textarea::placeholder {
-      color: #9ca3af;
+      color: var(--apted-on-surface-variant);
+      opacity: 0.7;
     }
 
-    .apted-input--chat {
-      flex: 1;
+    .apted-field .apted-input,
+    .apted-field .apted-textarea {
       margin-bottom: 0;
-      border-radius: 6px 0 0 6px;
-      border-right: none;
     }
 
     .apted-select {
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
+      background: var(--apted-surface);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
       padding: 8px 10px;
       font: inherit;
@@ -432,31 +505,118 @@ export function createDrawerStyles(): string {
       outline: none;
     }
 
-    /* ── Preview ───────────────────────────────────────────────────────── */
-    .apted-preview-body {
-      border: 1px solid #e5e5e5;
-      background: #f9fafb;
-      border-radius: 6px;
+    /* ── Preview ──────────────────────────────────────────────────────── */
+    .apted-card--preview {
+      padding: 0;
       overflow: hidden;
-      position: relative;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 280px;
-      resize: vertical;
+      flex-direction: column;
+      flex-shrink: 0;
     }
 
-    .apted-preview-body .apted-empty {
-      color: #9ca3af;
-      text-align: center;
+    .apted-card--black {
+      width: 100%;
+      background: var(--apted-black-btn);
+      color: #fff;
+      border-color: var(--apted-black-btn);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 12px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .apted-card--black:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .apted-card--black:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .apted-card--cancel {
+      background: var(--apted-error);
+      border-color: var(--apted-error);
+      color: #fff;
+    }
+
+    .apted-card--cancel:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .apted-card-black-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .apted-card-black-text {
       font-size: 13px;
+      font-weight: 500;
+    }
+
+    #apted-preview-block {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    #apted-preview-block[hidden] {
+      display: none;
+    }
+
+    .apted-preview-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--apted-inverse-surface);
+      color: var(--apted-inverse-on-surface);
+      padding: 8px 12px;
+      border-radius: 0;
+    }
+
+    .apted-preview-body {
+      background: var(--apted-inverse-surface);
+      border-radius: 0;
+      overflow: hidden;
+      position: relative;
+      display: block;
+      min-height: 440px;
+      flex: 1;
     }
 
     .apted-preview-embed {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       border: 0;
-      border-radius: 6px;
+      border-radius: 0;
+      background: var(--apted-inverse-surface);
+    }
+
+    .apted-preview-body .apted-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: var(--apted-inverse-on-surface);
+      opacity: 0.6;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .apted-preview-body .apted-empty p {
+      max-width: 160px;
     }
 
     .apted-preview-embed[hidden] {
@@ -464,12 +624,15 @@ export function createDrawerStyles(): string {
     }
 
     .apted-preview-state {
+      position: absolute;
+      inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 10px;
       text-align: center;
-      color: #9ca3af;
+      color: var(--apted-inverse-on-surface);
       font-size: 12px;
     }
 
@@ -480,8 +643,8 @@ export function createDrawerStyles(): string {
     .apted-spinner {
       width: 28px;
       height: 28px;
-      border: 3px solid #e5e5e5;
-      border-top-color: ${ACCENT_COLOR};
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: var(--apted-inverse-on-surface);
       border-radius: 50%;
       animation: apted-spin 0.7s linear infinite;
     }
@@ -491,97 +654,325 @@ export function createDrawerStyles(): string {
     }
 
     .apted-preview-error-msg {
-      color: #dc2626;
+      color: var(--apted-error);
       margin: 0;
       max-width: 260px;
       word-wrap: break-word;
     }
 
-    /* ── Similar resumes ───────────────────────────────────────────────── */
+    /* ── Similar resumes ──────────────────────────────────────────────── */
+    .apted-similar-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
     .apted-similar-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     .apted-similar-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: #fff;
-      border: 1px solid #e5e5e5;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 6px;
       cursor: pointer;
       transition: border-color 0.15s;
+      color: var(--apted-on-surface);
     }
 
     .apted-similar-item:hover {
-      border-color: #d1d5db;
+      border-color: var(--apted-outline);
     }
 
-    .apted-similar-score {
-      font-weight: 700;
-      font-size: 11px;
-      color: ${ACCENT_COLOR};
+    .apted-similar-item--active {
+      border-color: #000;
     }
 
-    .apted-similar-score-badge {
-      background: ${ACCENT_COLOR};
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 999px;
-      flex-shrink: 0;
+    .apted-similar-item--preview-open {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
     }
 
-    .apted-similar-text {
-      color: #171717;
-      font-size: 12px;
+    .apted-similar-item--preview-open + #apted-preview-block {
+      margin-top: -8px;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    .apted-current-draft-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      color: var(--apted-on-surface);
+    }
+
+    .apted-current-draft-card:hover {
+      border-color: var(--apted-outline);
+    }
+
+    .apted-current-draft-card--active {
+      border-color: #000;
+    }
+
+    .apted-current-draft-card--preview-open {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .apted-current-draft-card--preview-open + #apted-preview-block {
+      margin-top: -12px;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    .apted-current-draft-main {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .apted-current-draft-role {
+      display: block;
+      width: 100%;
+      min-height: 18px;
+      color: #191c1d;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.3;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .apted-similar-company {
-      color: #9ca3af;
+    .apted-current-draft-org {
+      display: block;
+      width: 100%;
+      min-height: 16px;
+      color: #3f484a;
+      font-size: 12px;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    /* ── Footer: Chat input ────────────────────────────────────────────── */
+    .apted-current-draft-badge {
+      display: inline-flex;
+      align-self: flex-start;
+      flex-shrink: 0;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--apted-primary);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+
+    .apted-current-draft-save {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      color: var(--apted-on-surface);
+      background: transparent;
+      border-color: transparent;
+      border-radius: 6px;
+    }
+
+    .apted-current-draft-save:hover:not(:disabled) {
+      background: var(--apted-surface-container);
+      border-color: var(--apted-outline-variant);
+    }
+
+    .apted-similar-main {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .apted-similar-role {
+      display: block;
+      width: 100%;
+      min-height: 18px;
+      color: #191c1d;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .apted-similar-org {
+      display: block;
+      width: 100%;
+      min-height: 16px;
+      color: #3f484a;
+      font-size: 12px;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .apted-similar-when {
+      color: var(--apted-on-surface-variant);
+      font-size: 11px;
+    }
+
+    .apted-similar-score-ring {
+      position: relative;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+    }
+
+    .apted-similar-score-ring-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--apted-on-surface);
+    }
+
+    /* ── Footer: Chat input ───────────────────────────────────────────── */
     .apted-drawer-footer {
       flex-shrink: 0;
-      border-top: 1px solid #f5f5f5;
+      background: var(--apted-surface-container-lowest);
+      border-top: 1px solid var(--apted-outline-variant);
       padding: 12px 16px;
-      background: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .apted-chat-form {
       display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--apted-surface-container-lowest);
+      border: 1px solid var(--apted-outline-variant);
+      border-radius: 6px;
+      padding: 4px;
     }
 
-    .apted-chat-form .apted-btn--primary {
-      border-radius: 0 6px 6px 0;
+    .apted-chat-form .apted-input {
+      flex: 1;
+      margin-bottom: 0;
+      border: none;
+      background: transparent;
+      resize: none;
+      min-height: 32px;
+      max-height: 64px;
+      overflow-y: auto;
+      padding: 6px 8px;
+    }
+
+    .apted-chat-form .apted-input:focus {
+      box-shadow: none;
+    }
+
+    .apted-chat-send {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 6px;
+      background: var(--apted-black-btn);
+      color: #fff;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
       flex-shrink: 0;
     }
 
-    /* ── Status bar ────────────────────────────────────────────────────── */
+    .apted-chat-send:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .apted-chat-send-glyph {
+      font-family: "Outfit", sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .apted-status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+      font-size: 10px;
+      color: var(--apted-on-surface-variant);
+    }
+
     .apted-status {
-      font-size: 11px;
-      color: #9ca3af;
-      margin-top: 6px;
-      min-height: 16px;
+      font-size: 10px;
+      line-height: 14px;
+      color: inherit;
+      min-height: 14px;
     }
 
     .apted-status--error {
-      color: #dc2626;
+      color: var(--apted-error);
     }
 
     .apted-status--ok {
-      color: #16a34a;
+      color: var(--apted-success);
     }
 
-    /* ── Utilities ─────────────────────────────────────────────────────── */
+    .apted-status-spinner {
+      display: inline-flex;
+      align-items: center;
+      height: 10px;
+      margin-left: 4px;
+    }
+
+    .apted-status-spinner[hidden] {
+      display: none;
+    }
+
+    .apted-status-spinner svg {
+      width: 18px;
+      height: 18px;
+      color: var(--apted-on-surface-variant);
+    }
+
+    .apted-version {
+      font-size: 10px;
+      color: var(--apted-on-surface-variant);
+    }
+
+    /* ── Utilities ────────────────────────────────────────────────────── */
     .apted-spacer {
       flex: 1;
     }
@@ -592,21 +983,21 @@ export function createDrawerStyles(): string {
       gap: 8px;
     }
 
-    /* ── Save dialog overlay ───────────────────────────────────────────── */
+    /* ── Save dialog ──────────────────────────────────────────────────── */
     .apted-dialog {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 2147483647;
-      background: #fff;
-      color: #171717;
-      border: 1px solid #e5e5e5;
+      background: var(--apted-surface-container-lowest);
+      color: var(--apted-on-surface);
+      border: 1px solid var(--apted-outline-variant);
       border-radius: 12px;
       padding: 20px;
       min-width: 280px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font: inherit;
     }
 
     .apted-dialog[hidden] {
@@ -615,9 +1006,10 @@ export function createDrawerStyles(): string {
 
     .apted-dialog h3 {
       font-size: 15px;
+      line-height: 20px;
       font-weight: 600;
       margin: 0 0 12px;
-      color: #171717;
+      color: var(--apted-on-surface);
     }
 
     .apted-dialog label {
@@ -626,7 +1018,7 @@ export function createDrawerStyles(): string {
       gap: 4px;
       margin-bottom: 10px;
       font-size: 12px;
-      color: #6b7280;
+      color: var(--apted-on-surface-variant);
     }
 
     .apted-dialog .apted-row {
@@ -644,7 +1036,7 @@ export function createDrawerStyles(): string {
       display: none;
     }
 
-    /* ── Fullscreen overlay ────────────────────────────────────────────── */
+    /* ── Fullscreen overlay ───────────────────────────────────────────── */
     .apted-fullscreen-overlay {
       position: fixed;
       inset: 0;
@@ -711,102 +1103,196 @@ export function createDrawerHTML(): string {
 
     <div id="apted-drawer" class="apted-drawer">
       <div class="apted-drawer-header">
-        <div class="apted-drawer-header-row">
-          <h1 class="apted-drawer-title">apted</h1>
-          <div class="apted-spacer"></div>
-          <button type="button" id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
-            <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18">
-              <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5zm7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.97l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/>
-            </svg>
-          </button>
-          <button type="button" id="apted-close-drawer" class="apted-header-btn" title="Minimize" aria-label="Minimize">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        <span id="apted-connection" class="apted-connection-text" title="API base"></span>
+        <h1 class="apted-drawer-title">apted</h1>
+        <div class="apted-spacer"></div>
+        <button type="button" id="apted-open-settings" class="apted-header-btn" title="Settings" aria-label="Settings">
+          <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18">
+            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5zm7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.97l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/>
+          </svg>
+        </button>
+        <button type="button" id="apted-close-drawer" class="apted-header-btn" title="Minimize" aria-label="Minimize">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
 
       <div id="apted-drawer-body" class="apted-drawer-body">
-        <div class="apted-card">
-          <div class="apted-card-row">
-            <h2 class="apted-card-title">Job description</h2>
-            <div class="apted-btn-group" style="margin-left:auto;">
-              <button id="apted-clear-jd" class="apted-btn apted-btn--sm" title="Clear job description fields">clear</button>
-              <button id="apted-rescrape" class="apted-btn apted-btn--sm">scrape</button>
+        <section class="apted-drawer-section">
+            <h2 class="apted-section-title">
+              <span class="apted-section-title-main">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                Job description
+              </span>
+              <div class="apted-spacer"></div>
+              <div class="apted-btn-group">
+                <button id="apted-clear-jd" class="apted-btn apted-btn--sm" title="Clear job description fields">clear</button>
+                <button id="apted-rescrape" class="apted-btn apted-btn--sm">scrape</button>
+              </div>
+            </h2>
+            <div class="apted-field-grid">
+              <label class="apted-field">
+                <span class="apted-field-label">Company</span>
+                <input id="apted-jd-company" class="apted-input" placeholder="Company" />
+              </label>
+              <label class="apted-field">
+                <span class="apted-field-label">Role</span>
+                <input id="apted-jd-role" class="apted-input" placeholder="Role" />
+              </label>
             </div>
-          </div>
-          <input id="apted-jd-company" class="apted-input" placeholder="Company" />
-          <input id="apted-jd-role" class="apted-input" placeholder="Role" />
-          <textarea
-            id="apted-jd-text"
-            class="apted-textarea"
-            rows="5"
-            placeholder="Paste a job description, or click Scrape."
-          ></textarea>
-          <button id="apted-tailor" class="apted-btn apted-btn--primary apted-btn--full">Tailor Resume</button>
-        </div>
+            <label class="apted-field">
+              <span class="apted-field-label">Description</span>
+              <textarea
+                id="apted-jd-text"
+                class="apted-textarea"
+                rows="4"
+                placeholder="Paste a job description, or click Scrape."
+              ></textarea>
+            </label>
+            <div class="apted-section-actions">
+              <span id="apted-connection" class="apted-connection-chip" title="API base"></span>
+            </div>
+          </section>
 
-        <div class="apted-card">
-          <div class="apted-card-row">
-            <button id="apted-inject-pdf" class="apted-btn apted-btn--sm" disabled>Inject to page</button>
-            <div class="apted-btn-group">
-              <button id="apted-fullscreen-btn" class="apted-btn apted-btn--sm" title="Fullscreen" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-              </button>
-              <button id="apted-download-pdf" class="apted-btn apted-btn--sm" title="Download PDF" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-              </button>
-              <button id="apted-save-version" class="apted-btn apted-btn--sm" title="Save version" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <hr class="apted-divider">
+
+          <section id="apted-similar-section" class="apted-drawer-section" hidden>
+            <h2 class="apted-section-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+              Matching Resumes
+            </h2>
+            <div id="apted-similar-list" class="apted-similar-list"></div>
+            <div id="apted-current-draft-card" class="apted-current-draft-card" hidden>
+              <div class="apted-current-draft-main">
+                <span class="apted-current-draft-badge">Current draft</span>
+                <span id="apted-current-draft-role" class="apted-current-draft-role"></span>
+                <span id="apted-current-draft-company" class="apted-current-draft-org"></span>
+              </div>
+              <button id="apted-current-draft-save" class="apted-btn apted-current-draft-save apted-btn--sm" type="button" title="Save version">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                   <polyline points="17 21 17 13 7 13 7 21"></polyline>
                   <polyline points="7 3 7 8 15 8"></polyline>
                 </svg>
               </button>
             </div>
-          </div>
-          <div id="apted-preview" class="apted-preview-body">
-            <div id="apted-preview-empty" class="apted-empty">No draft yet. Tailor a JD to get started.</div>
-            <div id="apted-preview-loading" class="apted-preview-state" hidden>
-              <div class="apted-spinner"></div>
-              <span>Compiling PDF…</span>
-            </div>
-            <div id="apted-preview-error" class="apted-preview-state" hidden>
-              <p id="apted-preview-error-msg" class="apted-preview-error-msg"></p>
-              <button id="apted-preview-retry" class="apted-btn apted-btn--primary apted-btn--sm">Retry</button>
-            </div>
-            <iframe id="apted-preview-embed" class="apted-preview-embed" title="Resume preview" hidden></iframe>
-          </div>
-        </div>
+            <button id="apted-tailor-new" class="apted-card apted-card--black" type="button">
+              <span class="apted-card-black-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <path d="M8 13h2l2 6 2-6h2"/>
+                </svg>
+              </span>
+              <span class="apted-card-black-text">Tailor new draft</span>
+            </button>
+          </section>
 
-        <div id="apted-similar-section" class="apted-card" hidden>
-          <h2 class="apted-card-title">Past tailored resumes</h2>
-          <div id="apted-similar-list" class="apted-similar-list"></div>
+          <div id="apted-preview-holder" hidden></div>
+          <div id="apted-preview-block" hidden>
+            <div class="apted-preview-actions">
+              <div class="apted-spacer"></div>
+              <div class="apted-btn-group">
+                <button id="apted-inject-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" disabled>Inject to page</button>
+                <button id="apted-fullscreen-btn" class="apted-btn apted-btn--inverse apted-btn--sm" title="Fullscreen" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                  </svg>
+                </button>
+                <button id="apted-download-pdf" class="apted-btn apted-btn--inverse apted-btn--sm" title="Download PDF" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </button>
+                <button id="apted-save-version" class="apted-btn apted-btn--inverse apted-btn--sm" title="Save version" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div id="apted-preview" class="apted-preview-body">
+              <div id="apted-preview-empty" class="apted-empty">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <p>Compiling PDF…</p>
+              </div>
+              <div id="apted-preview-loading" class="apted-preview-state" hidden>
+                <div class="apted-spinner"></div>
+                <span>Compiling PDF…</span>
+              </div>
+              <div id="apted-preview-error" class="apted-preview-state" hidden>
+                <p id="apted-preview-error-msg" class="apted-preview-error-msg"></p>
+                <button id="apted-preview-retry" class="apted-btn apted-btn--primary apted-btn--sm">Retry</button>
+              </div>
+              <iframe id="apted-preview-embed" class="apted-preview-embed" title="Resume preview" hidden></iframe>
+            </div>
+          </div>
+
+          <hr class="apted-divider">
+
+          <section class="apted-drawer-section">
+            <h2 class="apted-section-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Chat
+            </h2>
+            <form id="apted-chat-form" class="apted-chat-form">
+              <input
+                id="apted-chat-input"
+                class="apted-input"
+                placeholder="lead with the AI project..."
+                autocomplete="off"
+                disabled
+              />
+              <button id="apted-chat-send" type="submit" class="apted-chat-send" disabled>
+                <span class="apted-chat-send-glyph">A</span>
+              </button>
+            </form>
+            <div class="apted-status-row">
+              <div class="apted-row">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                </svg>
+                <span id="apted-status" class="apted-status" aria-live="polite"></span>
+                <span id="apted-status-spinner" class="apted-status-spinner" hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <circle cx="4" cy="12" r="2" fill="currentColor">
+                      <animate id="apted-spinner-qFRN" begin="0;apted-spinner-OcgL.end+0.25s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                    </circle>
+                    <circle cx="12" cy="12" r="2" fill="currentColor">
+                      <animate begin="apted-spinner-qFRN.begin+0.1s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                    </circle>
+                    <circle cx="20" cy="12" r="2" fill="currentColor">
+                      <animate id="apted-spinner-OcgL" begin="apted-spinner-qFRN.begin+0.2s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+                    </circle>
+                  </svg>
+                </span>
+              </div>
+              <span class="apted-version">v0.1.0</span>
+            </div>
+          </section>
         </div>
       </div>
-
-      <div class="apted-drawer-footer">
-        <form id="apted-chat-form" class="apted-chat-form">
-          <input
-            id="apted-chat-input"
-            class="apted-input apted-input--chat"
-            placeholder="lead with the AI project · cut the GPA"
-            autocomplete="off"
-            disabled
-          />
-          <button id="apted-chat-send" type="submit" class="apted-btn apted-btn--primary" disabled>Send</button>
-        </form>
-        <div id="apted-status" class="apted-status" aria-live="polite"></div>
-      </div>
-    </div>
 
     <div id="apted-save-backdrop" class="apted-dialog-backdrop" hidden></div>
     <div id="apted-save-dialog" class="apted-dialog" hidden>
@@ -844,11 +1330,16 @@ export type DrawerState = {
   company: string;
   role: string;
   chat: StoredChatTurn[];
+  similarResumes: SimilarResume[];
   pdfObjectUrl: string | null;
   pdfForDraftUpdatedAt: string | null;
   pdfLoading: boolean;
   restoring: boolean;
+  tailoring: boolean;
   open: boolean;
+  previewOpen: boolean;
+  selectedVersionId: string | null;
+  previewVersionId: string | null;
 };
 
 export function createInitialState(): DrawerState {
@@ -858,10 +1349,15 @@ export function createInitialState(): DrawerState {
     company: "",
     role: "",
     chat: [],
+    similarResumes: [],
     pdfObjectUrl: null,
     pdfForDraftUpdatedAt: null,
     pdfLoading: false,
     restoring: false,
+    previewOpen: false,
+    selectedVersionId: null,
+    previewVersionId: null,
+    tailoring: false,
     open: false,
   };
 }
@@ -946,7 +1442,7 @@ export function createInitialState(): DrawerState {
     jdCompany: $<HTMLInputElement>("apted-jd-company"),
     jdRole: $<HTMLInputElement>("apted-jd-role"),
     jdText: $<HTMLTextAreaElement>("apted-jd-text"),
-    tailor: $<HTMLButtonElement>("apted-tailor"),
+    tailorNew: $<HTMLButtonElement>("apted-tailor-new"),
     downloadPdf: $<HTMLButtonElement>("apted-download-pdf"),
     saveVersion: $<HTMLButtonElement>("apted-save-version"),
     fullscreenBtn: $<HTMLButtonElement>("apted-fullscreen-btn"),
@@ -954,6 +1450,8 @@ export function createInitialState(): DrawerState {
     fullscreenOverlay: $<HTMLElement>("apted-fullscreen-overlay"),
     fullscreenEmbed: $<HTMLIFrameElement>("apted-fullscreen-embed"),
     drawerBody: $<HTMLElement>("apted-drawer-body"),
+    previewBlock: $<HTMLElement>("apted-preview-block"),
+    previewHolder: $<HTMLElement>("apted-preview-holder"),
     preview: $<HTMLElement>("apted-preview"),
     previewEmpty: $<HTMLElement>("apted-preview-empty"),
     previewLoading: $<HTMLElement>("apted-preview-loading"),
@@ -964,10 +1462,15 @@ export function createInitialState(): DrawerState {
 
     similarSection: $<HTMLElement>("apted-similar-section"),
     similarList: $<HTMLElement>("apted-similar-list"),
+    currentDraftCard: $<HTMLElement>("apted-current-draft-card"),
+    currentDraftCompany: $<HTMLElement>("apted-current-draft-company"),
+    currentDraftRole: $<HTMLElement>("apted-current-draft-role"),
+    currentDraftSave: $<HTMLButtonElement>("apted-current-draft-save"),
     chatForm: $<HTMLFormElement>("apted-chat-form"),
     chatInput: $<HTMLInputElement>("apted-chat-input"),
     chatSend: $<HTMLButtonElement>("apted-chat-send"),
     status: $<HTMLElement>("apted-status"),
+    statusSpinner: $<HTMLElement>("apted-status-spinner"),
     saveBackdrop: $<HTMLElement>("apted-save-backdrop"),
     saveDialog: $<HTMLElement>("apted-save-dialog"),
     saveCompany: $<HTMLInputElement>("apted-save-company"),
@@ -992,6 +1495,7 @@ export function createInitialState(): DrawerState {
         role: els.jdRole.value,
         draftId: state.draft?.id ?? null,
         chat: state.chat,
+        similarResumes: state.similarResumes,
       });
     }, delayMs);
   }
@@ -1013,31 +1517,39 @@ export function createInitialState(): DrawerState {
     els.previewEmbed.hidden = kind !== "embed";
   }
 
+  let previewLoadingTimer: ReturnType<typeof setTimeout> | null = null;
+
   async function refreshPdfPreview(): Promise<void> {
     if (!state.draft) {
       showPreviewState("empty");
       return;
     }
     const d = state.draft;
-    showPreviewState("loading");
+    if (previewLoadingTimer) clearTimeout(previewLoadingTimer);
+    previewLoadingTimer = setTimeout(() => {
+      showPreviewState("loading");
+    }, 150);
     state.pdfLoading = true;
     try {
       const { objectUrl, changed } = await fetchPdfForPreview({
         draftId: d.id,
         draftUpdatedAt: d.updatedAt,
+        versionId: state.previewVersionId ?? undefined,
       });
+      state.previewVersionId = null;
+      clearTimeout(previewLoadingTimer);
+      previewLoadingTimer = null;
       if (!changed && state.pdfObjectUrl === objectUrl) {
         showPreviewState("embed");
         return;
-      }
-      if (state.pdfObjectUrl && state.pdfObjectUrl !== objectUrl) {
-        URL.revokeObjectURL(state.pdfObjectUrl);
       }
       state.pdfObjectUrl = objectUrl;
       state.pdfForDraftUpdatedAt = d.updatedAt;
       els.previewEmbed.src = withPdfToolbarSuppressed(objectUrl);
       showPreviewState("embed");
     } catch (e) {
+      clearTimeout(previewLoadingTimer);
+      previewLoadingTimer = null;
       const msg = e instanceof Error ? e.message : String(e);
       els.previewErrorMsg.textContent = msg;
       showPreviewState("error");
@@ -1046,25 +1558,116 @@ export function createInitialState(): DrawerState {
     }
   }
 
+  function relativeTime(iso?: string): string {
+    if (!iso) return "";
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return "";
+    const diff = Date.now() - then;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days <= 0) return "today";
+    if (days === 1) return "1 day ago";
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+    return `${Math.floor(days / 30)} months ago`;
+  }
+
+  function renderCurrentDraftCard(): void {
+    if (!state.draft) {
+      els.currentDraftCard.hidden = true;
+      return;
+    }
+    const company = els.jdCompany.value.trim() || "Untitled company";
+    const role = els.jdRole.value.trim() || "Untitled role";
+    els.currentDraftRole.textContent = role;
+    els.currentDraftCompany.textContent = company;
+    els.currentDraftCard.hidden = false;
+  }
+
+  function setActiveCard(): void {
+    els.similarList.querySelectorAll(".apted-similar-item--active").forEach((el) => el.classList.remove("apted-similar-item--active"));
+    els.similarList.querySelectorAll(".apted-similar-item--preview-open").forEach((el) => el.classList.remove("apted-similar-item--preview-open"));
+    els.currentDraftCard.classList.remove("apted-current-draft-card--active", "apted-current-draft-card--preview-open");
+    if (state.selectedVersionId) {
+      const card = els.similarList.querySelector(
+        `.apted-similar-item[data-version-id="${CSS.escape(state.selectedVersionId)}"]`,
+      );
+      card?.classList.add("apted-similar-item--active");
+    } else if (state.draft) {
+      els.currentDraftCard.classList.add("apted-current-draft-card--active");
+    }
+  }
+
+  // Move the single preview block under the active card (only one open at a time).
+  function placePreview(): void {
+    setActiveCard();
+    if (!state.previewOpen || !state.draft) {
+      els.previewHolder.appendChild(els.previewBlock);
+      els.previewBlock.hidden = true;
+      return;
+    }
+    let card: HTMLElement | null = null;
+    if (state.selectedVersionId) {
+      card = els.similarList.querySelector(
+        `.apted-similar-item[data-version-id="${CSS.escape(state.selectedVersionId)}"]`,
+      );
+    }
+    if (!card) {
+      // Falls back to the current draft card (e.g. a freshly tailored draft).
+      state.selectedVersionId = null;
+      card = els.currentDraftCard;
+    }
+    // Avoid reparenting (and reloading the iframe) if already in place.
+    if (els.previewBlock.parentElement !== card.parentElement || els.previewBlock.previousElementSibling !== card) {
+      card.insertAdjacentElement("afterend", els.previewBlock);
+    }
+    els.previewBlock.hidden = false;
+    card.classList.add(state.selectedVersionId ? "apted-similar-item--preview-open" : "apted-current-draft-card--preview-open");
+  }
+
   function renderSimilarResumes(similar: SimilarResume[]): void {
-    if (!similar?.length) {
+    const hasContent = !!similar?.length || !!state.draft;
+    if (!hasContent) {
       els.similarSection.hidden = true;
       return;
     }
     els.similarSection.hidden = false;
+    renderCurrentDraftCard();
+    // Park the preview block so re-rendering the list doesn't destroy it.
+    els.previewHolder.appendChild(els.previewBlock);
+    if (!similar?.length) {
+      els.similarList.innerHTML = "";
+      placePreview();
+      return;
+    }
     els.similarList.innerHTML = similar
       .slice(0, 3)
-      .map(
-        (s) => `
-        <div class="apted-similar-item" data-version-id="${escHtml(s.id ?? "")}">
-          <span class="apted-similar-score-badge">${s.score}%</span>
-          <span class="apted-similar-text">${escHtml(s.role)} <span class="apted-similar-company">@ ${escHtml(s.company)}</span></span>
-        </div>`,
-      )
+      .map((s) => {
+        const score = Math.round(s.score ?? 0);
+        const company = s.company?.trim() || "Unknown company";
+        const role = s.role?.trim() || "Unknown role";
+        const activeClass = state.selectedVersionId === s.id ? " apted-similar-item--active" : "";
+        const r = 15;
+        const circ = 2 * Math.PI * r;
+        const dash = (circ * score) / 100;
+        return `
+        <div class="apted-similar-item${activeClass}" data-version-id="${escHtml(s.id ?? "")}">
+          <div class="apted-similar-main">
+            <span class="apted-similar-role">${escHtml(role)}</span>
+            <span class="apted-similar-org">${escHtml(company)}</span>
+            <span class="apted-similar-when">${escHtml(relativeTime(s.createdAt))}</span>
+          </div>
+          <div class="apted-similar-score-ring">
+            <svg width="40" height="40" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-surface-variant)" stroke-width="3"/>
+              <circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--apted-on-surface)" stroke-width="3" stroke-linecap="round" stroke-dasharray="${dash} ${circ}" transform="rotate(-90 20 20)"/>
+            </svg>
+            <span class="apted-similar-score-ring-label">${score}</span>
+          </div>
+        </div>`;
+      })
       .join("");
-  }
-
-  function withPdfToolbarSuppressed(url: string): string {
+    placePreview();
+  }  function withPdfToolbarSuppressed(url: string): string {
     if (!url) return url;
     const sep = url.includes("#") ? "&" : "#";
     return url + sep + "toolbar=0&navpanes=0";
@@ -1107,8 +1710,7 @@ export function createInitialState(): DrawerState {
   function setDraft(draft: Draft | null): void {
     if (!draft) {
       invalidatePdf();
-    } else if (!state.draft || state.draft.id !== draft.id) {
-      invalidatePdf();
+      state.previewOpen = false;
     }
     state.draft = draft;
     void refreshPdfPreview();
@@ -1131,6 +1733,8 @@ export function createInitialState(): DrawerState {
     els.downloadPdf.disabled = !hasDraft;
     els.fullscreenBtn.disabled = !hasDraft;
     els.injectPdf.disabled = !hasDraft;
+    renderCurrentDraftCard();
+    placePreview();
     schedulePersist();
   }
 
@@ -1229,6 +1833,7 @@ export function createInitialState(): DrawerState {
 
   async function doScrape(): Promise<void> {
     setStatus("Scraping active tab…");
+    els.connection.textContent = "Scraping…";
     try {
       const scraped = (await send({ type: "scrape" })) as ScrapedJob;
       els.jdText.value = scraped.jobDescription;
@@ -1236,11 +1841,12 @@ export function createInitialState(): DrawerState {
       els.jdCompany.value = scraped.company;
       els.jdRole.value = scraped.title;
       schedulePersist(0);
-      setStatus(`Scraped from ${scraped.source}. Extracting fields…`, "ok");
+      setStatus(`Scraped from ${scraped.source}.`, "ok");
+      els.connection.textContent = "Extracting fields…";
 
       // Extract company/role/location via LLM for better accuracy.
-      // This runs in parallel with similar-resumes so the user sees
-      // scraped fields immediately and the LLM values update shortly after.
+      // Progress lives in the JD section chip; the status bar just shows
+      // the final scrape outcome.
       const jd = scraped.jobDescription;
       if (jd.trim()) {
         try {
@@ -1256,13 +1862,9 @@ export function createInitialState(): DrawerState {
           if (extracted.company) els.jdCompany.value = extracted.company;
           if (extracted.title) els.jdRole.value = extracted.title;
           schedulePersist(0);
-          setStatus(`Extracted fields.`, "ok");
         } catch {
           // Non-fatal: scraped values are already filled in.
-          setStatus(`Scraped from ${scraped.source}.`, "ok");
         }
-      } else {
-        setStatus(`Scraped from ${scraped.source}.`, "ok");
       }
 
       // Find similar resumes after a successful scrape.
@@ -1271,17 +1873,58 @@ export function createInitialState(): DrawerState {
           type: "find-similar",
           jobDescription: scraped.jobDescription,
         })) as { similar: SimilarResume[] };
-        renderSimilarResumes(similar);
+        state.selectedVersionId = null;
+        state.previewOpen = false;
+        state.similarResumes = similar;
+        renderSimilarResumes(state.similarResumes);
+        for (const s of similar.slice(0, 3)) {
+          if (s.id) void prefetchVersionPdf(s.id);
+        }
       } catch {
         // Non-fatal: similar resumes are a bonus feature.
         els.similarSection.hidden = true;
       }
+      void refreshConnection();
     } catch (e) {
       setStatus(errMsg(e), "error");
+      void refreshConnection();
     }
   }
 
+  function setTailoring(tailoring: boolean): void {
+    state.tailoring = tailoring;
+    const btn = els.tailorNew;
+    const icon = btn.querySelector(".apted-card-black-icon svg");
+    const text = btn.querySelector(".apted-card-black-text");
+    if (tailoring) {
+      btn.classList.add("apted-card--cancel");
+      btn.disabled = false;
+      if (icon) icon.innerHTML = `<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>`;
+      if (text) text.textContent = "Cancel tailoring";
+    } else {
+      btn.classList.remove("apted-card--cancel");
+      if (icon) icon.innerHTML = `<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2l2 6 2-6h2"/>`;
+      if (text) text.textContent = "Tailor new draft";
+    }
+  }
+
+  async function cancelTailor(): Promise<void> {
+    setStatus("Cancelling…");
+    try {
+      await send({ type: "cancel-tailor" });
+    } catch {
+      /* ignore */
+    }
+    setTailoring(false);
+    els.statusSpinner.hidden = true;
+    setStatus("Tailoring cancelled.", "ok");
+  }
+
   async function doTailor(): Promise<void> {
+    if (state.tailoring) {
+      await cancelTailor();
+      return;
+    }
     const jd = els.jdText.value.trim();
     if (!jd) {
       setStatus("Paste or scrape a job description first.", "error");
@@ -1289,17 +1932,29 @@ export function createInitialState(): DrawerState {
     }
     state.jobDescription = jd;
     setStatus("Tailoring… this can take 10–30s.");
-    els.tailor.disabled = true;
+    setTailoring(true);
+    els.statusSpinner.hidden = false;
     try {
       const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
+      state.selectedVersionId = null;
+      state.previewOpen = true;
+      state.similarResumes = draft.similarResumes ?? [];
       setDraft(draft);
-      renderSimilarResumes(draft.similarResumes ?? []);
+      renderSimilarResumes(state.similarResumes);
+      for (const s of state.similarResumes.slice(0, 3)) {
+        if (s.id) void prefetchVersionPdf(s.id);
+      }
       triggerPulse();
       setStatus("Done.", "ok");
     } catch (e) {
-      setStatus(errMsg(e), "error");
+      if (errMsg(e).includes("abort")) {
+        setStatus("Tailoring cancelled.", "ok");
+      } else {
+        setStatus(errMsg(e), "error");
+      }
     } finally {
-      els.tailor.disabled = false;
+      setTailoring(false);
+      els.statusSpinner.hidden = true;
     }
   }
 
@@ -1416,6 +2071,7 @@ export function createInitialState(): DrawerState {
       state.company = "";
       state.role = "";
       state.chat = [];
+      state.similarResumes = [];
       setDraft(null);
       invalidatePdf();
       els.previewEmbed.src = "";
@@ -1454,9 +2110,17 @@ export function createInitialState(): DrawerState {
               role: snap.role,
               draftId: null,
               chat: snap.chat,
+              similarResumes: snap.similarResumes,
             });
           } else {
+            state.selectedVersionId = null;
+            state.previewOpen = true;
+            state.similarResumes = snap.similarResumes ?? [];
             setDraft(draft);
+            renderSimilarResumes(state.similarResumes);
+            for (const s of state.similarResumes.slice(0, 3)) {
+              if (s.id) void prefetchVersionPdf(s.id);
+            }
             setStatus("Session restored.", "ok");
           }
         } catch (e) {
@@ -1469,6 +2133,7 @@ export function createInitialState(): DrawerState {
               role: snap.role,
               draftId: null,
               chat: snap.chat,
+              similarResumes: snap.similarResumes,
             });
           } catch {
             /* ignore */
@@ -1513,7 +2178,7 @@ export function createInitialState(): DrawerState {
     state.role = "";
     schedulePersist(0);
   });
-  els.tailor.addEventListener("click", () => void doTailor());
+  els.tailorNew.addEventListener("click", () => void doTailor());
   els.injectPdf.addEventListener("click", async () => {
     if (!state.draft) return;
     els.injectPdf.disabled = true;
@@ -1562,30 +2227,49 @@ export function createInitialState(): DrawerState {
     els.fullscreenEmbed.src = withPdfToolbarSuppressed(state.pdfObjectUrl);
     els.fullscreenOverlay.hidden = false;
   });
-  // Click a similar resume card to open its PDF in fullscreen
+  // Click the current draft card to select it; clicking again toggles the preview.
+  els.currentDraftCard.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("#apted-current-draft-save")) return;
+    if (!state.draft) return;
+    if (state.selectedVersionId === null) {
+      state.previewOpen = !state.previewOpen;
+    } else {
+      state.selectedVersionId = null;
+      state.previewOpen = true;
+    }
+    placePreview();
+    if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+  els.currentDraftSave.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showSaveDialog();
+  });
+  // Click a similar resume card to load it as the current draft and expand its preview.
   els.similarList.addEventListener("click", async (e) => {
-    const item = (e.target as HTMLElement).closest(".apted-similar-item") as HTMLElement | null;
+    const target = e.target as HTMLElement;
+    const item = target.closest(".apted-similar-item") as HTMLElement | null;
     if (!item) return;
     const versionId = item.dataset.versionId;
     if (!versionId) return;
-    setStatus("Loading PDF…");
+
+    // Click card body: select it and open preview; click again to collapse while staying selected.
+    if (state.selectedVersionId === versionId) {
+      state.previewOpen = !state.previewOpen;
+      placePreview();
+      if (state.previewOpen) els.previewBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
+    }
+    state.selectedVersionId = versionId;
+    state.previewVersionId = versionId;
+    state.previewOpen = true;
+    setActiveCard();
+    setStatus("Loading past version…");
     try {
-      const reply = (await send({
-        type: "fetch-version-pdf",
-        versionId,
-      })) as { base64: string | null; mime: string };
-      if (!reply.base64) {
-        setStatus("No PDF available for this version.", "error");
-        return;
-      }
-      const bytes = Uint8Array.from(atob(reply.base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: reply.mime });
-      const url = URL.createObjectURL(blob);
-      els.fullscreenEmbed.src = url;
-      els.fullscreenOverlay.hidden = false;
-      setStatus("");
-    } catch (e) {
-      setStatus(errMsg(e), "error");
+      const draft = (await send({ type: "get-version", versionId })) as Draft;
+      setDraft(draft);
+      setStatus("Loaded past version.", "ok");
+    } catch (err) {
+      setStatus(errMsg(err), "error");
     }
   });
   // Prevent wheel events from the preview iframe from bubbling to the main page

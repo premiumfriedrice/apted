@@ -2,6 +2,8 @@
 // an accidental close doesn't lose the user's scrape, draft, and chat log.
 // The TTL is enforced lazily on read — no background job needed.
 
+import type { SimilarResume } from "./types";
+
 export const SESSION_TTL_MS = 6 * 60 * 60 * 1000;
 const KEY = "aptedSession";
 
@@ -15,6 +17,7 @@ export type Snapshot = {
   role: string;
   draftId: string | null; // the server-side draft is canonical; we just hold its id
   chat: StoredChatTurn[];
+  similarResumes?: SimilarResume[];
 };
 
 export async function readSession(): Promise<Snapshot | null> {

@@ -30,13 +30,14 @@ export async function POST(req: Request) {
           id: row.id as string,
           company: row.company as string,
           role: row.role as string,
+          createdAt: row.created_at as string,
           tailored_content: content,
         };
       } catch {
         return null;
       }
     })
-    .filter((v: unknown): v is { id: string; company: string; role: string; tailored_content: Resume } => v !== null);
+    .filter((v: unknown): v is { id: string; company: string; role: string; createdAt: string; tailored_content: Resume } => v !== null);
 
   // Rank by relevance to the JD, top 5.
   const ranker = getRanker();
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
       company: s.company,
       role: s.role,
       score: s.score,
+      createdAt: s.createdAt,
     }));
 
   return NextResponse.json({ similar });

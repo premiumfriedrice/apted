@@ -74,6 +74,7 @@ export type SimilarResume = {
   company: string;
   role: string;
   score: number; // 0–100
+  createdAt?: string;
 };
 
 export type Outcome = "draft" | "applied" | "interview" | "offer" | "rejected";

@@ -182,7 +182,7 @@ describe("getDraftPdfBlob", () => {
     expect(await b.blob.text()).toBe("first");
   });
 
-  it("invalidates cache and re-fetches when updatedAt changes", async () => {
+  it("caches separate entries when updatedAt changes", async () => {
     mockSendMessage(okPdfResult(fakeBase64("old")));
     const { created, revoked } = spyObjectUrls();
 
@@ -199,9 +199,8 @@ describe("getDraftPdfBlob", () => {
 
     expect(await blob.text()).toBe("new");
     expect(etag).toBe('"v2"');
-    // Old object URL should have been revoked.
-    expect(revoked).toHaveLength(1);
-    // New object URL created.
+    // Multi-entry cache keeps the old entry until capacity is reached.
+    expect(revoked).toHaveLength(0);
     expect(created).toHaveLength(2);
   });
 
@@ -364,7 +363,7 @@ describe("fetchPdfForPreview", () => {
     expect(result.objectUrl).toMatch(/^blob:/);
   });
 
-  it("returns changed=true and invalidates cache when server returns new bytes", async () => {
+  it("returns changed=true and adds a new entry when server returns new bytes", async () => {
     const { created, revoked } = spyObjectUrls();
 
     // First fetch.
@@ -380,8 +379,9 @@ describe("fetchPdfForPreview", () => {
     });
 
     expect(result.changed).toBe(true);
-    expect(revoked).toHaveLength(1); // old blob URL revoked
-    expect(created).toHaveLength(2); // new blob URL created
+    // Multi-entry cache keeps the old entry until capacity is reached.
+    expect(revoked).toHaveLength(0);
+    expect(created).toHaveLength(2);
   });
 
   it("invalidates cache and fetches unconditionally when draft id changes", async () => {

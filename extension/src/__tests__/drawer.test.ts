@@ -48,7 +48,6 @@ vi.stubGlobal("chrome", {
 import {
   DRAWSER_WIDTH,
   HANDLE_SIZE,
-  ACCENT_COLOR,
   getPulseKeyframes,
   getSlideKeyframes,
   createDrawerStyles,
@@ -82,9 +81,7 @@ describe("drawer style constants", () => {
     expect(handleOpenMatch![0]).not.toContain("background:");
   });
 
-  it("has correct accent color", () => {
-    expect(ACCENT_COLOR).toBe("#2563eb");
-  });
+
 });
 
 // ── Pulse animation ─────────────────────────────────────────────────────────
@@ -121,9 +118,9 @@ describe("getSlideKeyframes", () => {
 // ── Drawer styles ───────────────────────────────────────────────────────────
 
 describe("createDrawerStyles", () => {
-  it("includes the accent color", () => {
+  it("includes primary color token", () => {
     const css = createDrawerStyles();
-    expect(css).toContain("#2563eb");
+    expect(css).toContain("--apted-primary");
   });
 
   it("includes handle styles", () => {
@@ -177,10 +174,10 @@ describe("createHandleSVG", () => {
     expect(svg.toLowerCase()).toContain(">a</span>");
   });
 
-  it("uses near-black (#111) for the glyph color", () => {
+  it("uses primary token for the glyph color", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-handle-glyph");
-    expect(css).toContain("color: #111");
+    expect(css).toContain("color: var(--apted-primary)");
   });
 
   it("has text-anchor end to align stem to right edge", () => {
@@ -194,25 +191,24 @@ describe("createHandleSVG", () => {
     expect(css).toContain("-apple-system");
   });
 
-  it("uses bold font-weight (700) for the glyph", () => {
+  it("uses normal font-weight (400) for the glyph", () => {
     const css = createDrawerStyles();
-    expect(css).toContain("font-weight: 700");
+    expect(css).toContain("font-weight: 400");
   });
 
   it("open state does not transform glyph — handle stays separate", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-handle-glyph");
     expect(css).toContain("font-size: 56px");
-    expect(css).toContain("font-weight: 700");
-    expect(css).toContain("color: #111");
+    expect(css).toContain("font-weight: 400");
+    expect(css).toContain("color: var(--apted-primary)");
   });
 
   it("open state turns glyph solid black with geometric precision", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-handle--open .apted-handle-glyph");
-    expect(css).toContain("color: #000");
+    expect(css).toContain("color: var(--apted-primary)");
     expect(css).toContain("font-weight: 500");
-    expect(css).toContain("opacity: 1");
     expect(css).toContain("text-rendering: geometricPrecision");
   });
 });
@@ -294,30 +290,29 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("apted-fullscreen-btn");
   });
 
-  it("similar resumes section uses 'Past tailored resumes' as title", () => {
+  it("similar resumes section uses 'Matching Resumes' as title", () => {
     const html = createDrawerHTML();
-    expect(html).toContain("Past tailored resumes");
+    expect(html).toContain("Matching Resumes");
   });
 
   it("similar resume cards have clickable styling", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-similar-item");
     expect(css).toContain("cursor: pointer");
-    expect(css).toContain("border-color: #d1d5db");
+    expect(css).toContain("border-color: var(--apted-on-surface-variant)");
   });
 
-  it("similar resume score badge uses accent color", () => {
+  it("similar resume cards show a match score ring", () => {
     const css = createDrawerStyles();
-    expect(css).toContain(".apted-similar-score-badge");
-    expect(css).toContain("background: #2563eb");
-    expect(css).toContain("color: #fff");
+    expect(css).toContain(".apted-similar-score-ring");
+    expect(css).toContain(".apted-similar-score-ring-label");
   });
 
   it("preview body is natively resizable like the textarea", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-preview-body");
     expect(css).toContain("resize: vertical");
-    expect(css).toContain("min-height: 280px");
+    expect(css).toContain("min-height: 440px");
   });
 
   it("preview iframe fills the preview body", () => {
