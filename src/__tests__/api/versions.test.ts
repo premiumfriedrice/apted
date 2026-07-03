@@ -335,12 +335,12 @@ describe("GET /api/versions — API contract for JSON toggle", () => {
 describe("GET /api/versions?outcome=X — outcome filter", () => {
   it("passes outcome to the SQL query and returns filtered results", async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [makeVersionRow({ applications: [{ ...fakeApplication, outcome: "interview" }] })],
+      rows: [makeVersionRow({ applications: [{ ...fakeApplication, outcome: "interviewing", interviewRound: 1 }] })],
     });
 
     const { GET } = await loadVersionsRoute();
     const req = new Request(
-      "http://localhost/api/versions?outcome=interview",
+      "http://localhost/api/versions?outcome=interviewing",
     );
     const res = await GET(req);
     const body = await res.json();
@@ -348,10 +348,10 @@ describe("GET /api/versions?outcome=X — outcome filter", () => {
     // SQL filters via HAVING on application outcomes.
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain("HAVING bool_or(a.outcome = $1)");
-    expect(params[0]).toBe("interview");
+    expect(params[0]).toBe("interviewing");
 
     expect(body).toHaveLength(1);
-    expect(body[0].applications[0].outcome).toBe("interview");
+    expect(body[0].applications[0].outcome).toBe("interviewing");
   });
 
   it("returns all outcomes when no filter is provided", async () => {
@@ -393,7 +393,7 @@ describe("GET /api/versions?outcome=X — outcome filter", () => {
     mockQuery.mockResolvedValue({ rows: [makeVersionRow()] });
 
     const { GET } = await loadVersionsRoute();
-    const validOutcomes = ["draft", "applied", "interview", "offer", "rejected"];
+    const validOutcomes = ["draft", "applied", "ghosted", "interviewing", "rejected", "offer", "declined"];
 
     for (const oc of validOutcomes) {
       mockQuery.mockClear();

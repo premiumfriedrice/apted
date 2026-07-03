@@ -5,220 +5,241 @@ import type { Application } from "@/lib/applications";
 
 type Outcome = Application["outcome"];
 
-const OUTCOMES: Outcome[] = ["draft", "applied", "interview", "offer", "rejected"];
-
-const OUTCOME_FILL: Record<Outcome, string> = {
-  draft: "#e5e7eb",
-  applied: "#bfdbfe",
-  interview: "#fde68a",
-  offer: "#bbf7d0",
-  rejected: "#fecaca",
+const STAGE_COLORS: Record<string, { fill: string; stroke: string; text: string }> = {
+  draft: { fill: "#f3f4f6", stroke: "#d1d5db", text: "#374151" },
+  applied: { fill: "#dbeafe", stroke: "#93c5fd", text: "#1e3a8a" },
+  ghosted: { fill: "#e2e8f0", stroke: "#94a3b8", text: "#475569" },
+  interviewing: { fill: "#fef3c7", stroke: "#fbbf24", text: "#78350f" },
+  rejected: { fill: "#fee2e2", stroke: "#f87171", text: "#7f1d1d" },
+  offer: { fill: "#dcfce7", stroke: "#4ade80", text: "#14532d" },
+  declined: { fill: "#f3e8ff", stroke: "#c084fc", text: "#581c87" },
 };
 
-const OUTCOME_STROKE: Record<Outcome, string> = {
-  draft: "#9ca3af",
-  applied: "#60a5fa",
-  interview: "#fbbf24",
-  offer: "#4ade80",
-  rejected: "#f87171",
-};
-
-const OUTCOME_TEXT: Record<Outcome, string> = {
-  draft: "#374151",
-  applied: "#1e3a8a",
-  interview: "#78350f",
-  offer: "#14532d",
-  rejected: "#7f1d1d",
-};
-
-const APP_PASTELS = [
-  "#f3f4f6",
-  "#f9fafb",
-  "#eef2ff",
-  "#f0f9ff",
-  "#f0fdf4",
-  "#fffbeb",
-  "#fff1f2",
-];
-
-const WIDTH = 520;
-const NODE_WIDTH = 92;
-const UNIT = 16;
-const GAP = 10;
+const UNIT = 18;
+const GAP = 8;
 const PADDING = 20;
-const COLUMN_GAP = (WIDTH - PADDING * 2 - NODE_WIDTH * 3) / 2;
+const NODE_WIDTH = 84;
+const MIN_WIDTH = 360;
 
-interface Node {
+interface Stage {
   id: string;
   label: string;
   sublabel?: string;
-  x: number;
-  y: number;
+  col: number;
+  value: number;
   top: number;
   bottom: number;
-  value: number;
-  fill?: string;
-  stroke?: string;
-  textColor?: string;
-  leftAccent?: string;
+  x: number;
+  y: number;
+  fill: string;
+  stroke: string;
+  text: string;
+  appSlots: { appIndex: number; y: number }[];
 }
 
 interface Link {
-  sourceTop: number;
-  sourceBottom: number;
-  targetTop: number;
-  targetBottom: number;
+  sourceStage: string;
+  targetStage: string;
+  appIndex: number;
   x0: number;
   x1: number;
+  y0: number;
+  y1: number;
   fill: string;
-  opacity?: number;
 }
 
-function linkPath(l: Link) {
-  const y0t = l.sourceTop;
-  const y0b = l.sourceBottom;
-  const y1t = l.targetTop;
-  const y1b = l.targetBottom;
-  const x0 = l.x0;
-  const x1 = l.x1;
-  const c0 = x0 + (x1 - x0) * 0.55;
-  const c1 = x0 + (x1 - x0) * 0.45;
+function stageColor(stageId: string) {
+  if (stageId === "draft") return STAGE_COLORS.draft;
+  if (stageId === "applied") return STAGE_COLORS.applied;
+  if (stageId === "ghosted") return STAGE_COLORS.ghosted;
+  if (stageId.startsWith("interview-")) return STAGE_COLORS.interviewing;
+  if (stageId.startsWith("rejected-")) return STAGE_COLORS.rejected;
+  if (stageId === "offer") return STAGE_COLORS.offer;
+  if (stageId === "declined") return STAGE_COLORS.declined;
+  return STAGE_COLORS.draft;
+}
 
+function stageIdAndCol(app: Application) {
+  const interviewR = app.interviewRound ?? 0;
+  const rejectedR = app.rejectedAfterRound ?? 0;
+
+  switch (app.outcome) {
+    case "draft":
+      return [{ id: "draft", col: 0, label: "Draft" }];
+    case "applied":
+      return [
+        { id: "draft", col: 0, label: "Draft" },
+        { id: "applied", col: 1, label: "Applied" },
+      ];
+    case "ghosted":
+      return [
+        { id: "draft", col: 0, label: "Draft" },
+        { id: "applied", col: 1, label: "Applied" },
+        { id: "ghosted", col: 2, label: "Ghosted" },
+      ];
+    case "rejected":
+      if (rejectedR === 0) {
+        return [
+          { id: "draft", col: 0, label: "Draft" },
+          { id: "applied", col: 1, label: "Applied" },
+          { id: "rejected-0", col: 2, label: "Rejected", sublabel: "after applied" },
+        ];
+      }
+      return [
+        { id: "draft", col: 0, label: "Draft" },
+        { id: "applied", col: 1, label: "Applied" },
+        ...Array.from({ length: rejectedR }, (_, i) => ({
+          id: `interview-${i + 1}`,
+          col: i + 2,
+          label: `Round ${i + 1}`,
+        })),
+        { id: `rejected-${rejectedR}`, col: rejectedR + 2, label: "Rejected", sublabel: `after round ${rejectedR}` },
+      ];
+    case "interviewing":
+      return [
+        { id: "draft", col: 0, label: "Draft" },
+        { id: "applied", col: 1, label: "Applied" },
+        ...Array.from({ length: interviewR }, (_, i) => ({
+          id: `interview-${i + 1}`,
+          col: i + 2,
+          label: `Round ${i + 1}`,
+        })),
+      ];
+    case "offer":
+    case "declined": {
+      const terminal = app.outcome;
+      const rounds = interviewR;
+      const base = [
+        { id: "draft", col: 0, label: "Draft" },
+        { id: "applied", col: 1, label: "Applied" },
+      ];
+      if (rounds > 0) {
+        return [
+          ...base,
+          ...Array.from({ length: rounds }, (_, i) => ({
+            id: `interview-${i + 1}`,
+            col: i + 2,
+            label: `Round ${i + 1}`,
+          })),
+          { id: terminal, col: rounds + 2, label: terminal.charAt(0).toUpperCase() + terminal.slice(1) },
+        ];
+      }
+      return [...base, { id: terminal, col: 2, label: terminal.charAt(0).toUpperCase() + terminal.slice(1) }];
+    }
+    default:
+      return [{ id: "draft", col: 0, label: "Draft" }];
+  }
+}
+
+function linkPath(x0: number, y0: number, x1: number, y1: number, thickness: number) {
+  const c0 = x0 + (x1 - x0) * 0.5;
+  const c1 = x0 + (x1 - x0) * 0.5;
+  const ht = thickness / 2;
   return `
-    M ${x0} ${y0t}
-    C ${c0} ${y0t}, ${c1} ${y1t}, ${x1} ${y1t}
-    L ${x1} ${y1b}
-    C ${c1} ${y1b}, ${c0} ${y0b}, ${x0} ${y0b}
+    M ${x0} ${y0 - ht}
+    C ${c0} ${y0 - ht}, ${c1} ${y1 - ht}, ${x1} ${y1 - ht}
+    L ${x1} ${y1 + ht}
+    C ${c1} ${y1 + ht}, ${c0} ${y0 + ht}, ${x0} ${y0 + ht}
     Z
   `;
 }
 
 export function SankeyDiagram({ applications }: { applications: Application[] }) {
-  const { nodes, links, height } = useMemo(() => {
-    const total = applications.length || 1;
+  const { stages, links, width, height } = useMemo(() => {
+    // 1. Build per-application paths.
+    const paths = applications.map((app, appIndex) => ({
+      appIndex,
+      stages: stageIdAndCol(app),
+    }));
 
-    // Outcome counts in canonical order.
-    const outcomeCounts = OUTCOMES.map((outcome) => ({
-      outcome,
-      count: applications.filter((a) => a.outcome === outcome).length,
-    })).filter((o) => o.count > 0);
-
-    // Column x positions (left edge of each node).
-    const x0 = PADDING;
-    const x1 = PADDING + NODE_WIDTH + COLUMN_GAP;
-    const x2 = PADDING + NODE_WIDTH * 2 + COLUMN_GAP * 2;
-
-    // Compute column heights to vertically center them.
-    const versionHeight = total * UNIT;
-    const appsHeight = applications.length * UNIT + (applications.length - 1) * GAP;
-    const outcomesHeight =
-      outcomeCounts.reduce((sum, o) => sum + o.count * UNIT, 0) +
-      (outcomeCounts.length - 1) * GAP;
-
-    const maxColHeight = Math.max(versionHeight, appsHeight, outcomesHeight, 64);
-    const height = maxColHeight + PADDING * 2;
-
-    const versionTop = (height - versionHeight) / 2;
-    const appsTop = (height - appsHeight) / 2;
-    const outcomesTop = (height - outcomesHeight) / 2;
-
-    const nodes: Node[] = [];
-    const links: Link[] = [];
-
-    // Level 0: Resume version node.
-    nodes.push({
-      id: "version",
-      label: `${total}`,
-      sublabel: total === 1 ? "Application" : "Applications",
-      x: x0,
-      y: versionTop + versionHeight / 2,
-      top: versionTop,
-      bottom: versionTop + versionHeight,
-      value: total,
-      fill: "#f3f4f6",
-      stroke: "#d1d5db",
-      textColor: "#111827",
-      leftAccent: "#db2777",
-    });
-
-    // Level 1: Application nodes.
-    const appNodes: Node[] = [];
-    applications.forEach((app, i) => {
-      const top = appsTop + i * (UNIT + GAP);
-      const node: Node = {
-        id: `app-${app.id}`,
-        label: app.company,
-        sublabel: app.role,
-        x: x1,
-        y: top + UNIT / 2,
-        top,
-        bottom: top + UNIT,
-        value: 1,
-        fill: APP_PASTELS[i % APP_PASTELS.length],
-        stroke: "#d1d5db",
-        textColor: "#111827",
-      };
-      appNodes.push(node);
-      nodes.push(node);
-
-      links.push({
-        sourceTop: versionTop + i * UNIT,
-        sourceBottom: versionTop + (i + 1) * UNIT,
-        targetTop: top,
-        targetBottom: top + UNIT,
-        x0: x0 + NODE_WIDTH,
-        x1: x1,
-        fill: "#9ca3af",
-        opacity: 0.35,
+    // 2. Aggregate stage values and collect app slots.
+    const stageMap = new Map<string, Stage>();
+    paths.forEach(({ appIndex, stages }) => {
+      stages.forEach((s) => {
+        if (!stageMap.has(s.id)) {
+          stageMap.set(s.id, {
+            id: s.id,
+            label: s.label,
+            sublabel: (s as { sublabel?: string }).sublabel,
+            col: s.col,
+            value: 0,
+            top: 0,
+            bottom: 0,
+            x: 0,
+            y: 0,
+            ...stageColor(s.id),
+            appSlots: [],
+          });
+        }
+        stageMap.get(s.id)!.value += 1;
+        stageMap.get(s.id)!.appSlots.push({ appIndex, y: 0 });
       });
     });
 
-    // Level 2: Outcome nodes.
-    let outcomeOffset = 0;
-    outcomeCounts.forEach(({ outcome, count }) => {
-      const top = outcomesTop + outcomeOffset * (UNIT + GAP);
-      const nodeHeight = count * UNIT + (count - 1) * GAP;
-      const node: Node = {
-        id: `outcome-${outcome}`,
-        label: `${count}`,
-        sublabel: outcome.charAt(0).toUpperCase() + outcome.slice(1),
-        x: x2,
-        y: top + nodeHeight / 2,
-        top,
-        bottom: top + nodeHeight,
-        value: count,
-        fill: OUTCOME_FILL[outcome],
-        stroke: OUTCOME_STROKE[outcome],
-        textColor: OUTCOME_TEXT[outcome],
-      };
-      nodes.push(node);
+    // 3. Determine max column and overall width/height.
+    const maxCol = Math.max(0, ...Array.from(stageMap.values()).map((s) => s.col));
+    const colCount = maxCol + 1;
+    const width = Math.max(MIN_WIDTH, PADDING * 2 + NODE_WIDTH * colCount + 40 * maxCol);
+    const colGap = (width - PADDING * 2 - NODE_WIDTH * colCount) / Math.max(1, maxCol);
 
-      // Links from matching apps to this outcome.
-      let appIndex = 0;
-      applications.forEach((app, i) => {
-        if (app.outcome !== outcome) return;
-        const appTop = appNodes[i].top;
-        const appBottom = appNodes[i].bottom;
-        const targetTop = top + appIndex * (UNIT + GAP);
-        const targetBottom = targetTop + UNIT;
-        appIndex += 1;
+    // 4. Position stages within columns and assign vertical slots.
+    const stagesByCol: Stage[][] = Array.from({ length: colCount }, () => []);
+    stageMap.forEach((stage) => stagesByCol[stage.col].push(stage));
 
-        links.push({
-          sourceTop: appTop,
-          sourceBottom: appBottom,
-          targetTop,
-          targetBottom,
-          x0: x1 + NODE_WIDTH,
-          x1: x2,
-          fill: OUTCOME_STROKE[outcome],
-          opacity: 0.5,
+    stagesByCol.forEach((colStages) => {
+      const colHeight = colStages.reduce((sum, s) => sum + s.value * UNIT + (s.value - 1) * GAP, 0) +
+        (colStages.length - 1) * GAP * 2;
+      let y = (Math.max(...Array.from(stageMap.values()).map((s) => s.value * UNIT + (s.value - 1) * GAP + GAP * 2), 64) - colHeight) / 2;
+      if (y < PADDING) y = PADDING;
+
+      colStages.forEach((stage) => {
+        const nodeHeight = stage.value * UNIT + (stage.value - 1) * GAP;
+        stage.x = PADDING + stage.col * (NODE_WIDTH + colGap);
+        stage.top = y;
+        stage.bottom = y + nodeHeight;
+        stage.y = y + nodeHeight / 2;
+
+        // Assign y positions to each app slot within this stage.
+        stage.appSlots.forEach((slot, i) => {
+          slot.y = stage.top + i * (UNIT + GAP) + UNIT / 2;
         });
-      });
 
-      outcomeOffset += count;
+        y += nodeHeight + GAP * 2;
+      });
     });
 
-    return { nodes, links, height };
+    const height = Math.max(
+      120,
+      ...Array.from(stageMap.values()).map((s) => s.bottom),
+    ) + PADDING;
+
+    // 5. Build links using slot positions.
+    const links: Link[] = [];
+    paths.forEach(({ appIndex, stages }) => {
+      for (let i = 0; i < stages.length - 1; i++) {
+        const source = stageMap.get(stages[i].id)!;
+        const target = stageMap.get(stages[i + 1].id)!;
+        const sSlot = source.appSlots.find((slot) => slot.appIndex === appIndex)!;
+        const tSlot = target.appSlots.find((slot) => slot.appIndex === appIndex)!;
+        links.push({
+          sourceStage: source.id,
+          targetStage: target.id,
+          appIndex,
+          x0: source.x + NODE_WIDTH,
+          x1: target.x,
+          y0: sSlot.y,
+          y1: tSlot.y,
+          fill: target.fill,
+        });
+      }
+    });
+
+    return {
+      stages: Array.from(stageMap.values()).sort((a, b) => a.col - b.col || a.top - b.top),
+      links,
+      width,
+      height,
+    };
   }, [applications]);
 
   if (applications.length === 0) return null;
@@ -226,67 +247,66 @@ export function SankeyDiagram({ applications }: { applications: Application[] })
   return (
     <div className="w-full overflow-x-auto rounded-xl border border-outline-variant bg-surface-container-lowest p-3">
       <svg
-        viewBox={`0 0 ${WIDTH} ${height}`}
+        viewBox={`0 0 ${width} ${height}`}
         className="mx-auto block"
-        style={{ minWidth: `${WIDTH}px`, height: `${height}px` }}
-        aria-label="Application outcome flow"
+        style={{ minWidth: `${width}px`, height: `${height}px` }}
+        aria-label="Application funnel"
       >
-        {links.map((l, i) => (
+        {links.map((link, i) => (
           <path
             key={`link-${i}`}
-            d={linkPath(l)}
-            fill={l.fill}
-            opacity={l.opacity ?? 1}
+            d={linkPath(link.x0, link.y0, link.x1, link.y1, UNIT)}
+            fill={link.fill}
+            opacity={0.55}
             stroke="none"
           />
         ))}
 
-        {nodes.map((node) => (
-          <g key={node.id}>
-            {node.leftAccent && (
-              <rect
-                x={node.x}
-                y={node.top}
-                width={4}
-                height={node.bottom - node.top}
-                rx={2}
-                fill={node.leftAccent}
-              />
-            )}
+        {stages.map((stage) => (
+          <g key={stage.id}>
             <rect
-              x={node.x}
-              y={node.top}
+              x={stage.x}
+              y={stage.top}
               width={NODE_WIDTH}
-              height={node.bottom - node.top}
+              height={stage.bottom - stage.top}
               rx={5}
-              fill={node.fill}
-              stroke={node.stroke}
+              fill={stage.fill}
+              stroke={stage.stroke}
               strokeWidth={1}
             />
             <text
-              x={node.x + NODE_WIDTH / 2}
-              y={node.y - 3}
+              x={stage.x + NODE_WIDTH / 2}
+              y={stage.y - (stage.sublabel ? 5 : 0)}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill={node.textColor}
-              fontSize={11}
+              fill={stage.text}
+              fontSize={10}
               fontWeight={600}
             >
-              {node.label}
+              {stage.label}
             </text>
-            {node.sublabel && (
+            <text
+              x={stage.x + NODE_WIDTH / 2}
+              y={stage.y + 9}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill={stage.text}
+              fontSize={8}
+              opacity={0.85}
+            >
+              {stage.value}
+            </text>
+            {stage.sublabel && (
               <text
-                x={node.x + NODE_WIDTH / 2}
-                y={node.y + 9}
+                x={stage.x + NODE_WIDTH / 2}
+                y={stage.y + 16}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={node.textColor}
-                fontSize={8}
-                fontWeight={500}
+                fill={stage.text}
+                fontSize={7}
+                opacity={0.7}
               >
-                {node.sublabel.length > 16
-                  ? `${node.sublabel.slice(0, 16)}…`
-                  : node.sublabel}
+                {stage.sublabel}
               </text>
             )}
           </g>

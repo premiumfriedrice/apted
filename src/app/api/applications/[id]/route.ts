@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
-import { isOutcome } from "@/lib/applications";
+import { isOutcome, parseInterviewRound, parseRejectedAfterRound } from "@/lib/applications";
 
 export const runtime = "nodejs";
 
@@ -14,6 +14,8 @@ function rowToJson(row: Record<string, unknown>) {
     role: row.role,
     jobDescription: row.job_description,
     outcome: row.outcome,
+    interviewRound: row.interview_round,
+    rejectedAfterRound: row.rejected_after_round,
     createdAt: row.created_at,
   };
 }
@@ -21,7 +23,7 @@ function rowToJson(row: Record<string, unknown>) {
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const r = await pool.query(
-    "SELECT id, version_id, company, role, job_description, outcome, created_at FROM applications WHERE id = $1",
+    "SELECT id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, created_at FROM applications WHERE id = $1",
     [id],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -52,13 +54,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
     vals.push(body.outcome);
   }
 
+  const interviewRound = parseInterviewRound(body.interviewRound);
+  const rejectedAfterRound = parseRejectedAfterRound(body.rejectedAfterRound);
+
+  if (body.interviewRound !== undefined) {
+    fields.push(`interview_round = $${i++}`);
+    vals.push(interviewRound);
+  }
+  if (body.rejectedAfterRound !== undefined) {
+    fields.push(`rejected_after_round = $${i++}`);
+    vals.push(rejectedAfterRound);
+  }
+
   if (fields.length === 0) {
     return NextResponse.json({ error: "no fields" }, { status: 400 });
   }
 
   vals.push(id);
   const r = await pool.query(
-    `UPDATE applications SET ${fields.join(", ")} WHERE id = $${i} RETURNING id, version_id, company, role, job_description, outcome, created_at`,
+    `UPDATE applications SET ${fields.join(", ")} WHERE id = $${i} RETURNING id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, created_at`,
     vals,
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });

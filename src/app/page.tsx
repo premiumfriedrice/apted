@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { SankeyDiagram } from "@/components/SankeyDiagram";
 
-type Outcome = "draft" | "applied" | "interview" | "offer" | "rejected";
+type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
 type Application = {
   id: string;
@@ -13,6 +13,8 @@ type Application = {
   role: string;
   jobDescription: string;
   outcome: Outcome;
+  interviewRound: number | null;
+  rejectedAfterRound: number | null;
   createdAt: string;
 };
 
@@ -24,14 +26,16 @@ type Version = {
   applications: Application[];
 };
 
-const OUTCOMES = ["all", "draft", "applied", "interview", "offer", "rejected"] as const;
+const OUTCOMES = ["all", "draft", "applied", "ghosted", "interviewing", "rejected", "offer", "declined"] as const;
 
 const OUTCOME_COLORS: Record<string, string> = {
   draft: "bg-neutral-200 text-neutral-700",
   applied: "bg-blue-100 text-blue-700",
-  interview: "bg-amber-100 text-amber-700",
-  offer: "bg-green-100 text-green-700",
+  ghosted: "bg-slate-200 text-slate-700",
+  interviewing: "bg-amber-100 text-amber-700",
   rejected: "bg-red-100 text-red-700",
+  offer: "bg-green-100 text-green-700",
+  declined: "bg-purple-100 text-purple-700",
 };
 
 const pdfToolbar = "#toolbar=0&navpanes=0&scrollbar=0";
@@ -42,6 +46,16 @@ function formatDate(iso: string) {
 
 function primaryApplication(version: Version): Application | null {
   return version.applications[0] ?? null;
+}
+
+function outcomeLabel(app: Application): string {
+  if (app.outcome === "interviewing" && app.interviewRound) {
+    return `Round ${app.interviewRound}`;
+  }
+  if (app.outcome === "rejected" && app.rejectedAfterRound !== null) {
+    return app.rejectedAfterRound === 0 ? "Rejected" : `Rejected R${app.rejectedAfterRound}`;
+  }
+  return app.outcome;
 }
 
 export default function LibraryPage() {
@@ -212,6 +226,32 @@ export default function LibraryPage() {
   );
 }
 
+function emptyForm() {
+  return {
+    company: "",
+    role: "",
+    jobDescription: "",
+    outcome: "draft" as Outcome,
+    interviewRound: "",
+    rejectedAfterRound: "",
+  };
+}
+
+function stagePayload(form: {
+  outcome: Outcome;
+  interviewRound: string;
+  rejectedAfterRound: string;
+}) {
+  const payload: Record<string, unknown> = { outcome: form.outcome };
+  if (form.outcome === "interviewing") {
+    payload.interviewRound = form.interviewRound ? Number(form.interviewRound) : 1;
+  }
+  if (form.outcome === "rejected") {
+    payload.rejectedAfterRound = form.rejectedAfterRound !== "" ? Number(form.rejectedAfterRound) : 0;
+  }
+  return payload;
+}
+
 function VersionDetailModal({
   version,
   onClose,
@@ -224,18 +264,25 @@ function VersionDetailModal({
   const [applications, setApplications] = useState<Application[]>(version.applications);
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ company: "", role: "", jobDescription: "", outcome: "draft" as Outcome });
+  const [form, setForm] = useState(emptyForm());
 
   const primary = primaryApplication(version);
 
-  const updateOutcome = useCallback(async (appId: string, outcome: Outcome) => {
+  const updateStage = useCallback(async (
+    appId: string,
+    updates: { outcome: Outcome; interviewRound?: number | null; rejectedAfterRound?: number | null },
+  ) => {
+    const body: Record<string, unknown> = { outcome: updates.outcome };
+    if (updates.interviewRound !== undefined) body.interviewRound = updates.interviewRound;
+    if (updates.rejectedAfterRound !== undefined) body.rejectedAfterRound = updates.rejectedAfterRound;
+
     await fetch(`/api/applications/${appId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ outcome }),
+      body: JSON.stringify(body),
     });
     setApplications((prev) =>
-      prev.map((a) => (a.id === appId ? { ...a, outcome } : a))
+      prev.map((a) => (a.id === appId ? { ...a, ...updates } : a))
     );
     onUpdate();
   }, [onUpdate]);
@@ -246,12 +293,17 @@ function VersionDetailModal({
     const res = await fetch(`/api/versions/${version.id}/applications`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        company: form.company,
+        role: form.role,
+        jobDescription: form.jobDescription,
+        ...stagePayload(form),
+      }),
     });
     if (res.ok) {
       const app = (await res.json()) as Application;
       setApplications((prev) => [app, ...prev]);
-      setForm({ company: "", role: "", jobDescription: "", outcome: "draft" });
+      setForm(emptyForm());
       setShowAdd(false);
       onUpdate();
     }
@@ -364,7 +416,7 @@ function VersionDetailModal({
                   rows={3}
                   className="w-full resize-none rounded-lg border border-outline-variant bg-surface-container-lowest px-2.5 py-1.5 text-xs outline-none focus:border-primary"
                 />
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={form.outcome}
                     onChange={(e) => setForm((f) => ({ ...f, outcome: e.target.value as Outcome }))}
@@ -374,10 +426,30 @@ function VersionDetailModal({
                       <option key={o} value={o}>{o}</option>
                     ))}
                   </select>
+                  {form.outcome === "interviewing" && (
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="Round"
+                      value={form.interviewRound}
+                      onChange={(e) => setForm((f) => ({ ...f, interviewRound: e.target.value }))}
+                      className="w-20 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-xs outline-none focus:border-primary"
+                    />
+                  )}
+                  {form.outcome === "rejected" && (
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="After round"
+                      value={form.rejectedAfterRound}
+                      onChange={(e) => setForm((f) => ({ ...f, rejectedAfterRound: e.target.value }))}
+                      className="w-28 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-xs outline-none focus:border-primary"
+                    />
+                  )}
                   <button
                     type="submit"
                     disabled={adding}
-                    className="rounded-lg bg-on-surface px-3 py-1.5 text-xs font-medium text-surface-container-lowest disabled:opacity-50"
+                    className="ml-auto rounded-lg bg-on-surface px-3 py-1.5 text-xs font-medium text-surface-container-lowest disabled:opacity-50"
                   >
                     {adding ? "Saving..." : "Save application"}
                   </button>
@@ -399,15 +471,53 @@ function VersionDetailModal({
                     <div className="truncate text-[11px] text-on-surface-variant">{app.role}</div>
                     <div className="mt-1 text-[10px] text-on-surface-variant">{formatDate(app.createdAt)}</div>
                   </div>
-                  <select
-                    value={app.outcome}
-                    onChange={(e) => updateOutcome(app.id, e.target.value as Outcome)}
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider outline-none ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}
-                  >
-                    {OUTCOMES.slice(1).map((o) => (
-                      <option key={o} value={o}>{o}</option>
-                    ))}
-                  </select>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <select
+                      value={app.outcome}
+                      onChange={(e) => {
+                        const outcome = e.target.value as Outcome;
+                        const updates: Parameters<typeof updateStage>[1] = { outcome };
+                        if (outcome === "interviewing") updates.interviewRound = app.interviewRound ?? 1;
+                        if (outcome === "rejected") updates.rejectedAfterRound = app.rejectedAfterRound ?? 0;
+                        updateStage(app.id, updates);
+                      }}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider outline-none ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}
+                    >
+                      {OUTCOMES.slice(1).map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
+                    </select>
+                    {app.outcome === "interviewing" && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-on-surface-variant">Round</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={app.interviewRound ?? 1}
+                          onChange={(e) => updateStage(app.id, {
+                            outcome: app.outcome,
+                            interviewRound: Number(e.target.value),
+                          })}
+                          className="w-12 rounded border border-outline-variant bg-surface-container-lowest px-1 py-0.5 text-[10px] outline-none"
+                        />
+                      </div>
+                    )}
+                    {app.outcome === "rejected" && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-on-surface-variant">After</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={app.rejectedAfterRound ?? 0}
+                          onChange={(e) => updateStage(app.id, {
+                            outcome: app.outcome,
+                            rejectedAfterRound: Number(e.target.value),
+                          })}
+                          className="w-12 rounded border border-outline-variant bg-surface-container-lowest px-1 py-0.5 text-[10px] outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

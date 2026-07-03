@@ -5,7 +5,7 @@ import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
 import { injectResume } from "@/lib/redact";
-import { isOutcome } from "@/lib/applications";
+import { isOutcome, parseInterviewRound, parseRejectedAfterRound } from "@/lib/applications";
 import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
@@ -25,6 +25,8 @@ const SELECT = `
           'role', a.role,
           'jobDescription', a.job_description,
           'outcome', a.outcome,
+          'interviewRound', a.interview_round,
+          'rejectedAfterRound', a.rejected_after_round,
           'createdAt', a.created_at
         ) ORDER BY a.created_at DESC
       ) FILTER (WHERE a.id IS NOT NULL),
@@ -48,6 +50,8 @@ function rowToJson(row: Record<string, unknown>) {
       role: string;
       jobDescription: string;
       outcome: string;
+      interviewRound: number | null;
+      rejectedAfterRound: number | null;
       createdAt: string;
     }>,
   };
@@ -84,6 +88,8 @@ export async function POST(req: Request) {
       role?: string;
       jobDescription?: string;
       outcome?: string;
+      interviewRound?: unknown;
+      rejectedAfterRound?: unknown;
     };
   };
 
@@ -98,6 +104,8 @@ export async function POST(req: Request) {
   const oc = application?.outcome && isOutcome(application.outcome)
     ? application.outcome
     : "draft";
+  const interviewRound = parseInterviewRound(application?.interviewRound);
+  const rejectedAfterRound = parseRejectedAfterRound(application?.rejectedAfterRound);
 
   // Compile the resume to PDF before storing. Best-effort: if the
   // compile service is unavailable we still save the version, but pdf
@@ -126,14 +134,16 @@ export async function POST(req: Request) {
 
   if (application?.company && application?.role) {
     await pool.query(
-      `INSERT INTO applications (version_id, company, role, job_description, outcome)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO applications (version_id, company, role, job_description, outcome, interview_round, rejected_after_round)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         versionRow.id,
         application.company,
         application.role,
         application.jobDescription ?? "",
         oc,
+        oc === "interviewing" ? interviewRound : null,
+        oc === "rejected" ? rejectedAfterRound : null,
       ],
     );
   }

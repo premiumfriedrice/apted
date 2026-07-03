@@ -26,6 +26,8 @@ const SELECT = `
           'role', a.role,
           'jobDescription', a.job_description,
           'outcome', a.outcome,
+          'interviewRound', a.interview_round,
+          'rejectedAfterRound', a.rejected_after_round,
           'createdAt', a.created_at
         ) ORDER BY a.created_at DESC
       ) FILTER (WHERE a.id IS NOT NULL),
@@ -49,6 +51,8 @@ function rowToJson(row: Record<string, unknown>) {
       role: string;
       jobDescription: string;
       outcome: string;
+      interviewRound: number | null;
+      rejectedAfterRound: number | null;
       createdAt: string;
     }>,
   };

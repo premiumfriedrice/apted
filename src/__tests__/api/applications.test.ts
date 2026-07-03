@@ -114,19 +114,19 @@ describe("GET /api/applications/[id]", () => {
 describe("PATCH /api/applications/[id]", () => {
   it("updates outcome", async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ ...fakeApplication, outcome: "interview" }],
+      rows: [{ ...fakeApplication, outcome: "interviewing", interview_round: 1 }],
     });
 
     const req = new Request("http://localhost/api/applications/a1", {
       method: "PATCH",
-      body: JSON.stringify({ outcome: "interview" }),
+      body: JSON.stringify({ outcome: "interviewing", interviewRound: 1 }),
       headers: { "Content-Type": "application/json" },
     });
     const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
     expect(res.status).toBe(200);
 
     const body = await res.json();
-    expect(body.outcome).toBe("interview");
+    expect(body.outcome).toBe("interviewing");
   });
 
   it("returns 400 when no fields provided", async () => {
