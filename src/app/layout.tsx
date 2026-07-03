@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
   title: "apted",
@@ -17,7 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen h-full bg-neutral-50 text-neutral-900">
+      <body className="min-h-screen h-full bg-background text-on-surface">
+        <SiteHeader />
         {children}
       </body>
     </html>
