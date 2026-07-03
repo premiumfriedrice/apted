@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { SankeyDiagram } from "@/components/SankeyDiagram";
 
 type Outcome = "draft" | "applied" | "interview" | "offer" | "rejected";
 
@@ -313,6 +314,16 @@ function VersionDetailModal({
               </button>
             </div>
           </div>
+
+          {/* Application flow diagram */}
+          {applications.length > 0 && (
+            <div className="border-b border-outline-variant px-4 py-3">
+              <h3 className="mb-2 label-sm uppercase tracking-wider text-on-surface-variant">
+                Application flow
+              </h3>
+              <SankeyDiagram applications={applications} />
+            </div>
+          )}
 
           {/* Applications list */}
           <div className="border-b border-outline-variant px-4 py-3">
