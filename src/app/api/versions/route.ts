@@ -112,9 +112,10 @@ export async function POST(req: Request) {
 
   // Generate a human-readable name for this version. Best-effort.
   const jobDescription = application?.jobDescription?.trim();
+  const role = application?.role?.trim();
   let name: string | null = null;
   try {
-    name = await generateVersionName(content, jobDescription);
+    name = await generateVersionName(content, jobDescription, role);
   } catch {
     console.warn("Version name generation failed");
   }
