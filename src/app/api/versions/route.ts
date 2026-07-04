@@ -111,9 +111,10 @@ export async function POST(req: Request) {
   const rejectedAfterRound = parseRejectedAfterRound(application?.rejectedAfterRound);
 
   // Generate a human-readable name for this version. Best-effort.
+  const jobDescription = application?.jobDescription?.trim();
   let name: string | null = null;
   try {
-    name = await generateVersionName(content);
+    name = await generateVersionName(content, jobDescription);
   } catch {
     console.warn("Version name generation failed");
   }
