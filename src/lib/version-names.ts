@@ -1,16 +1,20 @@
 import { getProvider } from "./providers";
 import type { Resume } from "./resume";
 
-const SYSTEM_PROMPT = `You are a resume labeling assistant. Suggest a short, human-readable name for a resume version.
+const SYSTEM_PROMPT = `You are a resume labeling assistant. Read the resume and job description, then identify the resume's main focus and domain.
 
-You are given a cleaned job description, the target role, and the resume content. The resume was tailored for that job.
+Return a name in one of these formats:
+- "{Role} — {theme1}/{theme2}" (e.g., "Software Engineer — Data/Infra")
+- "{Domain}-focused {Role}" (e.g., "Data-focused Backend Engineer")
+- "{Role} — {domain}" (e.g., "Forward-Deployed Engineer — Platform")
+
+Good themes/domains: Data, ML/AI, DevOps, Infrastructure, Platform, Forward-Deployed, Customer-Facing, Full-Stack, Backend, Mobile, Embedded, Security, Quantitative, SaaS, Cloud, Distributed Systems.
 
 Requirements:
-- 3 to 6 words
-- Focus on the job title, role, and core skills
-- Examples of good names: "Senior Frontend — React/TS", "Backend Engineer — Python/Go", "Staff Platform Engineer", "Data Science — ML", "Product Manager — B2B SaaS", "Investment Banking Analyst", "Android Developer Intern"
-- Return ONLY a single JSON object in this exact shape: {"name": "..."}
-- No prose, no code fences.`;
+- 4 to 8 words
+- Tell what the resume emphasizes beyond just the job title
+- Bad examples: "Software Engineer Intern", "Resume Version", "Version from 2026-07-03"
+- Return ONLY the name as plain text. No JSON, no quotes, no explanation.`;
 
 const JUNK_PATTERNS = [
   /skip to main content/gi,
@@ -48,12 +52,9 @@ export async function generateVersionName(
       user: userPrompt,
       maxTokens: 64,
     });
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.name === "string") {
-      const cleaned = parsed.name.trim();
-      if (cleaned && !looksLikeJunk(cleaned)) {
-        return cleaned;
-      }
+    const cleaned = raw.trim().replace(/^["']|["']$/g, "").split("\n")[0]?.trim();
+    if (cleaned && !looksLikeJunk(cleaned)) {
+      return cleaned;
     }
   } catch {
     // Fall through to fallback.
@@ -82,7 +83,9 @@ function looksLikeJunk(name: string): boolean {
     lower.includes("about us") ||
     lower.includes("is candidate logged in") ||
     lower.includes("[name]") ||
-    lower.startsWith("{")
+    lower.startsWith("{") ||
+    lower.startsWith("name") ||
+    lower.length < 4
   );
 }
 
@@ -91,12 +94,38 @@ function fallbackName(
   cleanedJD?: string | null,
   role?: string,
 ): string {
-  // The target role is usually the cleanest identifier.
+  // Build a richer fallback from role + skill/domain hints.
+  const hints: string[] = [];
+
+  if (cleanedJD) {
+    const domains = [
+      { label: "Data", regex: /\bdata\b/i },
+      { label: "ML/AI", regex: /\b(machine learning|ml|ai|artificial intelligence)\b/i },
+      { label: "DevOps", regex: /\b(devops|sre|platform engineer|infrastructure)\b/i },
+      { label: "Security", regex: /\bsecurity\b/i },
+      { label: "Mobile", regex: /\b(android|ios|mobile)\b/i },
+      { label: "Frontend", regex: /\bfrontend|front-end\b/i },
+      { label: "Backend", regex: /\bbackend|back-end\b/i },
+      { label: "Full-Stack", regex: /\bfull[- ]?stack\b/i },
+      { label: "Cloud", regex: /\b(aws|gcp|azure|cloud)\b/i },
+      { label: "Quant", regex: /\b(quantitative|trading|finance)\b/i },
+    ];
+    for (const domain of domains) {
+      if (domain.regex.test(cleanedJD)) hints.push(domain.label);
+    }
+  }
+
   if (role?.trim()) {
+    if (hints.length > 0) {
+      return `${role.trim()} — ${hints.slice(0, 2).join("/")}`.slice(0, 60);
+    }
     return role.trim().slice(0, 60);
   }
 
-  // Fall back to the first meaningful sentence of the cleaned JD.
+  if (hints.length > 0) {
+    return hints.slice(0, 3).join("/").slice(0, 60);
+  }
+
   if (cleanedJD) {
     const sentence = cleanedJD.split(".")[0]?.trim();
     if (sentence && sentence.length <= 80) return sentence;
