@@ -20,6 +20,7 @@ type Application = {
 
 type Version = {
   id: string;
+  name: string | null;
   tailoredContent: unknown;
   createdAt: string;
   pdfBase64: string | null;
@@ -168,10 +169,10 @@ export default function LibraryPage() {
               {/* Card info */}
               <div className="p-3">
                 <div className="truncate headline-md group-hover:text-on-surface">
-                  {primary?.company ?? "Untitled version"}
+                  {v.name || "Untitled version"}
                 </div>
                 <div className="truncate body-sm text-on-surface-variant">
-                  {primary?.role ?? "No role"}
+                  {primary ? `${primary.company} · ${primary.role}` : "No applications"}
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -262,11 +263,25 @@ function VersionDetailModal({
   onUpdate: () => void;
 }) {
   const [applications, setApplications] = useState<Application[]>(version.applications);
+  const [versionName, setVersionName] = useState(version.name || "Untitled version");
+  const [editingName, setEditingName] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
   const primary = primaryApplication(version);
+
+  const saveName = useCallback(async () => {
+    const trimmed = versionName.trim();
+    await fetch(`/api/versions/${version.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: trimmed || null }),
+    });
+    setVersionName(trimmed || "Untitled version");
+    setEditingName(false);
+    onUpdate();
+  }, [version.id, versionName, onUpdate]);
 
   const updateStage = useCallback(async (
     appId: string,
@@ -351,10 +366,35 @@ function VersionDetailModal({
         <section className="flex flex-col overflow-auto border-l border-outline-variant bg-surface-container-lowest">
           {/* Header */}
           <div className="border-b border-outline-variant px-4 py-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="headline-md">{primary?.company ?? "Untitled version"}</h2>
-                <p className="body-sm text-on-surface-variant">{primary?.role ?? "No role"}</p>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                {editingName ? (
+                  <input
+                    autoFocus
+                    value={versionName}
+                    onChange={(e) => setVersionName(e.target.value)}
+                    onBlur={saveName}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveName();
+                      if (e.key === "Escape") {
+                        setVersionName(version.name || "Untitled version");
+                        setEditingName(false);
+                      }
+                    }}
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 headline-md outline-none focus:border-primary"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setEditingName(true)}
+                    className="text-left headline-md hover:text-on-surface-variant"
+                    title="Click to edit"
+                  >
+                    {versionName}
+                  </button>
+                )}
+                <p className="body-sm text-on-surface-variant">
+                  {primary ? `${primary.company} · ${primary.role}` : "No applications"}
+                </p>
               </div>
               <button
                 onClick={onClose}

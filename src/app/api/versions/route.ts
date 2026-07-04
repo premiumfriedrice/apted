@@ -6,6 +6,7 @@ import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
 import { injectResume } from "@/lib/redact";
 import { isOutcome, parseInterviewRound, parseRejectedAfterRound } from "@/lib/applications";
+import { generateVersionName } from "@/lib/version-names";
 import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ export const runtime = "nodejs";
 const SELECT = `
   SELECT
     v.id,
+    v.name,
     v.tailored_content,
     v.created_at,
     v.pdf,
@@ -40,6 +42,7 @@ function rowToJson(row: Record<string, unknown>) {
   const pdfBuf = row.pdf as Buffer | null;
   return {
     id: row.id,
+    name: row.name,
     tailoredContent: row.tailored_content,
     createdAt: row.created_at,
     pdfBase64: pdfBuf ? pdfBuf.toString("base64") : null,
@@ -107,6 +110,14 @@ export async function POST(req: Request) {
   const interviewRound = parseInterviewRound(application?.interviewRound);
   const rejectedAfterRound = parseRejectedAfterRound(application?.rejectedAfterRound);
 
+  // Generate a human-readable name for this version. Best-effort.
+  let name: string | null = null;
+  try {
+    name = await generateVersionName(content);
+  } catch {
+    console.warn("Version name generation failed");
+  }
+
   // Compile the resume to PDF before storing. Best-effort: if the
   // compile service is unavailable we still save the version, but pdf
   // will be null. The library UI handles the missing-PDF case.
@@ -125,10 +136,10 @@ export async function POST(req: Request) {
   }
 
   const version = await pool.query(
-    `INSERT INTO resume_versions (tailored_content, pdf)
-     VALUES ($1::jsonb, $2)
-     RETURNING id, tailored_content, created_at, pdf`,
-    [JSON.stringify(content), pdf],
+    `INSERT INTO resume_versions (name, tailored_content, pdf)
+     VALUES ($1, $2::jsonb, $3)
+     RETURNING id, name, tailored_content, created_at, pdf`,
+    [name, JSON.stringify(content), pdf],
   );
   const versionRow = version.rows[0];
 

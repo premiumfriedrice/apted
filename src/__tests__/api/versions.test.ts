@@ -7,6 +7,11 @@ vi.mock("@/lib/compile", () => ({
   checkCompileService: vi.fn().mockResolvedValue(true),
 }));
 
+// ── Mock version name generator ─────────────────────────────────────────────
+vi.mock("@/lib/version-names", () => ({
+  generateVersionName: vi.fn().mockResolvedValue("Test Version"),
+}));
+
 // ── Mock getUserSettings ─────────────────────────────────────────────────────
 vi.mock("@/lib/settings", () => ({
   getUserSettings: vi.fn().mockResolvedValue({ template: "jake" }),
@@ -42,6 +47,7 @@ const fakeApplication = {
 function makeVersionRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: overrides.id ?? "v1-uuid",
+    name: overrides.name ?? "Test Version",
     tailored_content: {
       contact: { name: "Alice", email: "a@b.com", phone: "", links: [] },
       sections: [],
@@ -115,11 +121,13 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
     // compileTexToPdf was called
     expect(mockCompile).toHaveBeenCalledOnce();
 
-    // INSERT into resume_versions included pdf as $2
+    // INSERT into resume_versions included name and pdf
     const versionInsertCall = mockQuery.mock.calls[1];
     expect(versionInsertCall[0]).toContain("INSERT INTO resume_versions");
+    expect(versionInsertCall[0]).toContain("name");
     expect(versionInsertCall[0]).toContain("pdf");
-    expect(versionInsertCall[1][1]).toEqual(fakePdf);
+    expect(versionInsertCall[1][0]).toBe("Test Version");
+    expect(versionInsertCall[1][2]).toEqual(fakePdf);
 
     // INSERT into applications happened
     const appInsertCall = mockQuery.mock.calls[2];
@@ -162,7 +170,7 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
 
     // INSERT still happened, pdf param was null
     const versionInsertCall = mockQuery.mock.calls[1];
-    expect(versionInsertCall[1][1]).toBeNull();
+    expect(versionInsertCall[1][2]).toBeNull();
   });
 
   it("defaults outcome to 'draft' when omitted", async () => {
@@ -258,6 +266,7 @@ describe("GET /api/versions — contract for library card rendering", () => {
     const card = body[0];
     // Fields needed for card rendering (PRE-57):
     expect(card).toHaveProperty("id");
+    expect(card).toHaveProperty("name");
     expect(card).toHaveProperty("createdAt");
     expect(card).toHaveProperty("pdfBase64"); // base64 PDF for embed
     expect(card).toHaveProperty("tailoredContent"); // needed for JSON toggle

@@ -14,6 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const SELECT = `
   SELECT
     v.id,
+    v.name,
     v.tailored_content,
     v.created_at,
     v.pdf,
@@ -41,6 +42,7 @@ function rowToJson(row: Record<string, unknown>) {
   const pdfBuf = row.pdf as Buffer | null;
   return {
     id: row.id,
+    name: row.name,
     tailoredContent: row.tailored_content,
     createdAt: row.created_at,
     pdfBase64: pdfBuf ? pdfBuf.toString("base64") : null,
@@ -78,6 +80,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (body.tailoredContent !== undefined) {
     fields.push(`tailored_content = $${i++}::jsonb`);
     vals.push(JSON.stringify(Resume.parse(body.tailoredContent)));
+  }
+  if (typeof body.name === "string") {
+    fields.push(`name = $${i++}`);
+    vals.push(body.name.trim() || null);
   }
 
   if (fields.length === 0) {

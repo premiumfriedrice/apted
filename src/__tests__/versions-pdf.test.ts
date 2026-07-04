@@ -31,6 +31,10 @@ vi.mock("@/lib/settings", () => ({
   getUserSettings: vi.fn().mockResolvedValue({ template: "jake" }),
 }));
 
+vi.mock("@/lib/version-names", () => ({
+  generateVersionName: vi.fn().mockResolvedValue("Test Version"),
+}));
+
 // Import the handler after mocks are installed.
 import { GET, POST } from "@/app/api/versions/route";
 
@@ -60,6 +64,7 @@ const fakeApplications = [
 function makeVersionRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "v-new",
+    name: "Test Version",
     tailored_content: minResume,
     created_at: "2024-01-01T00:00:00Z",
     pdf: fakePdf,
@@ -189,10 +194,12 @@ describe("POST /api/versions", () => {
     // Verify the PDF was compiled.
     expect(mockCompileTexToPdf).toHaveBeenCalled();
 
-    // Verify the version INSERT includes the pdf column.
+    // Verify the version INSERT includes the name and pdf columns.
     const versionInsert = mockQuery.mock.calls[1]?.[0] as string;
     expect(versionInsert).toMatch(/INSERT INTO resume_versions/);
+    expect(versionInsert).toMatch(/name/);
     expect(versionInsert).toMatch(/pdf/);
+    expect(mockQuery.mock.calls[1]?.[1]).toContain("Test Version");
     expect(mockQuery.mock.calls[1]?.[1]).toContain(fakePdf);
 
     // Verify the application INSERT.
@@ -219,7 +226,7 @@ describe("POST /api/versions", () => {
 
     // Verify the version INSERT wrote null for pdf.
     const params = mockQuery.mock.calls[1]?.[1] as unknown[];
-    expect(params).toContain(null);
+    expect(params[2]).toBeNull();
   });
 
   it("rejects request when tailoredContent is missing", async () => {
