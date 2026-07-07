@@ -356,16 +356,21 @@ export default function MasterPage() {
   }
 
   return (
-    <div className="font-body-md text-body-md text-on-surface bg-background dark:bg-on-background" style={{ zoom: 0.9 }}>
+    <div className="h-full flex flex-col font-body-md text-body-md text-on-surface bg-background dark:bg-on-background" style={{ zoom: 0.9 }}>
       {/* Full-screen overlay during resize so iframes/panels don&apos;t steal mouse events. */}
       {resizing && <div className="fixed inset-0 z-[60] cursor-col-resize" />}
+      {/* TopNavBar */}
+      <header className="bg-surface-container-lowest dark:bg-surface-dim text-primary dark:text-primary-fixed w-full h-16 sticky top-0 border-b border-outline-variant dark:border-outline flex items-center px-lg w-full z-50">
+        <span className="text-[22px] font-medium tracking-tight text-on-surface dark:text-inverse-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>apted</span>
+      </header>
+
       {/* Main Layout */}
-      <div className="flex flex-col">
+      <div className="flex-1 flex overflow-hidden">
         {/* Main Content Area */}
-        <main className="flex flex-col bg-background">
+        <main className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-background">
           {/* Left Column (Editor) */}
-          <div className="w-full flex flex-col">
-            <div className="h-12 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-md shrink-0 z-10">
+          <div className="flex-1 w-full flex flex-col overflow-hidden">
+            <div className="h-12 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-md shrink-0 sticky top-0 z-10">
               <div className="flex items-center gap-1">
                 <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? modeActiveBtnCls : smallBtnCls}>
                   Structured
@@ -404,8 +409,8 @@ export default function MasterPage() {
             </div>
             <div
               className={[
-                "w-full px-lg flex flex-col gap-lg items-center",
-                editorMode === "latex" || editorMode === "json" ? "pb-0" : "pb-[100px] pt-6",
+                "flex-1 w-full px-lg flex flex-col gap-lg items-center",
+                editorMode === "latex" || editorMode === "json" ? "overflow-hidden pb-0" : "overflow-y-auto pb-[100px] pt-6",
               ].join(" ")}
             >
               <div className={["w-full flex flex-col", editorMode === "latex" || editorMode === "json" ? "h-full max-w-none" : "max-w-[800px] gap-lg"].join(" ")}>
@@ -474,10 +479,18 @@ export default function MasterPage() {
             </div>
           </div>
 
-          {/* Preview Pane */}
+          {/* Resizer */}
+          <div
+            onMouseDown={(e) => startResize(e)}
+            className="hidden lg:flex w-1 bg-surface border-l border-outline-variant hover:bg-surface-container-high cursor-col-resize shrink-0 items-center justify-center relative z-10 group select-none"
+          >
+            <div className="h-8 w-[2px] bg-outline-variant group-hover:bg-on-surface-variant rounded-full" />
+          </div>
+
+          {/* Right Column (Preview Pane) */}
           <PreviewPane
             updatedAt={updatedAt}
-            width={100}
+            width={previewWidth}
             editorMode={editorMode}
             compiledPdfUrl={compiledPdfUrl}
             resume={resume}
@@ -708,7 +721,7 @@ function PreviewPane({
   }
 
   return (
-    <div className="flex flex-col bg-inverse-surface relative h-[80vh]" style={{ width: `${width}%` }}>
+    <div className="hidden lg:flex flex-col bg-inverse-surface relative" style={{ width: `${width}%` }}>
       <div className="h-12 border-b border-inverse-on-surface/10 bg-inverse-surface flex items-center justify-between px-md sticky top-0 z-10">
         <span className="text-label-md font-label-md text-inverse-on-surface font-semibold flex items-center gap-2">
           <input
