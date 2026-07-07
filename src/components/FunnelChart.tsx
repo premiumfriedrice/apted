@@ -63,36 +63,47 @@ export default function FunnelChart({ stats }: FunnelChartProps) {
   const hGhosted = hh(ghosted);
   const hDeclined = hh(declined);
 
-  // --- Flow source y-offsets (stacked top-to-bottom within each source node) ---
-  // Total -> [screening (pass), drafts (drop)]
-  const totalPassY = topY;
-  const totalDraftsY = topY + hScreen;
+  // --- Bottom region: all rejection / drop-off nodes live here ---
+  const bottomGap = 50;
+  const bottomY = topY + hTotal + bottomGap;
+  const rejGap = 10; // gap between stacked rejection nodes in a column
 
-  // Screening -> [technical (pass), screenRej, ghosted]
+  // Rejection / drop node y-positions (bottom of diagram, stacked per column)
+  const draftsNodeY = bottomY; // col 1
+  const screenRejNodeY = bottomY; // col 2 (top)
+  const ghostedNodeY = bottomY + hScreenRej + rejGap; // col 2 (below screen rej)
+  const techRejNodeY = bottomY; // col 3
+  const finalRejNodeY = bottomY; // col 4 (top)
+  const declinedNodeY = bottomY + hFinalRej + rejGap; // col 4 (below final rej)
+
+  // --- Flow source y-offsets (stacked top-to-bottom within each source node) ---
+  // Total -> [drafts (top, precedes submitted), submitted (below)]
+  const totalDraftsY = topY;
+  const totalPassY = topY + hDrafts; // submitted bends UP to screening top
+
+  // Screening -> [technical (pass, top), screenRej, ghosted]
   const screenPassY = topY;
   const screenRejFlowY = topY + hTech;
   const screenGhostFlowY = topY + hTech + hScreenRej;
 
-  // Technical -> [final (pass), techRej]
+  // Technical -> [final (pass, top), techRej]
   const techPassY = topY;
   const techRejFlowY = topY + hFinal;
 
-  // Final -> [offers (pass), finalRej, declined]
+  // Final -> [offers (pass, top), finalRej, declined]
   const finalPassY = topY;
   const finalRejFlowY = topY + hOffers;
   const finalDeclinedFlowY = topY + hOffers + hFinalRej;
 
-  // Rejection/drop node y = aligned with incoming flow (same y as flow target)
-  const draftsNodeY = totalDraftsY;
-  const screenRejNodeY = screenRejFlowY;
-  const ghostedNodeY = screenGhostFlowY;
-  const techRejNodeY = techRejFlowY;
-  const finalRejNodeY = finalRejFlowY;
-  const declinedNodeY = finalDeclinedFlowY;
-
   // SVG dimensions
   const W = colX[4] + nodeW + 130;
-  const H = topY + hTotal + 50;
+  const bottomStack = Math.max(
+    hScreenRej + rejGap + hGhosted,
+    hFinalRej + rejGap + hDeclined,
+    hDrafts,
+    hTechRej,
+  );
+  const H = bottomY + bottomStack + 30;
 
   // --- Helpers ---
   const pct = (v: number, t: number) => (t > 0 ? Math.round((v / t) * 100) : 0);
@@ -100,8 +111,8 @@ export default function FunnelChart({ stats }: FunnelChartProps) {
   // Constant-thickness bezier ribbon (proper Sankey: thickness = value * scale at both ends)
   const ribbon = (x1: number, y1: number, x2: number, y2: number, h: number) => {
     const dx = x2 - x1;
-    const cp1x = x1 + dx * 0.5;
-    const cp2x = x2 - dx * 0.5;
+    const cp1x = x1 + dx * 0.6;
+    const cp2x = x2 - dx * 0.6;
     return `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2} L ${x2} ${y2 + h} C ${cp2x} ${y2 + h}, ${cp1x} ${y1 + h}, ${x1} ${y1 + h} Z`;
   };
 
