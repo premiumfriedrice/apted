@@ -84,12 +84,12 @@ function SidebarInner({
   return (
     <>
       {/* Brand — aligned with the 64px top app bar */}
-      <div className={`flex shrink-0 items-center ${collapsed ? "pt-1.75" : "pt-md"} ${collapsed ? "justify-center px-0" : "justify-between px-md"}`}>
+      <div className={`flex shrink-0 items-center ${collapsed ? "h-12 w-12 justify-center px-0" : "pt-md justify-between px-md"}`}>
         {collapsed ? (
           <button
             onClick={() => setCollapsed(false)}
             title="Expand sidebar"
-            className="text-[28px] font-medium tracking-tight leading-none text-on-surface"
+            className="text-[28px] font-medium tracking-tight leading-none flex items-center justify-center text-on-surface"
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
             a
