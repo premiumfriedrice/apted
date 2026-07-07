@@ -84,7 +84,7 @@ function SidebarInner({
   return (
     <>
       {/* Brand — aligned with the 64px top app bar */}
-      <div className={`flex shrink-0 items-center pt-3 ${collapsed ? "justify-center px-0" : "justify-between px-4"}`}>
+      <div className={`flex shrink-0 items-center ${collapsed ? "pt-sm" : "pt-md"} ${collapsed ? "justify-center px-0" : "justify-between px-md"}`}>
         {collapsed ? (
           <button
             onClick={() => setCollapsed(false)}
@@ -110,7 +110,7 @@ function SidebarInner({
         )}
       </div>
       {/* Nav */}
-      <nav className={`flex-1 space-y-1 pt-1 ${collapsed ? "px-0" : "px-3"}`}>
+      <nav className={`flex-1 space-y-sm pt-sm ${collapsed ? "px-0" : "px-sm"}`}>
         {SIDEBAR_NAV.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
@@ -118,7 +118,7 @@ function SidebarInner({
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex h-9 items-center transition-colors duration-200 ${
+              className={`flex items-center py-sm transition-colors duration-200 ${
                 collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
               } ${collapsed ? "justify-center w-full px-0" : ""}`}
             >
@@ -130,9 +130,9 @@ function SidebarInner({
       </nav>
 
       {/* Footer: Settings, compact profile */}
-      <div className="shrink-0 space-y-3 px-0 pb-4">
+      <div className="shrink-0 space-y-sm px-0 pb-md">
         {collapsed ? (
-          <div className="flex flex-col items-center gap-1 pt-1">
+          <div className="flex flex-col items-center gap-xs pt-xs">
             <Link
               href={SETTINGS_NAV.href}
               title={SETTINGS_NAV.label}
@@ -143,19 +143,19 @@ function SidebarInner({
             <button
               onClick={() => setCollapsed(false)}
               title="Expand sidebar"
-              className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
+              className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
             >
-              <span className="text-[11px] font-bold">AU</span>
+              <span className="text-label-sm font-bold">AU</span>
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 border-t border-outline-variant px-3 pt-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
-              <span className="text-[10px] font-bold text-secondary">AU</span>
+          <div className="flex items-center gap-sm border-t border-outline-variant px-sm pt-sm">
+            <div className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
+              <span className="text-label-sm font-bold text-secondary">AU</span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-label-md text-label-md truncate leading-tight">Apted User</p>
-              <p className="text-[10px] text-on-surface-variant truncate leading-tight">Free Tier</p>
+              <p className="text-label-sm text-on-surface-variant truncate leading-tight">Free Tier</p>
             </div>
             <Link
               href={SETTINGS_NAV.href}
