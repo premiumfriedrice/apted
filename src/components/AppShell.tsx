@@ -110,7 +110,7 @@ function SidebarInner({
         )}
       </div>
       {/* Nav */}
-      <nav className={`flex-1 pt-sm ${collapsed ? "space-y-0 px-0" : "space-y-sm px-sm"}`}>
+      <nav className={`flex-1 ${collapsed ? "pt-0 space-y-0 px-0" : "pt-sm space-y-sm px-sm"}`}>
         {SIDEBAR_NAV.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
