@@ -21,12 +21,14 @@ interface Journey {
   terminal:
     | "drafts"
     | "ghosted"
+    | "pendingScreen"
+    | "pendingTech"
+    | "pendingFinal"
     | "rejScreen"
     | "rejTech"
     | "rejFinal"
     | "offers"
-    | "declined"
-    | null; // null = still in progress (applied / interviewing)
+    | "declined";
 }
 
 function journeyOf(a: Application): Journey {
@@ -51,18 +53,21 @@ function journeyOf(a: Application): Journey {
     : outcome === "applied" || outcome === "ghosted" ? false
     : intR >= 2; // offer / declined
 
-  let terminal: Journey["terminal"] = null;
-  if (outcome === "applied" || outcome === "interviewing") {
-    terminal = null; // in progress, no terminal yet
+  let terminal: Journey["terminal"];
+  if (outcome === "applied") {
+    terminal = "pendingScreen"; // submitted, waiting at screening
+  } else if (outcome === "interviewing") {
+    // In an interview round: pending at the furthest stage reached so far.
+    terminal = reachedFinal ? "pendingFinal" : "pendingTech";
   } else if (outcome === "ghosted") {
     terminal = "ghosted";
   } else if (outcome === "rejected") {
     terminal = rejR === 0 ? "rejScreen" : rejR === 1 ? "rejTech" : "rejFinal";
   } else if (outcome === "offer") {
     terminal = "offers";
-  } else if (outcome === "declined") {
-    terminal = "declined";
-  } // draft handled by the early return above
+  } else {
+    terminal = "declined"; // covers declined (draft handled by early return)
+  }
 
   return { reachedScreen: true, reachedTech, reachedFinal, terminal };
 }
@@ -81,6 +86,7 @@ export function applicationsToSankey(apps: Application[]): SankeyFlows {
     final: 0,
     drafts: 0,
     ghosted: 0,
+    pending: 0,
     rejScreen: 0,
     rejTech: 0,
     rejFinal: 0,
@@ -90,6 +96,7 @@ export function applicationsToSankey(apps: Application[]): SankeyFlows {
     totalToDrafts: 0,
     screenToTech: 0,
     screenToGhosted: 0,
+    screenToPending: 0,
     screenToRejScreen: 0,
     screenToOffers: 0,
     screenToDeclined: 0,
@@ -97,9 +104,11 @@ export function applicationsToSankey(apps: Application[]): SankeyFlows {
     techToRejTech: 0,
     techToOffers: 0,
     techToDeclined: 0,
+    techToPending: 0,
     finalToRejFinal: 0,
     finalToOffers: 0,
     finalToDeclined: 0,
+    finalToPending: 0,
   };
 
   for (const a of apps) {
@@ -118,10 +127,10 @@ export function applicationsToSankey(apps: Application[]): SankeyFlows {
       // maxStage = screening. Terminal flows out of Screening directly.
       switch (j.terminal) {
         case "ghosted": f.screenToGhosted++; f.ghosted++; break;
+        case "pendingScreen": f.screenToPending++; f.pending++; break;
         case "rejScreen": f.screenToRejScreen++; f.rejScreen++; break;
         case "offers": f.screenToOffers++; f.offers++; break;
         case "declined": f.screenToDeclined++; f.declined++; break;
-        // null = applied, still in screening (no flow out).
       }
       continue;
     }
@@ -133,9 +142,9 @@ export function applicationsToSankey(apps: Application[]): SankeyFlows {
       // maxStage = technical. Terminal flows out of Technical.
       switch (j.terminal) {
         case "rejTech": f.techToRejTech++; f.rejTech++; break;
+        case "pendingTech": f.techToPending++; f.pending++; break;
         case "offers": f.techToOffers++; f.offers++; break;
         case "declined": f.techToDeclined++; f.declined++; break;
-        // null = interviewing round 1, still in technical (no flow out).
         case "ghosted": /* shouldn't happen post-tech */ break;
       }
       continue;
@@ -146,9 +155,9 @@ export function applicationsToSankey(apps: Application[]): SankeyFlows {
     f.final++;
     switch (j.terminal) {
       case "rejFinal": f.finalToRejFinal++; f.rejFinal++; break;
+      case "pendingFinal": f.finalToPending++; f.pending++; break;
       case "offers": f.finalToOffers++; f.offers++; break;
       case "declined": f.finalToDeclined++; f.declined++; break;
-      // null = interviewing round 2+, still in final (no flow out).
     }
   }
 

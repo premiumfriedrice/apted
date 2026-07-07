@@ -21,6 +21,7 @@ export interface SankeyFlows {
   // Terminal node values
   drafts: number;
   ghosted: number;
+  pending: number; // in-progress: applied (waiting at screening) or interviewing
   rejScreen: number;
   rejTech: number;
   rejFinal: number;
@@ -33,6 +34,7 @@ export interface SankeyFlows {
   totalToDrafts: number;
   screenToTech: number;
   screenToGhosted: number;
+  screenToPending: number; // applied: waiting at screening
   screenToRejScreen: number;
   screenToOffers: number;
   screenToDeclined: number;
@@ -40,9 +42,11 @@ export interface SankeyFlows {
   techToRejTech: number;
   techToOffers: number;
   techToDeclined: number;
+  techToPending: number; // interviewing round 1: in technical
   finalToRejFinal: number;
   finalToOffers: number;
   finalToDeclined: number;
+  finalToPending: number; // interviewing round 2+: in final
 }
 
 // Kept for backwards compatibility with any external consumers.

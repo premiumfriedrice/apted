@@ -31,7 +31,7 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
   const colGap = 200;
   const colX = [70, 70 + colGap, 70 + colGap * 2, 70 + colGap * 3, 70 + colGap * 4];
   // col0 Total | col1 Screening+Drafts | col2 Technical+Ghosted+RejScreen |
-  // col3 Final+RejTech | col4 Offers+RejFinal+Declined
+  // col3 Final+RejTech | col4 Offers+RejFinal+Declined+Pending
 
   // value -> pixels (minimum 3px so nonzero nodes/flows are still visible)
   const hh = (v: number) => (v > 0 ? Math.max(v * scale, 3) : 0);
@@ -45,6 +45,7 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
   // --- Terminal node heights ---
   const hDrafts = hh(flows.drafts);
   const hGhosted = hh(flows.ghosted);
+  const hPending = hh(flows.pending);
   const hRejScreen = hh(flows.rejScreen);
   const hRejTech = hh(flows.rejTech);
   const hRejFinal = hh(flows.rejFinal);
@@ -61,10 +62,11 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
   const ghostedNodeY = bottomY; // col2 (top)
   const rejScreenNodeY = bottomY + hGhosted + rejGap; // col2 (below ghosted)
   const rejTechNodeY = bottomY; // col3
-  // col4 stack: Offers (top), RejFinal, Declined
+  // col4 stack: Offers (top), RejFinal, Declined, Pending
   const offersNodeY = bottomY;
   const rejFinalNodeY = bottomY + hOffers + rejGap;
   const declinedNodeY = rejFinalNodeY + hRejFinal + rejGap;
+  const pendingNodeY = declinedNodeY + hDeclined + rejGap;
 
   // --- Source-side stacking: outgoing flows stacked top-to-bottom within
   // each main-chain node. Order: pass flow (to next stage) on top, then
@@ -75,24 +77,27 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
   const totalScreenY = topY;
   const totalDraftsY = topY + hh(flows.totalToScreen);
 
-  // Screening -> [Tech (top), Offers, RejScreen, Ghosted (bottom)]
+  // Screening -> [Tech (top), Offers, RejScreen, Pending, Ghosted (bottom)]
   // Offers goes far right (col4); order it just under the pass flow so its
-  // long ribbon sweeps cleanly. Then RejScreen, then Ghosted.
+  // long ribbon sweeps cleanly. Then RejScreen, Pending, Ghosted.
   const screenTechY = topY;
   const screenOffersY = topY + hh(flows.screenToTech);
   const screenRejScreenY = screenOffersY + hh(flows.screenToOffers);
-  const screenGhostedY = screenRejScreenY + hh(flows.screenToRejScreen);
+  const screenPendingY = screenRejScreenY + hh(flows.screenToRejScreen);
+  const screenGhostedY = screenPendingY + hh(flows.screenToPending);
 
-  // Technical -> [Final (top), Offers, RejTech, Declined]
+  // Technical -> [Final (top), Offers, Pending, RejTech, Declined]
   const techFinalY = topY;
   const techOffersY = topY + hh(flows.techToFinal);
-  const techRejTechY = techOffersY + hh(flows.techToOffers);
+  const techPendingY = techOffersY + hh(flows.techToOffers);
+  const techRejTechY = techPendingY + hh(flows.techToPending);
   const techDeclinedY = techRejTechY + hh(flows.techToRejTech);
 
-  // Final -> [Offers (top), RejFinal, Declined]
+  // Final -> [Offers (top), RejFinal, Pending, Declined]
   const finalOffersY = topY;
   const finalRejFinalY = topY + hh(flows.finalToOffers);
-  const finalDeclinedY = finalRejFinalY + hh(flows.finalToRejFinal);
+  const finalPendingY = finalRejFinalY + hh(flows.finalToRejFinal);
+  const finalDeclinedY = finalPendingY + hh(flows.finalToPending);
 
   // Offers incoming flows from multiple stages stack vertically at the offers
   // node. Receive: Final (closest, top), then Technical, then Screening (longest, bottom).
@@ -100,12 +105,18 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
   const offersTechY = offersFinalY + hh(flows.finalToOffers);
   const offersScreenY = offersTechY + hh(flows.techToOffers);
 
+  // Pending incoming flows from multiple stages stack at the pending node.
+  // Receive: Final (top), then Technical, then Screening (bottom).
+  const pendingFinalY = pendingNodeY;
+  const pendingTechY = pendingFinalY + hh(flows.finalToPending);
+  const pendingScreenY = pendingTechY + hh(flows.techToPending);
+
   // SVG dimensions
   const W = colX[4] + nodeW + 130;
   const bottomStack = Math.max(
     hGhosted + rejGap + hRejScreen,
     hRejTech,
-    hOffers + rejGap + hRejFinal + rejGap + hDeclined,
+    hOffers + rejGap + hRejFinal + rejGap + hDeclined + rejGap + hPending,
     hDrafts,
   );
   const H = bottomY + bottomStack + 30;
@@ -153,6 +164,10 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
             <stop offset="0%" stopColor="#999" stopOpacity="0.5" />
             <stop offset="100%" stopColor="#bbb" stopOpacity="0.35" />
           </linearGradient>
+          <linearGradient id="fc-pending" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.65" />
+            <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.5" />
+          </linearGradient>
         </defs>
 
         {/* ===== FLOWS ===== */}
@@ -188,6 +203,12 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
             fill="url(#fc-rej)" op={0.7}
             onEnter={() => onHover("Rejected at Screening", flows.screenToRejScreen, `${pct(flows.rejScreen, flows.screening)}% of screened`)} onLeave={onLeave} />
         )}
+        {/* Screening -> Pending (applied, waiting at screening) */}
+        {flows.screenToPending > 0 && (
+          <Flow ribbon={ribbon} x1={colX[1] + nodeW} y1={screenPendingY} x2={colX[4]} y2={pendingScreenY} h={hh(flows.screenToPending)}
+            fill="url(#fc-pending)" op={0.55}
+            onEnter={() => onHover("In Progress (waiting at screening)", flows.screenToPending, `${pct(flows.screenToPending, flows.screening)}% of screened`)} onLeave={onLeave} />
+        )}
         {/* Screening -> Ghosted */}
         {flows.screenToGhosted > 0 && (
           <Flow ribbon={ribbon} x1={colX[1] + nodeW} y1={screenGhostedY} x2={colX[2]} y2={ghostedNodeY} h={hGhosted}
@@ -207,6 +228,12 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
             fill="url(#fc-offer)" op={0.85}
             onEnter={() => onHover("Offer after Technical (no final)", flows.techToOffers, `${pct(flows.techToOffers, flows.technical)}% of technical`)} onLeave={onLeave} />
         )}
+        {/* Technical -> Pending (interviewing round 1, in technical) */}
+        {flows.techToPending > 0 && (
+          <Flow ribbon={ribbon} x1={colX[2] + nodeW} y1={techPendingY} x2={colX[4]} y2={pendingTechY} h={hh(flows.techToPending)}
+            fill="url(#fc-pending)" op={0.55}
+            onEnter={() => onHover("In Progress (in technical interview)", flows.techToPending, `${pct(flows.techToPending, flows.technical)}% of technical`)} onLeave={onLeave} />
+        )}
         {/* Technical -> RejTech */}
         {flows.techToRejTech > 0 && (
           <Flow ribbon={ribbon} x1={colX[2] + nodeW} y1={techRejTechY} x2={colX[3]} y2={rejTechNodeY} h={hRejTech}
@@ -225,6 +252,12 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
           <Flow ribbon={ribbon} x1={colX[3] + nodeW} y1={finalOffersY} x2={colX[4]} y2={offersFinalY} h={hh(flows.finalToOffers)}
             fill="url(#fc-offer)" op={0.9}
             onEnter={() => onHover("Offer after Final", flows.finalToOffers, `${pct(flows.finalToOffers, flows.final)}% of final`)} onLeave={onLeave} />
+        )}
+        {/* Final -> Pending (interviewing round 2+, in final) */}
+        {flows.finalToPending > 0 && (
+          <Flow ribbon={ribbon} x1={colX[3] + nodeW} y1={finalPendingY} x2={colX[4]} y2={pendingFinalY} h={hh(flows.finalToPending)}
+            fill="url(#fc-pending)" op={0.55}
+            onEnter={() => onHover("In Progress (in final round)", flows.finalToPending, `${pct(flows.finalToPending, flows.final)}% of final`)} onLeave={onLeave} />
         )}
         {/* Final -> RejFinal */}
         {flows.finalToRejFinal > 0 && (
@@ -264,6 +297,7 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
           onEnter={() => onHover("Offers", flows.offers, `${offerRate}% of total`)} onLeave={onLeave} />}
         {flows.rejFinal > 0 && <Node x={colX[4]} y={rejFinalNodeY} w={nodeW} h={hRejFinal} fill="#555" />}
         {flows.declined > 0 && <Node x={colX[4]} y={declinedNodeY} w={nodeW} h={hDeclined} fill="#555" />}
+        {flows.pending > 0 && <Node x={colX[4]} y={pendingNodeY} w={nodeW} h={hPending} fill="#3b82f6" />}
 
         {/* ===== MAIN LABELS (above nodes) ===== */}
         <Label x={colX[0]} y={topY - 34} text="Total Applications" />
@@ -280,6 +314,7 @@ export default function FunnelChart({ flows }: FunnelChartProps) {
         {flows.rejTech > 0 && <SideLabel x={colX[3] + nodeW + 8} y={rejTechNodeY + hRejTech / 2 + 4} text={`Rejected (${flows.rejTech})`} />}
         {flows.rejFinal > 0 && <SideLabel x={colX[4] + nodeW + 8} y={rejFinalNodeY + hRejFinal / 2 + 4} text={`Rejected (${flows.rejFinal})`} />}
         {flows.declined > 0 && <SideLabel x={colX[4] + nodeW + 8} y={declinedNodeY + hDeclined / 2 + 4} text={`Declined (${flows.declined})`} />}
+        {flows.pending > 0 && <SideLabel x={colX[4] + nodeW + 8} y={pendingNodeY + hPending / 2 + 4} text={`In Progress (${flows.pending})`} />}
       </svg>
 
       {/* Tooltip / summary bar */}

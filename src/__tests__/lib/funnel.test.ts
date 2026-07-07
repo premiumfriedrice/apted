@@ -91,12 +91,31 @@ describe("applicationsToSankey", () => {
     expect(f.screening).toBe(0);
   });
 
-  it("applied is in progress at screening (no terminal flow)", () => {
+  it("applied is in progress at screening -> pending node", () => {
     const f = applicationsToSankey([app("applied")]);
     expect(f.screening).toBe(1);
     expect(f.totalToScreen).toBe(1);
-    // No terminal flows out of screening.
+    // Applied routes to the pending terminal, not a rejection/offer.
+    expect(f.screenToPending).toBe(1);
+    expect(f.pending).toBe(1);
     expect(f.screenToGhosted + f.screenToRejScreen + f.screenToOffers + f.screenToDeclined).toBe(0);
+  });
+
+  it("interviewing round 1 is in progress at technical -> pending", () => {
+    const f = applicationsToSankey([app("interviewing", { interviewRound: 1 })]);
+    expect(f.technical).toBe(1);
+    expect(f.techToPending).toBe(1);
+    expect(f.pending).toBe(1);
+    // Hasn't progressed to final yet.
+    expect(f.final).toBe(0);
+    expect(f.techToFinal + f.techToRejTech + f.techToOffers + f.techToDeclined).toBe(0);
+  });
+
+  it("interviewing round 2 is in progress at final -> pending", () => {
+    const f = applicationsToSankey([app("interviewing", { interviewRound: 2 })]);
+    expect(f.final).toBe(1);
+    expect(f.finalToPending).toBe(1);
+    expect(f.pending).toBe(1);
   });
 
   it("ghosted routes screen -> ghosted", () => {
@@ -119,7 +138,7 @@ describe("applicationsToSankey", () => {
       app("offer", { interviewRound: null }),                                     // screen -> offers
       app("offer", { interviewRound: 2 }),                                        // final -> offers
       app("rejected", { rejectedAfterRound: 0 }),                                 // screen -> rej
-      app("interviewing", { interviewRound: 1, id: "i1" }),                       // in tech
+      app("interviewing", { interviewRound: 1, id: "i1" }),                       // tech -> pending
     ]);
     expect(f.total).toBe(5);
     expect(f.drafts).toBe(1);
@@ -128,7 +147,9 @@ describe("applicationsToSankey", () => {
     expect(f.final).toBe(1);      // offer after final
     expect(f.offers).toBe(2);
     expect(f.rejScreen).toBe(1);
+    expect(f.pending).toBe(1);    // the interviewing app
     expect(f.screenToOffers).toBe(1);
     expect(f.finalToOffers).toBe(1);
+    expect(f.techToPending).toBe(1);
   });
 });
