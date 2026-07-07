@@ -99,8 +99,10 @@ export default function FunnelChart({ stats }: FunnelChartProps) {
 
   // Constant-thickness bezier ribbon (proper Sankey: thickness = value * scale at both ends)
   const ribbon = (x1: number, y1: number, x2: number, y2: number, h: number) => {
-    const cp = (x1 + x2) / 2;
-    return `M ${x1} ${y1} C ${cp} ${y1}, ${cp} ${y2}, ${x2} ${y2} L ${x2} ${y2 + h} C ${cp} ${y2 + h}, ${cp} ${y1 + h}, ${x1} ${y1 + h} Z`;
+    const dx = x2 - x1;
+    const cp1x = x1 + dx * 0.5;
+    const cp2x = x2 - dx * 0.5;
+    return `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2} L ${x2} ${y2 + h} C ${cp2x} ${y2 + h}, ${cp1x} ${y1 + h}, ${x1} ${y1 + h} Z`;
   };
 
   const onHover = (label: string, value: number, p: string) =>
