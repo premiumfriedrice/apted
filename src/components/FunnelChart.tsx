@@ -1,596 +1,481 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Info } from 'lucide-react';
-import { FunnelStats } from './types';
+import React, { useState } from "react";
+import { Info } from "lucide-react";
+import { FunnelStats } from "./types";
 
 interface FunnelChartProps {
   stats: FunnelStats;
 }
 
+/**
+ * A proper Sankey funnel diagram.
+ *
+ * Key principles:
+ * - Every node height is proportional to its value (uniform scale).
+ * - Every flow ribbon has constant thickness = flowValue * scale at BOTH ends.
+ * - Flows are stacked vertically within each source node (pass on top, rejection
+ *   below, drop-off below that), so flow conservation is visually exact.
+ * - Drop-off buckets (drafts, ghosted, declined) are derived and shown so
+ *   that every application is accounted for at every stage.
+ */
 export default function FunnelChart({ stats }: FunnelChartProps) {
-  const [hoveredElement, setHoveredElement] = useState<{ name: string; value: string; rate?: string } | null>(null);
+  const [hovered, setHovered] = useState<{
+    label: string;
+    value: number;
+    pct: string;
+  } | null>(null);
+
+  if (stats.total === 0) return null;
+
+  // --- Derived drop-off buckets (so flows conserve mass) ---
+  const drafts = Math.max(stats.total - stats.screening, 0);
+  const ghosted = Math.max(
+    stats.screening - stats.screeningRejections - stats.technical,
+    0
+  );
+  const declined = Math.max(
+    stats.final - stats.finalRejections - stats.offers,
+    0
+  );
+
+  // --- Layout constants ---
+  const nodeW = 16;
+  const topY = 70; // y of the top of every main-chain node
+  const maxBar = 280; // pixel height of the tallest node (total)
+  const scale = maxBar / stats.total;
+  const colGap = 200;
+  const colX = [70, 70 + colGap, 70 + colGap * 2, 70 + colGap * 3, 70 + colGap * 4];
+
+  // value -> pixels (minimum 3px so nonzero nodes/flows are still visible)
+  const hh = (v: number) => (v > 0 ? Math.max(v * scale, 3) : 0);
+
+  // --- Node heights ---
+  const hTotal = hh(stats.total);
+  const hScreen = hh(stats.screening);
+  const hTech = hh(stats.technical);
+  const hFinal = hh(stats.final);
+  const hOffers = hh(stats.offers);
+  const hScreenRej = hh(stats.screeningRejections);
+  const hTechRej = hh(stats.technicalRejections);
+  const hFinalRej = hh(stats.finalRejections);
+  const hDrafts = hh(drafts);
+  const hGhosted = hh(ghosted);
+  const hDeclined = hh(declined);
+
+  // --- Flow source y-offsets (stacked top-to-bottom within each source node) ---
+  // Total -> [screening (pass), drafts (drop)]
+  const totalPassY = topY;
+  const totalDraftsY = topY + hScreen;
+
+  // Screening -> [technical (pass), screenRej, ghosted]
+  const screenPassY = topY;
+  const screenRejFlowY = topY + hTech;
+  const screenGhostFlowY = topY + hTech + hScreenRej;
+
+  // Technical -> [final (pass), techRej]
+  const techPassY = topY;
+  const techRejFlowY = topY + hFinal;
+
+  // Final -> [offers (pass), finalRej, declined]
+  const finalPassY = topY;
+  const finalRejFlowY = topY + hOffers;
+  const finalDeclinedFlowY = topY + hOffers + hFinalRej;
+
+  // Rejection/drop node y = aligned with incoming flow (same y as flow target)
+  const draftsNodeY = totalDraftsY;
+  const screenRejNodeY = screenRejFlowY;
+  const ghostedNodeY = screenGhostFlowY;
+  const techRejNodeY = techRejFlowY;
+  const finalRejNodeY = finalRejFlowY;
+  const declinedNodeY = finalDeclinedFlowY;
 
   // SVG dimensions
-  const width = 1000;
-  const height = 480;
+  const W = colX[4] + nodeW + 130;
+  const H = topY + hTotal + 50;
 
-  // Proportional scaling factor based on the Total Applications
-  const totalHeight = 300;
-  const scale = stats.total > 0 ? totalHeight / stats.total : 0;
+  // --- Helpers ---
+  const pct = (v: number, t: number) => (t > 0 ? Math.round((v / t) * 100) : 0);
 
-  // Node position coordinates
-  const xCoords = {
-    total: 60,
-    screening: 340,
-    technical: 520,
-    final: 700,
-    offers: 880,
-    screeningRejections: 700,
-    technicalRejections: 700,
-    finalRejections: 880,
+  // Constant-thickness bezier ribbon (proper Sankey: thickness = value * scale at both ends)
+  const ribbon = (x1: number, y1: number, x2: number, y2: number, h: number) => {
+    const cp = (x1 + x2) / 2;
+    return `M ${x1} ${y1} C ${cp} ${y1}, ${cp} ${y2}, ${x2} ${y2} L ${x2} ${y2 + h} C ${cp} ${y2 + h}, ${cp} ${y1 + h}, ${x1} ${y1 + h} Z`;
   };
 
-  const nodeWidth = 14;
+  const onHover = (label: string, value: number, p: string) =>
+    setHovered({ label, value, pct: p });
+  const onLeave = () => setHovered(null);
 
-  // Calculate Node Heights (minimum 4px so they don't disappear)
-  const heights = {
-    total: totalHeight,
-    screening: Math.max(stats.screening * scale, 6),
-    technical: Math.max(stats.technical * scale, 5),
-    final: Math.max(stats.final * scale, 4),
-    offers: Math.max(stats.offers * scale, 3),
-    screeningRejections: Math.max(stats.screeningRejections * scale, 12),
-    technicalRejections: Math.max(stats.technicalRejections * scale, 6),
-    finalRejections: Math.max(stats.finalRejections * scale, 4),
-  };
-
-  // Y coordinates for top of each node
-  const yCoords = {
-    total: 90,
-    screening: 90,
-    technical: 90,
-    final: 90,
-    offers: 90,
-    screeningRejections: 250,
-    technicalRejections: 170,
-    finalRejections: 170,
-  };
-
-  // Helper to generate cubic bezier curve path
-  const getCurvePath = (
-    x1: number,
-    y1: number,
-    h1: number,
-    x2: number,
-    y2: number,
-    h2: number
-  ) => {
-    const cpX1 = x1 + (x2 - x1) * 0.45;
-    const cpX2 = x1 + (x2 - x1) * 0.55;
-    return `
-      M ${x1} ${y1}
-      C ${cpX1} ${y1}, ${cpX2} ${y2}, ${x2} ${y2}
-      L ${x2} ${y2 + h2}
-      C ${cpX2} ${y2 + h2}, ${cpX1} ${y1 + h1}, ${x1} ${y1 + h1}
-      Z
-    `;
-  };
-
-  // Helper for drawing a simple line curve (for fine lines)
-  const getLineCurvePath = (x1: number, y1: number, x2: number, y2: number) => {
-    const cpX1 = x1 + (x2 - x1) * 0.45;
-    const cpX2 = x1 + (x2 - x1) * 0.55;
-    return `M ${x1} ${y1} C ${cpX1} ${y1}, ${cpX2} ${y2}, ${x2} ${y2}`;
-  };
-
-  // Conversion rates calculations
-  const rates = {
-    screening: stats.total > 0 ? ((stats.screening / stats.total) * 100).toFixed(1) : '0',
-    technical: stats.screening > 0 ? ((stats.technical / stats.screening) * 100).toFixed(1) : '0',
-    final: stats.technical > 0 ? ((stats.final / stats.technical) * 100).toFixed(1) : '0',
-    offers: stats.final > 0 ? ((stats.offers / stats.final) * 100).toFixed(1) : '0',
-    overall: stats.total > 0 ? ((stats.offers / stats.total) * 100).toFixed(1) : '0',
-  };
-
-  // Pre-calculated fine lines (representing the individual weaving threads in the screenshot)
-  const fineLines = [
-    { sY: yCoords.total + heights.total * 0.45, eY: yCoords.screening + heights.screening * 0.70 },
-    { sY: yCoords.total + heights.total * 0.50, eY: yCoords.screening + heights.screening * 0.85 },
-    { sY: yCoords.total + heights.total * 0.55, eY: yCoords.screening + heights.screening * 0.60 },
-    { sY: yCoords.total + heights.total * 0.65, eY: yCoords.screening + heights.screening * 0.90 },
-    { sY: yCoords.total + heights.total * 0.75, eY: yCoords.screening + heights.screening * 0.75 },
-    { sY: yCoords.total + heights.total * 0.82, eY: yCoords.screening + heights.screening * 0.95 },
-    { sY: yCoords.total + heights.total * 0.90, eY: yCoords.screening + heights.screening * 0.80 },
-    { sY: yCoords.total + heights.total * 0.98, eY: yCoords.screening + heights.screening * 0.98 },
-  ];
+  // Conversion rates for the summary bar
+  const screenRate = pct(stats.screening, stats.total);
+  const techRate = pct(stats.technical, stats.screening);
+  const offerRate = pct(stats.offers, stats.total);
 
   return (
     <div className="relative select-none">
-      {/* Funnel SVG Render Area */}
-      <div className="w-full overflow-x-auto">
-        <div className="relative">
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            className="w-full h-auto"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            {/* DEFINES FOR GRADIENTS AND FILTERS */}
-            <defs>
-              <linearGradient id="blackToGray" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#000000" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#2c3135" stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id="screeningToTech" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#2c3135" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#5f5e5e" stopOpacity="0.75" />
-              </linearGradient>
-              <linearGradient id="techToFinal" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#5f5e5e" stopOpacity="0.75" />
-                <stop offset="100%" stopColor="#7e7576" stopOpacity="0.7" />
-              </linearGradient>
-              <linearGradient id="finalToOffers" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#7e7576" stopOpacity="0.7" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id="rejectionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#5f5e5e" stopOpacity="0.75" />
-                <stop offset="100%" stopColor="#2c3135" stopOpacity="0.9" />
-              </linearGradient>
-            </defs>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-auto"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          <linearGradient id="fc-pass" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#000" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#333" stopOpacity="0.8" />
+          </linearGradient>
+          <linearGradient id="fc-rej" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#666" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#888" stopOpacity="0.55" />
+          </linearGradient>
+          <linearGradient id="fc-drop" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#999" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#bbb" stopOpacity="0.35" />
+          </linearGradient>
+        </defs>
 
-            {/* ====== FLOW CURVES (Sankey Links) ====== */}
+        {/* ===== FLOWS (drawn before nodes so nodes sit on top) ===== */}
 
-            {/* 1. Total -> Screening (Top main flow) */}
-            <path
-              d={getCurvePath(
-                xCoords.total + nodeWidth + 6,
-                yCoords.total,
-                heights.total * 0.40, // Top 40% of the bar represents the main screening flow
-                xCoords.screening,
-                yCoords.screening,
-                heights.screening
-              )}
-              fill="url(#blackToGray)"
-              className="transition-all duration-300 cursor-pointer hover:opacity-100 opacity-90"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Applications Advanced to Screening',
-                  value: `${stats.screening} candidates`,
-                  rate: `${rates.screening}% of total applications`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 1b. Total -> Screening Crisscrossing Fine Lines (Aesthetic bottom mesh) */}
-            {fineLines.map((line, i) => (
-              <path
-                key={`fine-line-${i}`}
-                d={getLineCurvePath(
-                  xCoords.total + nodeWidth + 6,
-                  line.sY,
-                  xCoords.screening,
-                  line.eY
-                )}
-                fill="none"
-                stroke="#171c20"
-                strokeWidth={1.5 + (i % 2) * 1}
-                strokeOpacity={0.6 - (i * 0.05)}
-                className="transition-all duration-300"
-              />
-            ))}
-
-            {/* 2. Screening -> Technical Interview */}
-            <path
-              d={getCurvePath(
-                xCoords.screening + nodeWidth,
-                yCoords.screening,
-                heights.screening * 0.35, // Proportional flow
-                xCoords.technical,
-                yCoords.technical,
-                heights.technical
-              )}
-              fill="url(#screeningToTech)"
-              className="transition-all duration-300 cursor-pointer hover:opacity-100 opacity-85"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Screening to Technical Interview',
-                  value: `${stats.technical} candidates`,
-                  rate: `${rates.technical}% screening pass rate`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 3. Screening -> Screening Rejections */}
-            <path
-              d={getCurvePath(
-                xCoords.screening + nodeWidth,
-                yCoords.screening + (heights.screening * 0.35),
-                heights.screening * 0.65,
-                xCoords.screeningRejections,
-                yCoords.screeningRejections,
-                heights.screeningRejections
-              )}
-              fill="url(#rejectionGrad)"
-              className="transition-all duration-300 cursor-pointer hover:opacity-100 opacity-80"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Pre-interview Rejections',
-                  value: `${stats.screeningRejections} candidates`,
-                  rate: `${((stats.screeningRejections / stats.total) * 100).toFixed(1)}% of total applications`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 4. Technical Interview -> Final Round */}
-            <path
-              d={getCurvePath(
-                xCoords.technical + nodeWidth,
-                yCoords.technical,
-                heights.technical * 0.30,
-                xCoords.final,
-                yCoords.final,
-                heights.final
-              )}
-              fill="url(#techToFinal)"
-              className="transition-all duration-300 cursor-pointer hover:opacity-100 opacity-85"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Technical to Final Round',
-                  value: `${stats.final} candidates`,
-                  rate: `${rates.final}% tech pass rate`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 5. Technical Interview -> Technical Rejections */}
-            <path
-              d={getCurvePath(
-                xCoords.technical + nodeWidth,
-                yCoords.technical + (heights.technical * 0.30),
-                heights.technical * 0.70,
-                xCoords.technicalRejections,
-                yCoords.technicalRejections,
-                heights.technicalRejections
-              )}
-              fill="#5f5e5e"
-              fillOpacity="0.6"
-              className="transition-all duration-300 cursor-pointer hover:opacity-100"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Technical Interview Rejections',
-                  value: `${stats.technicalRejections} candidates`,
-                  rate: `${((stats.technicalRejections / stats.screening) * 100).toFixed(1)}% of screened candidates`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 6. Final Round -> Offers */}
-            <path
-              d={getCurvePath(
-                xCoords.final + nodeWidth,
-                yCoords.final,
-                heights.final * 0.25,
-                xCoords.offers,
-                yCoords.offers,
-                heights.offers
-              )}
-              fill="url(#finalToOffers)"
-              className="transition-all duration-300 cursor-pointer hover:opacity-100 opacity-90"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Final Round to Offers',
-                  value: `${stats.offers} offers`,
-                  rate: `${rates.offers}% offer rate from final`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 7. Final Round -> Final Rejections */}
-            <path
-              d={getCurvePath(
-                xCoords.final + nodeWidth,
-                yCoords.final + (heights.final * 0.25),
-                heights.final * 0.75,
-                xCoords.finalRejections,
-                yCoords.finalRejections,
-                heights.finalRejections
-              )}
-              fill="#7e7576"
-              fillOpacity="0.6"
-              className="transition-all duration-300 cursor-pointer hover:opacity-100"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Final Round Rejections',
-                  value: `${stats.finalRejections} candidates`,
-                  rate: `${((stats.finalRejections / stats.technical) * 100).toFixed(1)}% of tech interviewees`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-
-            {/* ====== NODES (Sankey Bars) ====== */}
-
-            {/* 1. Total Applications Node Block (replicates the dual-line aesthetic) */}
-            <g
-              className="cursor-pointer hover:opacity-90 transition-opacity"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Total Job Applications',
-                  value: `${stats.total} total`,
-                  rate: 'Beginning of career search funnel',
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            >
-              {/* Outer Thick Bar */}
-              <rect
-                x={xCoords.total}
-                y={yCoords.total}
-                width={36}
-                height={heights.total}
-                fill="#000000"
-                rx={1}
-              />
-              {/* Secondary Accent Line */}
-              <rect
-                x={xCoords.total + 42}
-                y={yCoords.total}
-                width={8}
-                height={heights.total}
-                fill="#000000"
-                rx={1}
-              />
-            </g>
-
-            {/* 2. Screening Node */}
-            <rect
-              x={xCoords.screening}
-              y={yCoords.screening}
-              width={nodeWidth}
-              height={heights.screening}
-              fill="#000000"
-              rx={1}
-              className="cursor-pointer hover:opacity-80 transition-all duration-200"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Screening Stage',
-                  value: `${stats.screening} active`,
-                  rate: `${rates.screening}% overall conversion`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 3. Technical Interview Node */}
-            <rect
-              x={xCoords.technical}
-              y={yCoords.technical}
-              width={nodeWidth}
-              height={heights.technical}
-              fill="#000000"
-              rx={1}
-              className="cursor-pointer hover:opacity-80 transition-all duration-200"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Technical Interview Stage',
-                  value: `${stats.technical} active`,
-                  rate: `${rates.technical}% conversion from screening`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 4. Final Round Node */}
-            <rect
-              x={xCoords.final}
-              y={yCoords.final}
-              width={nodeWidth}
-              height={heights.final}
-              fill="#000000"
-              rx={1}
-              className="cursor-pointer hover:opacity-80 transition-all duration-200"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Final Round Stage',
-                  value: `${stats.final} active`,
-                  rate: `${rates.final}% conversion from tech interview`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* 5. Offers Node */}
-            <rect
-              x={xCoords.offers}
-              y={yCoords.offers}
-              width={nodeWidth + 6}
-              height={heights.offers}
-              fill="#000000"
-              rx={1}
-              className="cursor-pointer hover:opacity-80 transition-all duration-200"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Job Offers Issued',
-                  value: `${stats.offers} offers`,
-                  rate: `${rates.overall}% overall conversion rate`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* Rejections 900 Node (Screening Rejections) */}
-            <rect
-              x={xCoords.screeningRejections}
-              y={yCoords.screeningRejections}
-              width={nodeWidth}
-              height={heights.screeningRejections}
-              fill="#000000"
-              rx={1}
-              className="cursor-pointer hover:opacity-80 transition-all duration-200"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Screening Rejections',
-                  value: `${stats.screeningRejections} rejected`,
-                  rate: `${((stats.screeningRejections / stats.total) * 100).toFixed(1)}% of total applications`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* Rejections 130 Node (Technical Rejections) */}
-            <rect
-              x={xCoords.technicalRejections}
-              y={yCoords.technicalRejections}
-              width={nodeWidth}
-              height={heights.technicalRejections}
-              fill="#000000"
-              rx={1}
-              className="cursor-pointer hover:opacity-80 transition-all duration-200"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Technical Round Rejections',
-                  value: `${stats.technicalRejections} rejected`,
-                  rate: `${((stats.technicalRejections / stats.screening) * 100).toFixed(1)}% of screened candidates`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-            {/* Rejections 38 Node (Final Rejections) */}
-            <rect
-              x={xCoords.finalRejections}
-              y={yCoords.finalRejections}
-              width={nodeWidth}
-              height={heights.finalRejections}
-              fill="#000000"
-              rx={1}
-              className="cursor-pointer hover:opacity-80 transition-all duration-200"
-              onMouseEnter={() =>
-                setHoveredElement({
-                  name: 'Final Round Rejections',
-                  value: `${stats.finalRejections} rejected`,
-                  rate: `${((stats.finalRejections / stats.technical) * 100).toFixed(1)}% of tech interviewees`,
-                })
-              }
-              onMouseLeave={() => setHoveredElement(null)}
-            />
-
-
-            {/* ====== LABELS AND VALUES (Styled text) ====== */}
-
-            {/* 1. Total Applications Label */}
-            <text x={xCoords.total} y={yCoords.total - 34} className="font-display font-bold text-xs" fill="#171c20">
-              Total Applications
-            </text>
-            <text x={xCoords.total} y={yCoords.total - 16} className="font-sans text-sm font-medium" fill="#4c4546">
-              {stats.total}
-            </text>
-
-            {/* 2. Screening Label with search icon placeholder position */}
-            <g transform={`translate(${xCoords.screening}, ${yCoords.screening - 44})`}>
-              <path d="M 0 0 L 10 0 M 3 3 L 7 7" stroke="#171c20" strokeWidth="1.5" strokeLinecap="round" />
-              <circle cx="5" cy="5" r="3.5" stroke="#171c20" strokeWidth="1.5" fill="none" />
-              <text x={18} y={10} className="font-display font-bold text-xs" fill="#171c20">Screening</text>
-              <text x={18} y={26} className="font-sans text-sm font-medium" fill="#4c4546">{stats.screening}</text>
-            </g>
-
-            {/* 3. Technical Interview Label with coding icon placeholder */}
-            <g transform={`translate(${xCoords.technical}, ${yCoords.technical - 44})`}>
-              <path d="M 0 4 L 4 0 L 0 -4 M 8 4 L 4 0 L 8 -4" stroke="#171c20" strokeWidth="1.5" strokeLinecap="round" fill="none" transform="translate(4,6) scale(0.8)" />
-              <text x={18} y={10} className="font-display font-bold text-xs" fill="#171c20">Technical Interview</text>
-              <text x={18} y={26} className="font-sans text-sm font-medium" fill="#4c4546">{stats.technical}</text>
-            </g>
-
-            {/* 4. Final Round Label with group icon */}
-            <g transform={`translate(${xCoords.final}, ${yCoords.final - 44})`}>
-              {/* Small SVG Users Icon representation */}
-              <circle cx="5" cy="4" r="2.5" stroke="#171c20" strokeWidth="1.2" fill="none" />
-              <path d="M 1 10 C 1 8, 9 8, 9 10" stroke="#171c20" strokeWidth="1.2" fill="none" />
-              <text x={16} y={10} className="font-display font-bold text-xs" fill="#171c20">Final Round</text>
-              <text x={16} y={26} className="font-sans text-sm font-medium" fill="#4c4546">{stats.final}</text>
-            </g>
-
-            {/* 5. Offers Label with handshake icon */}
-            <g transform={`translate(${xCoords.offers}, ${yCoords.offers - 44})`}>
-              {/* Handshake line representation */}
-              <path d="M 0 5 L 8 1 L 11 4 L 5 8 Z" stroke="#171c20" strokeWidth="1" fill="none" />
-              <path d="M 4 8 L 9 12" stroke="#171c20" strokeWidth="1" />
-              <text x={16} y={10} className="font-display font-bold text-xs" fill="#171c20">Offers</text>
-              <text x={16} y={26} className="font-sans text-sm font-semibold" fill="#10B981">{stats.offers}</text>
-            </g>
-
-            {/* Rejections 900 Label */}
-            <g transform={`translate(${xCoords.screeningRejections + 20}, ${yCoords.screeningRejections + 12})`}>
-              <circle cx="-10" cy="-3" r="5" stroke="#7e7576" strokeWidth="1.2" fill="none" />
-              <path d="M -12 -5 L -8 -1 M -8 -5 L -12 -1" stroke="#7e7576" strokeWidth="1.2" />
-              <text x="0" y="2" className="font-display font-bold text-xs" fill="#171c20">Rejections</text>
-              <text x="0" y="18" className="font-sans text-sm font-medium" fill="#4c4546">{stats.screeningRejections}</text>
-            </g>
-
-            {/* Rejections 130 Label */}
-            <g transform={`translate(${xCoords.technicalRejections + 20}, ${yCoords.technicalRejections + 10})`}>
-              <circle cx="-10" cy="-3" r="5" stroke="#7e7576" strokeWidth="1.2" fill="none" />
-              <path d="M -12 -5 L -8 -1 M -8 -5 L -12 -1" stroke="#7e7576" strokeWidth="1.2" />
-              <text x="0" y="2" className="font-display font-bold text-xs" fill="#171c20">Rejections</text>
-              <text x="0" y="18" className="font-sans text-sm font-medium" fill="#4c4546">{stats.technicalRejections}</text>
-            </g>
-
-            {/* Rejections 38 Label */}
-            <g transform={`translate(${xCoords.finalRejections + 20}, ${yCoords.finalRejections + 10})`}>
-              <circle cx="-10" cy="-3" r="5" stroke="#7e7576" strokeWidth="1.2" fill="none" />
-              <path d="M -12 -5 L -8 -1 M -8 -5 L -12 -1" stroke="#7e7576" strokeWidth="1.2" />
-              <text x="0" y="2" className="font-display font-bold text-xs" fill="#171c20">Rejections</text>
-              <text x="0" y="18" className="font-sans text-sm font-medium" fill="#4c4546">{stats.finalRejections}</text>
-            </g>
-
-          </svg>
-        </div>
-      </div>
-
-      {/* Dynamic Interactive Tooltip */}
-      <div className="mt-4 min-h-[52px] flex items-center justify-between">
-        {hoveredElement ? (
-          <div className="flex items-center gap-3">
-            <div className="bg-[#1b1b1b] text-white p-1.5 rounded">
-              <Info className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-[#171c20] font-display uppercase tracking-wide">
-                {hoveredElement.name}
-              </div>
-              <div className="text-sm font-sans font-medium text-gray-700">
-                {hoveredElement.value} <span className="text-xs text-gray-500 font-normal">({hoveredElement.rate})</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-xs text-gray-500 flex items-center gap-2">
-            <Info className="w-4 h-4 text-gray-400" />
-            <span>Hover over any stage node or flow path to view specific volumes and conversion percentages.</span>
-          </div>
+        {/* Total -> Screening */}
+        {stats.screening > 0 && (
+          <path
+            d={ribbon(colX[0] + nodeW, totalPassY, colX[1], topY, hScreen)}
+            fill="url(#fc-pass)"
+            opacity={0.85}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Submitted to Screening", stats.screening, `${screenRate}% of total`)
+            }
+            onMouseLeave={onLeave}
+          />
         )}
 
-        <div className="hidden md:flex items-center gap-6 text-right">
-          <div>
-            <div className="text-[10px] font-bold text-gray-500 uppercase">Screen Pass</div>
-            <div className="text-xs font-mono font-bold text-black">{rates.screening}%</div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-gray-500 uppercase">Interview Pass</div>
-            <div className="text-xs font-mono font-bold text-black">{rates.technical}%</div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-gray-500 uppercase">Offer Yield</div>
-            <div className="text-xs font-mono font-bold text-green-600">{rates.offers}%</div>
-          </div>
+        {/* Total -> Drafts */}
+        {drafts > 0 && (
+          <path
+            d={ribbon(colX[0] + nodeW, totalDraftsY, colX[1], draftsNodeY, hDrafts)}
+            fill="url(#fc-drop)"
+            opacity={0.6}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Not Submitted (Drafts)", drafts, `${pct(drafts, stats.total)}% of total`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Screening -> Technical */}
+        {stats.technical > 0 && (
+          <path
+            d={ribbon(colX[1] + nodeW, screenPassY, colX[2], topY, hTech)}
+            fill="url(#fc-pass)"
+            opacity={0.85}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Passed Screening to Technical", stats.technical, `${techRate}% of screened`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Screening -> Screening Rejections */}
+        {stats.screeningRejections > 0 && (
+          <path
+            d={ribbon(colX[1] + nodeW, screenRejFlowY, colX[2], screenRejNodeY, hScreenRej)}
+            fill="url(#fc-rej)"
+            opacity={0.7}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Rejected at Screening", stats.screeningRejections, `${pct(stats.screeningRejections, stats.screening)}% of screened`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Screening -> Ghosted */}
+        {ghosted > 0 && (
+          <path
+            d={ribbon(colX[1] + nodeW, screenGhostFlowY, colX[2], ghostedNodeY, hGhosted)}
+            fill="url(#fc-drop)"
+            opacity={0.5}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Ghosted / No Response", ghosted, `${pct(ghosted, stats.screening)}% of screened`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Technical -> Final */}
+        {stats.final > 0 && (
+          <path
+            d={ribbon(colX[2] + nodeW, techPassY, colX[3], topY, hFinal)}
+            fill="url(#fc-pass)"
+            opacity={0.85}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Passed Technical to Final", stats.final, `${pct(stats.final, stats.technical)}% of technical`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Technical -> Technical Rejections */}
+        {stats.technicalRejections > 0 && (
+          <path
+            d={ribbon(colX[2] + nodeW, techRejFlowY, colX[3], techRejNodeY, hTechRej)}
+            fill="url(#fc-rej)"
+            opacity={0.7}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Rejected After Technical", stats.technicalRejections, `${pct(stats.technicalRejections, stats.technical)}% of technical`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Final -> Offers */}
+        {stats.offers > 0 && (
+          <path
+            d={ribbon(colX[3] + nodeW, finalPassY, colX[4], topY, hOffers)}
+            fill="url(#fc-pass)"
+            opacity={0.9}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Offer Received", stats.offers, `${pct(stats.offers, stats.final)}% of final`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Final -> Final Rejections */}
+        {stats.finalRejections > 0 && (
+          <path
+            d={ribbon(colX[3] + nodeW, finalRejFlowY, colX[4], finalRejNodeY, hFinalRej)}
+            fill="url(#fc-rej)"
+            opacity={0.7}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Rejected After Final", stats.finalRejections, `${pct(stats.finalRejections, stats.final)}% of final`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Final -> Declined */}
+        {declined > 0 && (
+          <path
+            d={ribbon(colX[3] + nodeW, finalDeclinedFlowY, colX[4], declinedNodeY, hDeclined)}
+            fill="url(#fc-drop)"
+            opacity={0.5}
+            className="cursor-pointer transition-opacity hover:opacity-100"
+            onMouseEnter={() =>
+              onHover("Declined / Stalled", declined, `${pct(declined, stats.final)}% of final`)
+            }
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* ===== NODES ===== */}
+
+        {/* Main chain */}
+        <rect
+          x={colX[0]} y={topY} width={nodeW} height={hTotal} fill="#000" rx={1}
+          className="cursor-pointer hover:opacity-80 transition-opacity"
+          onMouseEnter={() => onHover("Total Applications", stats.total, "100%")}
+          onMouseLeave={onLeave}
+        />
+        {stats.screening > 0 && (
+          <rect
+            x={colX[1]} y={topY} width={nodeW} height={hScreen} fill="#000" rx={1}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            onMouseEnter={() => onHover("Screening", stats.screening, `${screenRate}% of total`)}
+            onMouseLeave={onLeave}
+          />
+        )}
+        {stats.technical > 0 && (
+          <rect
+            x={colX[2]} y={topY} width={nodeW} height={hTech} fill="#000" rx={1}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            onMouseEnter={() => onHover("Technical Interview", stats.technical, `${techRate}% of screened`)}
+            onMouseLeave={onLeave}
+          />
+        )}
+        {stats.final > 0 && (
+          <rect
+            x={colX[3]} y={topY} width={nodeW} height={hFinal} fill="#000" rx={1}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            onMouseEnter={() => onHover("Final Round", stats.final, `${pct(stats.final, stats.technical)}% of technical`)}
+            onMouseLeave={onLeave}
+          />
+        )}
+        {stats.offers > 0 && (
+          <rect
+            x={colX[4]} y={topY} width={nodeW} height={hOffers} fill="#000" rx={1}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            onMouseEnter={() => onHover("Offers", stats.offers, `${offerRate}% of total`)}
+            onMouseLeave={onLeave}
+          />
+        )}
+
+        {/* Rejection / drop-off nodes */}
+        {drafts > 0 && (
+          <rect x={colX[1]} y={draftsNodeY} width={nodeW} height={hDrafts} fill="#555" rx={1} />
+        )}
+        {stats.screeningRejections > 0 && (
+          <rect x={colX[2]} y={screenRejNodeY} width={nodeW} height={hScreenRej} fill="#555" rx={1} />
+        )}
+        {ghosted > 0 && (
+          <rect x={colX[2]} y={ghostedNodeY} width={nodeW} height={hGhosted} fill="#555" rx={1} />
+        )}
+        {stats.technicalRejections > 0 && (
+          <rect x={colX[3]} y={techRejNodeY} width={nodeW} height={hTechRej} fill="#555" rx={1} />
+        )}
+        {stats.finalRejections > 0 && (
+          <rect x={colX[4]} y={finalRejNodeY} width={nodeW} height={hFinalRej} fill="#555" rx={1} />
+        )}
+        {declined > 0 && (
+          <rect x={colX[4]} y={declinedNodeY} width={nodeW} height={hDeclined} fill="#555" rx={1} />
+        )}
+
+        {/* ===== LABELS ===== */}
+
+        {/* Main chain labels (above nodes) */}
+        <text x={colX[0]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+          Total Applications
+        </text>
+        <text x={colX[0]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+          {stats.total}
+        </text>
+
+        {stats.screening > 0 && (
+          <>
+            <text x={colX[1]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+              Screening
+            </text>
+            <text x={colX[1]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+              {stats.screening}
+            </text>
+          </>
+        )}
+        {stats.technical > 0 && (
+          <>
+            <text x={colX[2]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+              Technical Interview
+            </text>
+            <text x={colX[2]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+              {stats.technical}
+            </text>
+          </>
+        )}
+        {stats.final > 0 && (
+          <>
+            <text x={colX[3]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+              Final Round
+            </text>
+            <text x={colX[3]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+              {stats.final}
+            </text>
+          </>
+        )}
+        {stats.offers > 0 && (
+          <>
+            <text x={colX[4]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+              Offers
+            </text>
+            <text x={colX[4]} y={topY - 16} className="font-sans text-sm font-semibold" fill="#10B981">
+              {stats.offers}
+            </text>
+          </>
+        )}
+
+        {/* Rejection / drop-off labels (right of node) */}
+        {drafts > 0 && (
+          <text
+            x={colX[1] + nodeW + 8}
+            y={draftsNodeY + hDrafts / 2 + 4}
+            className="font-sans text-xs"
+            fill="#666"
+          >
+            Drafts ({drafts})
+          </text>
+        )}
+        {stats.screeningRejections > 0 && (
+          <text
+            x={colX[2] + nodeW + 8}
+            y={screenRejNodeY + hScreenRej / 2 + 4}
+            className="font-sans text-xs"
+            fill="#666"
+          >
+            Rejected ({stats.screeningRejections})
+          </text>
+        )}
+        {ghosted > 0 && (
+          <text
+            x={colX[2] + nodeW + 8}
+            y={ghostedNodeY + hGhosted / 2 + 4}
+            className="font-sans text-xs"
+            fill="#666"
+          >
+            Ghosted ({ghosted})
+          </text>
+        )}
+        {stats.technicalRejections > 0 && (
+          <text
+            x={colX[3] + nodeW + 8}
+            y={techRejNodeY + hTechRej / 2 + 4}
+            className="font-sans text-xs"
+            fill="#666"
+          >
+            Rejected ({stats.technicalRejections})
+          </text>
+        )}
+        {stats.finalRejections > 0 && (
+          <text
+            x={colX[4] + nodeW + 8}
+            y={finalRejNodeY + hFinalRej / 2 + 4}
+            className="font-sans text-xs"
+            fill="#666"
+          >
+            Rejected ({stats.finalRejections})
+          </text>
+        )}
+        {declined > 0 && (
+          <text
+            x={colX[4] + nodeW + 8}
+            y={declinedNodeY + hDeclined / 2 + 4}
+            className="font-sans text-xs"
+            fill="#666"
+          >
+            Declined ({declined})
+          </text>
+        )}
+      </svg>
+
+      {/* Tooltip / summary bar */}
+      <div className="mt-3 flex items-center justify-between text-xs">
+        {hovered ? (
+          <span className="flex items-center gap-2 font-medium text-on-surface">
+            <Info className="h-3.5 w-3.5 text-on-surface-variant" />
+            {hovered.label}: <strong>{hovered.value}</strong>
+            <span className="text-on-surface-variant">({hovered.pct})</span>
+          </span>
+        ) : (
+          <span className="flex items-center gap-2 text-on-surface-variant">
+            <Info className="h-3.5 w-3.5" />
+            Hover over any node or flow for details.
+          </span>
+        )}
+        <div className="hidden items-center gap-4 md:flex">
+          <span>
+            <strong className="font-mono text-on-surface">{screenRate}%</strong> screen pass
+          </span>
+          <span>
+            <strong className="font-mono text-on-surface">{techRate}%</strong> interview pass
+          </span>
+          <span className="text-status-success">
+            <strong className="font-mono">{offerRate}%</strong> offer rate
+          </span>
         </div>
       </div>
     </div>
