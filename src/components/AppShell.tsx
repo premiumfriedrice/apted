@@ -36,11 +36,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const topbarLeft = collapsed ? "left-16" : "left-64";
   const mainLeft = collapsed ? "ml-16" : "ml-64";
 
-  // The master editor is a standalone full-viewport surface with its own
-  // header; it bypasses the global sidebar/topbar shell entirely.
-  if (pathname === "/master") {
-    return <>{children}</>;
-  }
   const flush = pathname === "/master";
 
   return (
