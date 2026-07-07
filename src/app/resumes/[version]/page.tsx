@@ -259,8 +259,18 @@ export default function ResumeDetailPage() {
           {/* Left content — toggled by Insights / Jobs */}
           {leftMode === "insights" ? (
             <>
-              {/* Top: AI insights + usage stats */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-b border-outline-variant p-md space-y-md">
+              {/* Top half: Sankey funnel diagram */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
+                <h2 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h2>
+                {apps.length > 0 ? (
+                  <SankeyDiagram applications={apps} />
+                ) : (
+                  <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
+                )}
+              </div>
+
+              {/* Bottom: AI insights + usage stats */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md space-y-md">
                 {/* Usage stats */}
                 <div className="grid grid-cols-3 gap-sm">
                   <StatCard label="Times Used" value={totalApps} />
@@ -315,16 +325,6 @@ export default function ResumeDetailPage() {
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
-
-              {/* Bottom half: Sankey funnel diagram */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-auto p-md">
-                <h2 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h2>
-                {apps.length > 0 ? (
-                  <SankeyDiagram applications={apps} />
-                ) : (
-                  <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
                 )}
               </div>
             </>
