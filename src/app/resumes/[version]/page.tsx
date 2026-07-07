@@ -204,31 +204,9 @@ export default function ResumeDetailPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: two even halves (toggle pane on top, job description on bottom) */}
         <aside className="flex flex-1 flex-col overflow-hidden border-r border-outline-variant bg-surface-container-lowest">
-          {/* Top half: toggle between Funnel (Sankey) and Applications list */}
-          <div className="flex min-h-0 flex-1 flex-col border-b border-outline-variant">
-            <div className="flex shrink-0 items-center justify-between border-b border-outline-variant bg-surface-container-low px-md py-sm">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setTopPane("funnel")}
-                  className={`rounded px-3 py-1.5 text-label-md font-label-md transition-colors ${
-                    topPane === "funnel"
-                      ? "bg-surface-container-high text-on-surface font-semibold"
-                      : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-                  }`}
-                >
-                  Funnel
-                </button>
-                <button
-                  onClick={() => setTopPane("applications")}
-                  className={`rounded px-3 py-1.5 text-label-md font-label-md transition-colors ${
-                    topPane === "applications"
-                      ? "bg-surface-container-high text-on-surface font-semibold"
-                      : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-                  }`}
-                >
-                  Applications
-                </button>
-              </div>
+          {/* Top: toggle between Funnel (Sankey) and Applications list — natural height */}
+          <div className="shrink-0 border-b border-outline-variant">
+            <div className="flex shrink-0 items-center gap-1 border-b border-outline-variant bg-surface-container-low px-md py-sm">
               <Link
                 href="/resumes"
                 title="Back to Resumes"
@@ -236,14 +214,34 @@ export default function ResumeDetailPage() {
               >
                 <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               </Link>
+              <button
+                onClick={() => setTopPane("funnel")}
+                className={`rounded px-3 py-1.5 text-label-md font-label-md transition-colors ${
+                  topPane === "funnel"
+                    ? "bg-surface-container-high text-on-surface font-semibold"
+                    : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
+                }`}
+              >
+                Funnel
+              </button>
+              <button
+                onClick={() => setTopPane("applications")}
+                className={`rounded px-3 py-1.5 text-label-md font-label-md transition-colors ${
+                  topPane === "applications"
+                  ? "bg-surface-container-high text-on-surface font-semibold"
+                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
+                }`}
+              >
+                Applications
+              </button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="overflow-hidden">
               {topPane === "funnel" ? (
-                <div className="flex min-h-0 flex-1 flex-col overflow-auto p-md">
+                <div className="overflow-auto p-md">
                   <SankeyDiagram applications={version.applications} />
                 </div>
               ) : (
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md">
+                <div className="max-h-[40vh] overflow-y-auto p-md">
                   {version.applications.length === 0 ? (
                     <p className="text-sm text-on-surface-variant">No applications tracked for this resume.</p>
                   ) : (
@@ -277,23 +275,41 @@ export default function ResumeDetailPage() {
             </div>
           </div>
 
-          {/* Bottom half: job description of the selected application */}
+          {/* Bottom: job descriptions list (old design — expandable cards) */}
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b border-outline-variant bg-surface-container-low px-md py-sm">
-              <h2 className="font-label-lg text-label-lg text-on-surface">Job Description</h2>
-              {selectedApp && (
-                <p className="text-xs text-on-surface-variant">
-                  {selectedApp.company} · {selectedApp.role}
-                </p>
-              )}
+            <div className="shrink-0 border-b border-outline-variant px-md py-sm">
+              <h2 className="font-label-lg text-label-lg text-on-surface">Job Descriptions</h2>
             </div>
-            <div className="flex min-h-0 flex-1 overflow-y-auto p-md">
-              {!selectedApp ? (
+            <div className="flex-1 overflow-y-auto p-md">
+              {version.applications.length === 0 ? (
                 <p className="text-sm text-on-surface-variant">No applications linked to this resume.</p>
-              ) : !selectedApp.jobDescription ? (
-                <p className="text-sm text-on-surface-variant">No job description provided for this application.</p>
               ) : (
-                <div className="whitespace-pre-wrap text-sm text-on-surface">{selectedApp.jobDescription}</div>
+                <div className="space-y-md">
+                  {version.applications.map((app) => (
+                    <button
+                      key={app.id}
+                      onClick={() => setSelectedAppId(app.id)}
+                      className={`w-full rounded-lg border p-md text-left transition-colors ${
+                        selectedAppId === app.id
+                          ? "border-primary bg-surface-white"
+                          : "border-outline-variant bg-surface-white hover:border-outline"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-primary">{app.company}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}>
+                          {app.outcome}
+                        </span>
+                      </div>
+                      <div className="text-xs text-on-surface-variant">{app.role}</div>
+                      {selectedAppId === app.id && app.jobDescription && (
+                        <div className="mt-sm border-t border-outline-variant pt-sm text-sm text-on-surface whitespace-pre-wrap">
+                          {app.jobDescription}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
