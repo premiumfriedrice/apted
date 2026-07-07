@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PdfPreviewPane } from "@/components/PdfPreviewPane";
-import { SankeyDiagram } from "@/components/SankeyDiagram";
+import FunnelChart from "@/components/FunnelChart";
+import type { FunnelStats } from "@/components/types";
 import type { Application } from "@/lib/applications";
 
 type Version = {
@@ -85,6 +86,8 @@ export default function ResumeDetailPage() {
   const [leftMode, setLeftMode] = useState<"insights" | "jobs">("insights");
   const [insights, setInsights] = useState<Insights | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
+  const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
+  const [isSynced, setIsSynced] = useState(true);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportName, setExportName] = useState("Resume");
@@ -171,6 +174,41 @@ export default function ResumeDetailPage() {
   const totalApps = apps.length;
   const interviewCount = apps.filter((a) => a.outcome === "interviewing" || a.outcome === "offer" || a.outcome === "declined" || a.outcome === "rejected").length;
   const offerCount = outcomeCounts.offer ?? 0;
+
+  // Map applications to FunnelStats for the FunnelChart.
+  const trackedStats: FunnelStats = useMemo(() => {
+    let screening = 0;
+    let technical = 0;
+    let final = 0;
+    let offers = 0;
+    let screeningRejections = 0;
+    let technicalRejections = 0;
+    let finalRejections = 0;
+    for (const a of apps) {
+      if (a.outcome === "draft") continue; // draft = not submitted
+      screening++; // submitted => entered screening
+      const rejR = a.rejectedAfterRound ?? 0;
+      const intR = a.interviewRound ?? 0;
+      if (a.outcome === "rejected") {
+        if (rejR === 0) { screeningRejections++; continue; }
+        technical++;
+        if (rejR === 1) { technicalRejections++; continue; }
+        final++;
+        finalRejections++; continue;
+      }
+      if (a.outcome === "ghosted" || a.outcome === "applied") continue; // stuck in screening
+      // interviewing, offer, declined => reached at least technical
+      technical++;
+      if (intR >= 2 || a.outcome === "offer" || a.outcome === "declined") final++;
+      if (a.outcome === "offer") offers++;
+    }
+    return { total: apps.length, screening, technical, final, offers, screeningRejections, technicalRejections, finalRejections };
+  }, [apps]);
+
+  // When synced, mirror tracked stats into funnelStats.
+  useEffect(() => {
+    if (isSynced) setFunnelStats(trackedStats);
+  }, [isSynced, trackedStats]);
   function exportAs(kind: "pdf" | "json") {
     const base = exportName.trim() || "Resume";
     try {
@@ -262,8 +300,17 @@ export default function ResumeDetailPage() {
               {/* Top half: Sankey funnel diagram */}
               <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
                 <h2 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h2>
-                {apps.length > 0 ? (
-                  <SankeyDiagram applications={apps} />
+                {apps.length > 0 && funnelStats ? (
+                  <FunnelChart
+                    stats={funnelStats}
+                    isSynced={isSynced}
+                    onToggleSync={() => {
+                      const next = !isSynced;
+                      setIsSynced(next);
+                      if (next) setFunnelStats(trackedStats);
+                    }}
+                    onUpdateStats={(s) => setFunnelStats(s)}
+                  />
                 ) : (
                   <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
                 )}

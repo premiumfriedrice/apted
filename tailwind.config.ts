@@ -6,6 +6,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
+        display: ["Outfit", "Inter", "system-ui", "sans-serif"],
         serif: ["Charter", "Georgia", "Cambria", "Times New Roman", "serif"],
         "headline-xl": ["Inter", "system-ui", "sans-serif"],
         "headline-lg": ["Inter", "system-ui", "sans-serif"],
@@ -97,6 +98,15 @@ const config: Config = {
         lg: "0.25rem",
         xl: "0.5rem",
         full: "0.75rem",
+      },
+      keyframes: {
+        "spin-slow": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+      },
+      animation: {
+        "spin-slow": "spin-slow 3s linear infinite",
       },
     },
   },
