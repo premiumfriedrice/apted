@@ -367,7 +367,7 @@ export default function MasterPage() {
         <main className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-background">
           {/* Left Column (Editor) */}
           <div className="flex-1 w-full flex flex-col overflow-hidden">
-            <div className="border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-md py-1 shrink-0 sticky top-0 z-10">
+            <div className="border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-md py-0.5 shrink-0 sticky top-0 z-10">
               <div className="flex items-center gap-1">
                 <button onClick={() => switchMode("structured")} className={editorMode === "structured" ? modeActiveBtnCls : smallBtnCls}>
                   Structured

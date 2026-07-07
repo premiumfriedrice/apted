@@ -209,7 +209,7 @@ export default function ResumeDetailPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: header matches the master resume editor; toggles switch content */}
         <aside className="flex flex-1 flex-col overflow-hidden bg-surface-container-lowest">
-          <div className="shrink-0 border-b border-outline-variant bg-surface-container-lowest px-md py-1 sticky top-0 z-10 flex items-center justify-between">
+          <div className="shrink-0 border-b border-outline-variant bg-surface-container-lowest px-md py-0.5 sticky top-0 z-10 flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Link
                 href="/resumes"
