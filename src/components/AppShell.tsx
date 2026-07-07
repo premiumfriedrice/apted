@@ -41,9 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarWidth = collapsed ? "w-12" : "w-64";
   const mainLeft = collapsed ? "ml-12" : "ml-64";
 
-  // The master editor keeps the global sidebar but renders full-bleed with
-  // its own headers and split pane — no shell topbar or page padding.
-  if (pathname === "/master") {
+  // Full-bleed routes keep the sidebar but render edge-to-edge with no page
+  // padding so they can manage their own split-pane layouts.
+  const flush = pathname === "/master" || pathname.startsWith("/resumes/");
+  if (flush) {
     return (
       <div className="h-screen overflow-hidden bg-surface text-on-background">
         <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ${sidebarWidth}`}>

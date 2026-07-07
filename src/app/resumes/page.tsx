@@ -160,13 +160,13 @@ export default function ResumesPage() {
             return (
               <div
                 key={v.id}
-                onClick={() => router.push(`/builder?version=${v.id}`)}
+                onClick={() => router.push(`/resumes/${v.id}`)}
                 className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
               >
                 <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
                   <ResumePreview pdfBase64={v.pdfBase64} />
                   <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
-                    <button className={primaryBtnCls}>Edit Resume</button>
+                    <button className={primaryBtnCls}>View Resume</button>
                   </div>
                 </div>
                 <div>
