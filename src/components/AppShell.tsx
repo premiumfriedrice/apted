@@ -16,9 +16,9 @@ const STORAGE_KEY = "apted:sidebar-collapsed";
 
 // Shared button language (matches the master resume editor header).
 const sideBtnCls =
-  "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
+  "flex items-center gap-1 px-3 w-full text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
 const sideActiveBtnCls =
-  "inline-flex items-center gap-1 px-3 py-2 text-on-surface text-label-md font-label-md bg-surface-container-high font-semibold rounded";
+  "flex items-center gap-1 px-3 w-full text-on-surface text-label-md font-label-md bg-surface-container-high font-semibold rounded";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -143,12 +143,6 @@ function SidebarInner({
         </button>
       )}
 
-      {!collapsed && (
-        <p className="mb-4 px-6 font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">
-          Career Manager
-        </p>
-      )}
-
       {/* Nav */}
       <nav className={`flex-1 space-y-1 ${collapsed ? "px-0" : "px-3"}`}>
         {SIDEBAR_NAV.map((item) => {
@@ -158,9 +152,9 @@ function SidebarInner({
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center py-2 transition-colors duration-200 ${
+              className={`h-9 transition-colors duration-200 ${
                 collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
-              } ${collapsed ? "justify-center px-0" : ""}`}
+              } ${collapsed ? "justify-center px-0 w-9 mx-auto" : ""}`}
             >
               <MaterialIcon name={item.icon} className={collapsed ? "text-[22px]" : "text-[20px]"} />
               {!collapsed && <span>{item.label}</span>}
@@ -169,18 +163,8 @@ function SidebarInner({
         })}
       </nav>
 
-      {/* Footer: New Application + compact profile with settings */}
+      {/* Footer: compact profile with settings */}
       <div className="shrink-0 space-y-3 px-0 pb-4">
-        <div className={collapsed ? "flex justify-center px-0" : "px-3"}>
-          <button
-            title={collapsed ? "New Application" : undefined}
-            className={`inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary transition-colors duration-200 hover:bg-on-primary-fixed-variant ${collapsed ? "w-10 px-0" : "w-full"}`}
-          >
-            <MaterialIcon name="add" className="text-[18px]" />
-            {!collapsed && <span>New Application</span>}
-          </button>
-        </div>
-
         {collapsed ? (
           <div className="flex flex-col items-center gap-1 pt-1">
             <Link
