@@ -238,30 +238,36 @@ export default function ResumeDetailPage() {
                 <p className="text-sm text-on-surface-variant">No applications linked to this resume.</p>
               ) : (
                 <div className="space-y-md">
-                  {version.applications.map((app) => (
+                  {version.applications.map((app) => {
+                    const expanded = selectedAppId === app.id;
+                    return (
                     <button
                       key={app.id}
-                      onClick={() => setSelectedAppId(app.id)}
+                      onClick={() => setSelectedAppId(expanded ? null : app.id)}
                       className={`w-full rounded-lg border p-md text-left transition-colors ${
-                        selectedAppId === app.id
+                        expanded
                           ? "border-primary bg-surface-white"
                           : "border-outline-variant bg-surface-white hover:border-outline"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-primary">{app.company}</span>
+                        <span className="flex items-center gap-1 font-semibold text-primary">
+                          <span className="material-symbols-outlined text-[16px] text-on-surface-variant transition-transform duration-200" style={{ transform: expanded ? "rotate(90deg)" : "none" }}>chevron_right</span>
+                          {app.company}
+                        </span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}>
                           {app.outcome}
                         </span>
                       </div>
                       <div className="text-xs text-on-surface-variant">{app.role}</div>
-                      {selectedAppId === app.id && app.jobDescription && (
+                      {expanded && app.jobDescription && (
                         <div className="mt-sm border-t border-outline-variant pt-sm text-sm text-on-surface whitespace-pre-wrap">
                           {app.jobDescription}
                         </div>
                       )}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
