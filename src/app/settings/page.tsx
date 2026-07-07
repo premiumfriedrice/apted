@@ -38,7 +38,7 @@ export default function SettingsPage() {
     <main className="mx-auto max-w-2xl px-6 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Settings</h1>
-        <Link href="/" className="text-sm text-neutral-600 underline">
+        <Link href="/resumes" className="text-sm text-neutral-600 underline">
           Back to library
         </Link>
       </div>

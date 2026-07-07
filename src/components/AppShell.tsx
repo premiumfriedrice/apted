@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const SIDEBAR_NAV = [
-  { href: "/", label: "Resumes", icon: "folder_open" },
+  { href: "/resumes", label: "Resumes", icon: "folder_open" },
   { href: "/master", label: "Master Resume", icon: "edit_note" },
   { href: "/applications", label: "Applications", icon: "assignment_turned_in" },
 ];
