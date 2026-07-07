@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import FunnelChart from "@/components/FunnelChart";
+import type { FunnelStats } from "@/components/types";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -73,6 +75,44 @@ export default function ApplicationsPage() {
     return result;
   }, [applications, filter, search]);
 
+  // Global funnel stats across ALL applications (not filtered).
+  const funnelStats: FunnelStats = useMemo(() => {
+    let screening = 0;
+    let technical = 0;
+    let final = 0;
+    let offers = 0;
+    let screeningRejections = 0;
+    let technicalRejections = 0;
+    let finalRejections = 0;
+    for (const a of applications) {
+      if (a.outcome === "draft") continue;
+      screening++;
+      const rejR = a.rejectedAfterRound ?? 0;
+      const intR = a.interviewRound ?? 0;
+      if (a.outcome === "rejected") {
+        if (rejR === 0) { screeningRejections++; continue; }
+        technical++;
+        if (rejR === 1) { technicalRejections++; continue; }
+        final++;
+        finalRejections++; continue;
+      }
+      if (a.outcome === "ghosted" || a.outcome === "applied") continue;
+      technical++;
+      if (intR >= 2 || a.outcome === "offer" || a.outcome === "declined") final++;
+      if (a.outcome === "offer") offers++;
+    }
+    return {
+      total: applications.length,
+      screening,
+      technical,
+      final,
+      offers,
+      screeningRejections,
+      technicalRejections,
+      finalRejections,
+    };
+  }, [applications]);
+
   const STATUSES: (Outcome | "all")[] = ["all", "applied", "interviewing", "offer", "rejected", "ghosted", "declined"];
 
 // Button language shared with the master resume editor (PRE-82 design system).
@@ -111,6 +151,13 @@ const modeActiveBtnCls =
           </button>
         ))}
       </div>
+
+      {applications.length > 0 && (
+        <div className="mb-6 rounded-lg border border-border-subtle bg-surface-white p-md">
+          <h3 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h3>
+          <FunnelChart stats={funnelStats} />
+        </div>
+      )}
 
       <div className="overflow-hidden border border-border-subtle bg-surface-white">
         <table className="w-full border-collapse text-left">
