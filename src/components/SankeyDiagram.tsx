@@ -5,320 +5,323 @@ import type { Application } from "@/lib/applications";
 
 type Outcome = Application["outcome"];
 
-const STAGE_COLORS: Record<string, { fill: string; stroke: string; text: string }> = {
-  draft: { fill: "#f3f4f6", stroke: "#d1d5db", text: "#374151" },
-  applied: { fill: "#dbeafe", stroke: "#93c5fd", text: "#1e3a8a" },
-  ghosted: { fill: "#e2e8f0", stroke: "#94a3b8", text: "#475569" },
-  interviewing: { fill: "#fef3c7", stroke: "#fbbf24", text: "#78350f" },
-  rejected: { fill: "#fee2e2", stroke: "#f87171", text: "#7f1d1d" },
-  offer: { fill: "#dcfce7", stroke: "#4ade80", text: "#14532d" },
-  declined: { fill: "#f3e8ff", stroke: "#c084fc", text: "#581c87" },
+// Monochrome palette matching the screenshot: black nodes, gray flows,
+// dark terminals, light text labels.
+const PALETTE = {
+  source: { fill: "#111827", stroke: "#1f2937", text: "#ffffff", flow: "#111827" },
+  screen: { fill: "#111827", stroke: "#1f2937", text: "#ffffff", flow: "#111827" },
+  interview: { fill: "#1f2937", stroke: "#374151", text: "#ffffff", flow: "#4b5563" },
+  final: { fill: "#111827", stroke: "#1f2937", text: "#ffffff", flow: "#4b5563" },
+  offer: { fill: "#065f46", stroke: "#047857", text: "#ffffff", flow: "#6b7280" },
+  rejection: { fill: "#dc2626", stroke: "#b91c1c", text: "#ffffff", flow: "#9ca3af" },
+  ghosted: { fill: "#6b7280", stroke: "#4b5563", text: "#ffffff", flow: "#9ca3af" },
 };
 
-const UNIT = 22;
-const GAP = 6;
-const PADDING = 24;
-const NODE_WIDTH = 100;
-const MIN_WIDTH = 420;
+const NODE_WIDTH = 24;
+const NODE_GAP = 140;
+const MIN_NODE_HEIGHT = 48;
+const PADDING_X = 40;
+const PADDING_Y = 56;
+const LINK_CURVE = 0.5;
 
-interface Stage {
-  id: string;
+type StageKey =
+  | "applied"
+  | "screening"
+  | "technical"
+  | "final"
+  | "offer"
+  | "rejection-after-screen"
+  | "rejection-after-technical"
+  | "rejection-after-final"
+  | "ghosted";
+
+interface StageDef {
+  key: StageKey;
+  col: number;
   label: string;
   sublabel?: string;
-  col: number;
-  value: number;
-  top: number;
-  bottom: number;
-  x: number;
-  y: number;
-  fill: string;
-  stroke: string;
-  text: string;
-  appSlots: { appIndex: number; y: number }[];
+  palette: typeof PALETTE.source;
+  terminal?: "down" | "right";
 }
 
-interface Link {
-  sourceStage: string;
-  targetStage: string;
-  appIndex: number;
-  x0: number;
-  x1: number;
-  y0: number;
-  y1: number;
-  fill: string;
-}
+const STAGES: StageDef[] = [
+  { key: "applied", col: 0, label: "Total Applications", palette: PALETTE.source },
+  { key: "screening", col: 1, label: "Screening", palette: PALETTE.screen },
+  { key: "rejection-after-screen", col: 1, label: "Rejection", palette: PALETTE.rejection, terminal: "down" },
+  { key: "technical", col: 2, label: "Technical Interview", palette: PALETTE.interview },
+  { key: "rejection-after-technical", col: 2, label: "Rejection", palette: PALETTE.rejection, terminal: "down" },
+  { key: "final", col: 3, label: "Final Round", palette: PALETTE.final },
+  { key: "rejection-after-final", col: 3, label: "Rejection", palette: PALETTE.rejection, terminal: "down" },
+  { key: "offer", col: 4, label: "Offers", palette: PALETTE.offer },
+];
 
-function stageColor(stageId: string) {
-  if (stageId === "draft") return STAGE_COLORS.draft;
-  if (stageId === "applied") return STAGE_COLORS.applied;
-  if (stageId === "ghosted") return STAGE_COLORS.ghosted;
-  if (stageId.startsWith("interview-")) return STAGE_COLORS.interviewing;
-  if (stageId.startsWith("rejected-")) return STAGE_COLORS.rejected;
-  if (stageId === "offer") return STAGE_COLORS.offer;
-  if (stageId === "declined") return STAGE_COLORS.declined;
-  return STAGE_COLORS.draft;
-}
+function buildPath(application: Application): StageKey[] {
+  const path: StageKey[] = ["applied", "screening"];
+  const interviewR = application.interviewRound ?? 0;
+  const rejectedR = application.rejectedAfterRound ?? 0;
 
-function stageIdAndCol(app: Application) {
-  const interviewR = app.interviewRound ?? 0;
-  const rejectedR = app.rejectedAfterRound ?? 0;
-
-  switch (app.outcome) {
-    case "draft":
-      return [{ id: "draft", col: 0, label: "Draft" }];
-    case "applied":
-      return [
-        { id: "draft", col: 0, label: "Draft" },
-        { id: "applied", col: 1, label: "Applied" },
-      ];
-    case "ghosted":
-      return [
-        { id: "draft", col: 0, label: "Draft" },
-        { id: "applied", col: 1, label: "Applied" },
-        { id: "ghosted", col: 2, label: "Ghosted" },
-      ];
-    case "rejected":
-      if (rejectedR === 0) {
-        return [
-          { id: "draft", col: 0, label: "Draft" },
-          { id: "applied", col: 1, label: "Applied" },
-          { id: "rejected-0", col: 2, label: "Rejected", sublabel: "after applied" },
-        ];
-      }
-      return [
-        { id: "draft", col: 0, label: "Draft" },
-        { id: "applied", col: 1, label: "Applied" },
-        ...Array.from({ length: rejectedR }, (_, i) => ({
-          id: `interview-${i + 1}`,
-          col: i + 2,
-          label: `Round ${i + 1}`,
-        })),
-        { id: `rejected-${rejectedR}`, col: rejectedR + 2, label: "Rejected", sublabel: `after round ${rejectedR}` },
-      ];
-    case "interviewing":
-      return [
-        { id: "draft", col: 0, label: "Draft" },
-        { id: "applied", col: 1, label: "Applied" },
-        ...Array.from({ length: interviewR }, (_, i) => ({
-          id: `interview-${i + 1}`,
-          col: i + 2,
-          label: `Round ${i + 1}`,
-        })),
-      ];
-    case "offer":
-    case "declined": {
-      const terminal = app.outcome;
-      const rounds = interviewR;
-      const base = [
-        { id: "draft", col: 0, label: "Draft" },
-        { id: "applied", col: 1, label: "Applied" },
-      ];
-      if (rounds > 0) {
-        return [
-          ...base,
-          ...Array.from({ length: rounds }, (_, i) => ({
-            id: `interview-${i + 1}`,
-            col: i + 2,
-            label: `Round ${i + 1}`,
-          })),
-          { id: terminal, col: rounds + 2, label: terminal.charAt(0).toUpperCase() + terminal.slice(1) },
-        ];
-      }
-      return [...base, { id: terminal, col: 2, label: terminal.charAt(0).toUpperCase() + terminal.slice(1) }];
-    }
-    default:
-      return [{ id: "draft", col: 0, label: "Draft" }];
+  if (application.outcome === "draft") return ["applied"];
+  if (application.outcome === "applied") return path;
+  if (application.outcome === "ghosted") return [...path, "ghosted"];
+  if (application.outcome === "rejected") {
+    if (rejectedR === 0) return [...path, "rejection-after-screen"];
+    if (rejectedR === 1) return [...path, "technical", "rejection-after-technical"];
+    return [...path, "technical", "final", "rejection-after-final"];
   }
+  if (application.outcome === "interviewing") {
+    if (interviewR <= 1) return [...path, "technical"];
+    return [...path, "technical", "final"];
+  }
+  // offer / declined
+  return [...path, "technical", "final", "offer"];
 }
 
 function linkPath(x0: number, y0: number, x1: number, y1: number, thickness: number) {
-  const c0 = x0 + (x1 - x0) * 0.5;
-  const c1 = x0 + (x1 - x0) * 0.5;
+  const c0x = x0 + (x1 - x0) * LINK_CURVE;
+  const c1x = x1 - (x1 - x0) * LINK_CURVE;
   const ht = thickness / 2;
   return `
     M ${x0} ${y0 - ht}
-    C ${c0} ${y0 - ht}, ${c1} ${y1 - ht}, ${x1} ${y1 - ht}
+    C ${c0x} ${y0 - ht}, ${c1x} ${y1 - ht}, ${x1} ${y1 - ht}
     L ${x1} ${y1 + ht}
-    C ${c1} ${y1 + ht}, ${c0} ${y0 + ht}, ${x0} ${y0 + ht}
+    C ${c1x} ${y1 + ht}, ${c0x} ${y0 + ht}, ${x0} ${y0 + ht}
     Z
   `;
 }
 
 export function SankeyDiagram({ applications }: { applications: Application[] }) {
-  const { stages, links, width, height } = useMemo(() => {
-    // 1. Build per-application paths.
-    const paths = applications.map((app, appIndex) => ({
-      appIndex,
-      stages: stageIdAndCol(app),
-    }));
+  const { width, height, stages, links } = useMemo(() => {
+    // Count per stage.
+    const counts = new Map<StageKey, number>();
+    const paths: { appIndex: number; keys: StageKey[] }[] = [];
 
-    // 2. Aggregate stage values and collect app slots.
-    const stageMap = new Map<string, Stage>();
-    paths.forEach(({ appIndex, stages }) => {
-      stages.forEach((s) => {
-        if (!stageMap.has(s.id)) {
-          stageMap.set(s.id, {
-            id: s.id,
-            label: s.label,
-            sublabel: (s as { sublabel?: string }).sublabel,
-            col: s.col,
-            value: 0,
-            top: 0,
-            bottom: 0,
-            x: 0,
-            y: 0,
-            ...stageColor(s.id),
-            appSlots: [],
-          });
-        }
-        stageMap.get(s.id)!.value += 1;
-        stageMap.get(s.id)!.appSlots.push({ appIndex, y: 0 });
-      });
+    applications.forEach((app, appIndex) => {
+      const keys = buildPath(app);
+      paths.push({ appIndex, keys });
+      keys.forEach((k) => counts.set(k, (counts.get(k) ?? 0) + 1));
     });
 
-    // 3. Determine max column and overall width/height.
-    const maxCol = Math.max(0, ...Array.from(stageMap.values()).map((s) => s.col));
-    const colCount = maxCol + 1;
-    const width = Math.max(MIN_WIDTH, PADDING * 2 + NODE_WIDTH * colCount + 40 * maxCol);
-    const colGap = (width - PADDING * 2 - NODE_WIDTH * colCount) / Math.max(1, maxCol);
+    const maxValue = Math.max(1, ...Array.from(counts.values()));
+    const totalHeight = 320;
+    const availableHeight = totalHeight - PADDING_Y * 2;
 
-    // 4. Position stages within columns and assign vertical slots.
-    const stagesByCol: Stage[][] = Array.from({ length: colCount }, () => []);
-    stageMap.forEach((stage) => stagesByCol[stage.col].push(stage));
+    function nodeHeight(value: number) {
+      const ratio = value / maxValue;
+      return Math.max(MIN_NODE_HEIGHT, availableHeight * ratio);
+    }
 
-    stagesByCol.forEach((colStages) => {
-      const colHeight = colStages.reduce((sum, s) => sum + s.value * UNIT + (s.value - 1) * GAP, 0) +
-        (colStages.length - 1) * GAP * 2;
-      let y = (Math.max(...Array.from(stageMap.values()).map((s) => s.value * UNIT + (s.value - 1) * GAP + GAP * 2), 64) - colHeight) / 2;
-      if (y < PADDING) y = PADDING;
+    // X positions for each column.
+    const colX = [0, 1, 2, 3, 4].map((col) => PADDING_X + col * (NODE_WIDTH + NODE_GAP));
 
-      colStages.forEach((stage) => {
-        const nodeHeight = stage.value * UNIT + (stage.value - 1) * GAP;
-        stage.x = PADDING + stage.col * (NODE_WIDTH + colGap);
-        stage.top = y;
-        stage.bottom = y + nodeHeight;
-        stage.y = y + nodeHeight / 2;
+    // Compute stage positions.
+    const stageMap = new Map<StageKey, { x: number; y: number; w: number; h: number; def: StageDef; value: number }>();
 
-        // Assign y positions to each app slot within this stage.
-        stage.appSlots.forEach((slot, i) => {
-          slot.y = stage.top + i * (UNIT + GAP) + UNIT / 2;
-        });
-
-        y += nodeHeight + GAP * 2;
-      });
+    // Column 0: applied (centered vertically).
+    const appliedH = nodeHeight((counts.get("applied") ?? applications.length) || 1);
+    stageMap.set("applied", {
+      x: colX[0],
+      y: PADDING_Y + (availableHeight - appliedH) / 2,
+      w: NODE_WIDTH,
+      h: appliedH,
+      def: STAGES.find((s) => s.key === "applied")!,
+      value: (counts.get("applied") ?? applications.length) || 0,
     });
 
-    const height = Math.max(
-      120,
-      ...Array.from(stageMap.values()).map((s) => s.bottom),
-    ) + PADDING;
+    // Column 1: screening top, rejection-after-screen bottom.
+    const screeningH = nodeHeight(counts.get("screening") ?? 0);
+    const rejScreenH = nodeHeight(counts.get("rejection-after-screen") ?? 0);
+    const gap1 = 24;
+    const col1Total = screeningH + rejScreenH + gap1;
+    const col1Top = PADDING_Y + (availableHeight - col1Total) / 2;
+    stageMap.set("screening", {
+      x: colX[1],
+      y: col1Top,
+      w: NODE_WIDTH,
+      h: screeningH,
+      def: STAGES.find((s) => s.key === "screening")!,
+      value: counts.get("screening") ?? 0,
+    });
+    if (counts.get("rejection-after-screen")) {
+      stageMap.set("rejection-after-screen", {
+        x: colX[1],
+        y: col1Top + screeningH + gap1,
+        w: NODE_WIDTH,
+        h: rejScreenH,
+        def: STAGES.find((s) => s.key === "rejection-after-screen")!,
+        value: counts.get("rejection-after-screen") ?? 0,
+      });
+    }
 
-    // 5. Build links using slot positions.
-    const links: Link[] = [];
-    paths.forEach(({ appIndex, stages }) => {
-      for (let i = 0; i < stages.length - 1; i++) {
-        const source = stageMap.get(stages[i].id)!;
-        const target = stageMap.get(stages[i + 1].id)!;
-        const sSlot = source.appSlots.find((slot) => slot.appIndex === appIndex)!;
-        const tSlot = target.appSlots.find((slot) => slot.appIndex === appIndex)!;
+    // Column 2: technical top, rejection-after-technical bottom.
+    const technicalH = nodeHeight(counts.get("technical") ?? 0);
+    const rejTechH = nodeHeight(counts.get("rejection-after-technical") ?? 0);
+    const gap2 = 24;
+    const col2Total = technicalH + rejTechH + gap2;
+    const col2Top = PADDING_Y + (availableHeight - col2Total) / 2;
+    stageMap.set("technical", {
+      x: colX[2],
+      y: col2Top,
+      w: NODE_WIDTH,
+      h: technicalH,
+      def: STAGES.find((s) => s.key === "technical")!,
+      value: counts.get("technical") ?? 0,
+    });
+    if (counts.get("rejection-after-technical")) {
+      stageMap.set("rejection-after-technical", {
+        x: colX[2],
+        y: col2Top + technicalH + gap2,
+        w: NODE_WIDTH,
+        h: rejTechH,
+        def: STAGES.find((s) => s.key === "rejection-after-technical")!,
+        value: counts.get("rejection-after-technical") ?? 0,
+      });
+    }
+
+    // Column 3: final top, rejection-after-final bottom.
+    const finalH = nodeHeight(counts.get("final") ?? 0);
+    const rejFinalH = nodeHeight(counts.get("rejection-after-final") ?? 0);
+    const gap3 = 24;
+    const col3Total = finalH + rejFinalH + gap3;
+    const col3Top = PADDING_Y + (availableHeight - col3Total) / 2;
+    stageMap.set("final", {
+      x: colX[3],
+      y: col3Top,
+      w: NODE_WIDTH,
+      h: finalH,
+      def: STAGES.find((s) => s.key === "final")!,
+      value: counts.get("final") ?? 0,
+    });
+    if (counts.get("rejection-after-final")) {
+      stageMap.set("rejection-after-final", {
+        x: colX[3],
+        y: col3Top + finalH + gap3,
+        w: NODE_WIDTH,
+        h: rejFinalH,
+        def: STAGES.find((s) => s.key === "rejection-after-final")!,
+        value: counts.get("rejection-after-final") ?? 0,
+      });
+    }
+
+    // Column 4: offer.
+    const offerH = nodeHeight(counts.get("offer") ?? 0);
+    stageMap.set("offer", {
+      x: colX[4],
+      y: PADDING_Y + (availableHeight - offerH) / 2,
+      w: NODE_WIDTH,
+      h: offerH,
+      def: STAGES.find((s) => s.key === "offer")!,
+      value: counts.get("offer") ?? 0,
+    });
+
+    // Build links with slot-based positions for clean routing.
+    const links: { x0: number; y0: number; x1: number; y1: number; thickness: number; fill: string }[] = [];
+
+    // For each source stage, evenly distribute outgoing apps across its height.
+    const sourceSlotIndex = new Map<string, number>();
+    const getSourceY = (key: StageKey) => {
+      const s = stageMap.get(key)!;
+      const idx = sourceSlotIndex.get(key) ?? 0;
+      sourceSlotIndex.set(key, idx + 1);
+      return s.y + (s.h * (idx + 0.5)) / (counts.get(key) || 1);
+    };
+
+    const targetSlotIndex = new Map<string, number>();
+    const getTargetY = (key: StageKey) => {
+      const s = stageMap.get(key)!;
+      const idx = targetSlotIndex.get(key) ?? 0;
+      targetSlotIndex.set(key, idx + 1);
+      return s.y + (s.h * (idx + 0.5)) / (counts.get(key) || 1);
+    };
+
+    paths.forEach(({ keys }) => {
+      for (let i = 0; i < keys.length - 1; i++) {
+        const sourceKey = keys[i];
+        const targetKey = keys[i + 1];
+        const source = stageMap.get(sourceKey)!;
+        const target = stageMap.get(targetKey)!;
+        const thickness = Math.max(2, Math.min(source.h, target.h) / (counts.get(sourceKey) || 1));
         links.push({
-          sourceStage: source.id,
-          targetStage: target.id,
-          appIndex,
-          x0: source.x + NODE_WIDTH,
+          x0: source.x + source.w,
+          y0: getSourceY(sourceKey),
           x1: target.x,
-          y0: sSlot.y,
-          y1: tSlot.y,
-          fill: target.fill,
+          y1: getTargetY(targetKey),
+          thickness,
+          fill: target.def.palette.flow,
         });
       }
     });
 
-    return {
-      stages: Array.from(stageMap.values()).sort((a, b) => a.col - b.col || a.top - b.top),
-      links,
-      width,
-      height,
-    };
+    const width = colX[4] + NODE_WIDTH + PADDING_X;
+    const height = totalHeight;
+
+    return { width, height, stages: Array.from(stageMap.values()), links };
   }, [applications]);
 
   if (applications.length === 0) return null;
 
   return (
     <div className="w-full overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="mx-auto block"
-        style={{ minWidth: `${width}px`, height: `${height}px` }}
-        aria-label="Application funnel"
-      >
-        <defs>
-          {links.map((link, i) => (
-            <linearGradient key={`grad-${i}`} id={`grad-${i}`} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={stages.find((s) => s.id === link.sourceStage)?.fill ?? "#e5e7eb"} stopOpacity={0.3} />
-              <stop offset="100%" stopColor={link.fill} stopOpacity={0.5} />
-            </linearGradient>
-          ))}
-        </defs>
-
+      <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto block" style={{ minWidth: `${width}px`, height: `${height}px` }}>
         {links.map((link, i) => (
           <path
             key={`link-${i}`}
-            d={linkPath(link.x0, link.y0, link.x1, link.y1, UNIT)}
-            fill={`url(#grad-${i})`}
-            opacity={0.7}
-            stroke="none"
+            d={linkPath(link.x0, link.y0, link.x1, link.y1, link.thickness)}
+            fill={link.fill}
+            opacity={0.6}
           />
         ))}
 
         {stages.map((stage) => (
-          <g key={stage.id}>
+          <g key={stage.def.key}>
             <rect
               x={stage.x}
-              y={stage.top}
-              width={NODE_WIDTH}
-              height={stage.bottom - stage.top}
+              y={stage.y}
+              width={stage.w}
+              height={stage.h}
               rx={6}
-              fill={stage.fill}
-              stroke={stage.stroke}
-              strokeWidth={1.5}
+              fill={stage.def.palette.fill}
+              stroke={stage.def.palette.stroke}
+              strokeWidth={1}
             />
             <text
-              x={stage.x + NODE_WIDTH / 2}
-              y={stage.y - (stage.sublabel ? 6 : 0)}
+              x={stage.x + stage.w / 2}
+              y={stage.y + stage.h / 2 - 4}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill={stage.text}
+              fill={stage.def.palette.text}
               fontSize={11}
               fontWeight={700}
             >
-              {stage.label}
+              {stage.def.label}
             </text>
             <text
-              x={stage.x + NODE_WIDTH / 2}
-              y={stage.y + 10}
+              x={stage.x + stage.w / 2}
+              y={stage.y + stage.h / 2 + 9}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill={stage.text}
-              fontSize={9}
-              opacity={0.85}
+              fill={stage.def.palette.text}
+              fontSize={10}
+              opacity={0.9}
             >
               {stage.value}
             </text>
-            {stage.sublabel && (
-              <text
-                x={stage.x + NODE_WIDTH / 2}
-                y={stage.y + 18}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={stage.text}
-                fontSize={8}
-                opacity={0.7}
-              >
-                {stage.sublabel}
-              </text>
-            )}
           </g>
+        ))}
+
+        {/* Stage labels above nodes */}
+        {stages.map((stage) => (
+          <text
+            key={`label-${stage.def.key}`}
+            x={stage.x + stage.w / 2}
+            y={stage.y - 12}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#374151"
+            fontSize={11}
+            fontWeight={500}
+          >
+            {stage.def.label}
+          </text>
         ))}
       </svg>
     </div>
