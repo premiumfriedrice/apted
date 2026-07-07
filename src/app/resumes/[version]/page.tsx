@@ -26,6 +26,12 @@ const OUTCOME_COLORS: Record<string, string> = {
   declined: "bg-purple-100 text-purple-700",
 };
 
+// Shared button language (matches the master resume editor header).
+const smallBtnCls =
+  "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
+const modeActiveBtnCls =
+  "bg-surface-container-high text-on-surface text-label-md font-label-md px-3 py-2 rounded font-semibold";
+
 const previewBtnCls =
   "px-3 py-2 text-inverse-on-surface text-label-md font-label-md hover:bg-white/10 transition-colors duration-200 rounded flex items-center gap-1";
 
@@ -69,7 +75,7 @@ export default function ResumeDetailPage() {
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [previewWidth, setPreviewWidth] = useState(50);
   const [resizing, setResizing] = useState(false);
-  const [topPane, setTopPane] = useState<"funnel" | "applications">("funnel");
+  const [leftMode, setLeftMode] = useState<"funnel" | "jobs">("funnel");
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportName, setExportName] = useState("Resume");
@@ -135,7 +141,6 @@ export default function ResumeDetailPage() {
   }
 
   const pdfBytes = version.pdfBase64 ? base64ToUint8(version.pdfBase64) : null;
-  const selectedApp = version.applications.find((a) => a.id === selectedAppId) ?? version.applications[0];
 
   function exportAs(kind: "pdf" | "json") {
     const base = exportName.trim() || "Resume";
@@ -196,91 +201,39 @@ export default function ResumeDetailPage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden font-body-md text-body-md text-on-surface bg-background">
+    <div className="flex h-screen flex-col font-body-md text-body-md text-on-surface bg-background">
       {/* Full-screen overlay during resize so iframes/panels don't steal mouse events. */}
       {resizing && <div className="fixed inset-0 z-[60] cursor-col-resize" />}
 
       {/* Split pane — fills the full viewport height */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: two even halves (toggle pane on top, job description on bottom) */}
-        <aside className="flex flex-1 flex-col overflow-hidden border-r border-outline-variant bg-surface-container-lowest">
-          {/* Top: toggle between Funnel (Sankey) and Applications list — natural height */}
-          <div className="shrink-0 border-b border-outline-variant">
-            <div className="flex shrink-0 items-center gap-1 border-b border-outline-variant bg-surface-container-low px-md py-sm">
+        {/* Left: header matches the master resume editor; toggles switch content */}
+        <aside className="flex flex-1 flex-col overflow-hidden bg-surface-container-lowest">
+          <div className="h-12 shrink-0 border-b border-outline-variant bg-surface-container-lowest px-md sticky top-0 z-10 flex items-center justify-between">
+            <div className="flex items-center gap-1">
               <Link
                 href="/resumes"
                 title="Back to Resumes"
-                className="rounded p-1.5 text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
+                className="inline-flex items-center gap-1 rounded px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low hover:text-on-surface transition-colors duration-200"
               >
                 <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               </Link>
-              <button
-                onClick={() => setTopPane("funnel")}
-                className={`rounded px-3 py-1.5 text-label-md font-label-md transition-colors ${
-                  topPane === "funnel"
-                    ? "bg-surface-container-high text-on-surface font-semibold"
-                    : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-                }`}
-              >
+              <button onClick={() => setLeftMode("funnel")} className={leftMode === "funnel" ? modeActiveBtnCls : smallBtnCls}>
                 Funnel
               </button>
-              <button
-                onClick={() => setTopPane("applications")}
-                className={`rounded px-3 py-1.5 text-label-md font-label-md transition-colors ${
-                  topPane === "applications"
-                  ? "bg-surface-container-high text-on-surface font-semibold"
-                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-                }`}
-              >
-                Applications
+              <button onClick={() => setLeftMode("jobs")} className={leftMode === "jobs" ? modeActiveBtnCls : smallBtnCls}>
+                Jobs
               </button>
-            </div>
-            <div className="overflow-hidden">
-              {topPane === "funnel" ? (
-                <div className="overflow-auto p-md">
-                  <SankeyDiagram applications={version.applications} />
-                </div>
-              ) : (
-                <div className="max-h-[40vh] overflow-y-auto p-md">
-                  {version.applications.length === 0 ? (
-                    <p className="text-sm text-on-surface-variant">No applications tracked for this resume.</p>
-                  ) : (
-                    <div className="space-y-sm">
-                      {version.applications.map((app) => (
-                        <button
-                          key={app.id}
-                          onClick={() => {
-                            setSelectedAppId(app.id);
-                            setTopPane("funnel");
-                          }}
-                          className={`w-full rounded-lg border p-md text-left transition-colors ${
-                            selectedAppId === app.id
-                              ? "border-primary bg-surface-white"
-                              : "border-outline-variant bg-surface-white hover:border-outline"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-primary">{app.company}</span>
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}>
-                              {app.outcome}
-                            </span>
-                          </div>
-                          <div className="text-xs text-on-surface-variant">{app.role}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Bottom: job descriptions list (old design — expandable cards) */}
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b border-outline-variant px-md py-sm">
-              <h2 className="font-label-lg text-label-lg text-on-surface">Job Descriptions</h2>
+          {/* Left content — toggled by Funnel / Jobs */}
+          {leftMode === "funnel" ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-auto p-md">
+              <SankeyDiagram applications={version.applications} />
             </div>
-            <div className="flex-1 overflow-y-auto p-md">
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md">
               {version.applications.length === 0 ? (
                 <p className="text-sm text-on-surface-variant">No applications linked to this resume.</p>
               ) : (
@@ -312,7 +265,7 @@ export default function ResumeDetailPage() {
                 </div>
               )}
             </div>
-          </div>
+          )}
         </aside>
 
         {/* Resizer */}
