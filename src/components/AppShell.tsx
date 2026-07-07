@@ -127,23 +127,8 @@ function SidebarInner({
         })}
       </nav>
 
-      {/* Footer: Master Resume, Settings, compact profile */}
+      {/* Footer: Settings, compact profile, Master Resume */}
       <div className="shrink-0 space-y-3 px-0 pb-4">
-        <Link
-          href="/master"
-          title={collapsed ? "Master Resume" : undefined}
-          className={`group flex items-center rounded py-2 transition-colors duration-200 ${
-            collapsed ? "justify-center px-0" : "gap-3 px-3"
-          } ${
-            pathname === "/master" || pathname.startsWith("/master/")
-              ? "bg-surface-container-high text-on-surface font-semibold"
-              : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-          } ${collapsed ? "w-full px-0" : ""}`}
-        >
-          <MaterialIcon name="edit_note" className={collapsed ? "text-[22px]" : "text-[20px]"} />
-          {!collapsed && <span className="font-label-md text-label-md">Master Resume</span>}
-        </Link>
-
         {collapsed ? (
           <div className="flex flex-col items-center gap-1 pt-1">
             <Link
@@ -179,6 +164,21 @@ function SidebarInner({
             </Link>
           </div>
         )}
+
+        <Link
+          href="/master"
+          title={collapsed ? "Master Resume" : undefined}
+          className={`group flex items-center rounded py-2 transition-colors duration-200 ${
+            collapsed ? "justify-center px-0" : "gap-3 px-3"
+          } ${
+            pathname === "/master" || pathname.startsWith("/master/")
+              ? "bg-surface-container-high text-on-surface font-semibold"
+              : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
+          } ${collapsed ? "w-full px-0" : ""}`}
+        >
+          <MaterialIcon name="edit_note" className={collapsed ? "text-[22px]" : "text-[20px]"} />
+          {!collapsed && <span className="font-label-md text-label-md">Master Resume</span>}
+        </Link>
       </div>
     </>
   );
@@ -199,7 +199,6 @@ function CollapseIcon() {
     </svg>
   );
 }
-
 
 function MaterialIcon({ name, className = "" }: { name: string; className?: string }) {
   return (

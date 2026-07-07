@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ResumePreview } from "@/components/ResumePreview";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -199,7 +200,7 @@ export default function LibraryPage() {
                   className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
                 >
                   <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
-                    <SkeletonResume />
+                    <ResumePreview pdfBase64={v.pdfBase64} />
                     <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
                       <button className={primaryBtnCls}>Edit Resume</button>
                     </div>
@@ -339,7 +340,7 @@ export default function LibraryPage() {
         </div>
         <div className="flex flex-col items-center gap-8 border border-border-subtle bg-surface-white p-6 md:flex-row">
           <div className="relative aspect-[1/1.4] w-full shrink-0 overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask md:w-48">
-            <SkeletonResume />
+            <ResumePreview pdfBase64={null} />
           </div>
           <div className="flex-1 space-y-4">
             <div>
@@ -384,22 +385,6 @@ function MaterialIcon({ name, className = "" }: { name: string; className?: stri
     >
       {name}
     </span>
-  );
-}
-
-function SkeletonResume() {
-  return (
-    <div className="p-4 flex flex-col gap-2">
-      <div className="h-4 w-1/2 bg-surface-container-highest"></div>
-      <div className="h-2 w-full bg-surface-container-highest/60"></div>
-      <div className="h-2 w-full bg-surface-container-highest/60"></div>
-      <div className="h-2 w-3/4 bg-surface-container-highest/60"></div>
-      <div className="mt-4 flex flex-col gap-1.5">
-        <div className="h-2.5 w-1/3 bg-surface-container-highest"></div>
-        <div className="h-1.5 w-full bg-surface-container-highest/40"></div>
-        <div className="h-1.5 w-full bg-surface-container-highest/40"></div>
-      </div>
-    </div>
   );
 }
 
