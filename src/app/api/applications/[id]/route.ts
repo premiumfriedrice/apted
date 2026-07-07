@@ -54,33 +54,21 @@ export async function PATCH(req: Request, { params }: Ctx) {
     vals.push(body.outcome);
 
     // Auto-set dependent fields so the DB check constraints stay satisfied
-    // when the caller only changes the outcome. interview_round is treated as
-    // "furthest round reached" and preserved on offer/declined so the funnel
-    // can trace how far the application got before its terminal.
+    // when the caller only changes the outcome.
     if (body.outcome === "interviewing" && body.interviewRound === undefined) {
       fields.push(`interview_round = $${i++}`);
       vals.push(1);
     }
-    if (body.outcome === "rejected") {
-      // Rejected: clear interview_round (no longer in a round), default rejection round.
+    if (body.outcome === "rejected" && body.rejectedAfterRound === undefined) {
       if (body.interviewRound === undefined) {
         fields.push(`interview_round = $${i++}`);
         vals.push(null);
       }
-      if (body.rejectedAfterRound === undefined) {
-        fields.push(`rejected_after_round = $${i++}`);
-        vals.push(0);
-      }
+      fields.push(`rejected_after_round = $${i++}`);
+      vals.push(0);
     }
-    // offer / declined: keep interview_round (furthest reached), clear rejection round.
-    if (body.outcome === "offer" || body.outcome === "declined") {
-      if (body.rejectedAfterRound === undefined) {
-        fields.push(`rejected_after_round = $${i++}`);
-        vals.push(null);
-      }
-    }
-    // Pre-screening / stuck in screening: clear both.
-    if (["applied", "ghosted", "draft"].includes(body.outcome)) {
+    // Terminal / pre-screening outcomes clear both round fields.
+    if (["offer", "declined", "ghosted", "applied", "draft"].includes(body.outcome)) {
       if (body.interviewRound === undefined) {
         fields.push(`interview_round = $${i++}`);
         vals.push(null);
