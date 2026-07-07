@@ -16,6 +16,13 @@ type Version = {
   applications: Application[];
 };
 
+type Insights = {
+  summary: string;
+  keywords: string[];
+  strengths: string[];
+  tone: string;
+};
+
 const OUTCOME_COLORS: Record<string, string> = {
   draft: "bg-surface-container-highest text-secondary",
   applied: "bg-blue-100 text-blue-700",
@@ -24,6 +31,16 @@ const OUTCOME_COLORS: Record<string, string> = {
   rejected: "bg-red-100 text-red-600",
   offer: "bg-status-success/10 text-status-success",
   declined: "bg-purple-100 text-purple-700",
+};
+
+const OUTCOME_LABELS: Record<string, string> = {
+  draft: "Draft",
+  applied: "Applied",
+  ghosted: "Ghosted",
+  interviewing: "Interviewing",
+  rejected: "Rejected",
+  offer: "Offer",
+  declined: "Declined",
 };
 
 // Shared button language (matches the master resume editor header).
@@ -75,7 +92,9 @@ export default function ResumeDetailPage() {
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [previewWidth, setPreviewWidth] = useState(50);
   const [resizing, setResizing] = useState(false);
-  const [leftMode, setLeftMode] = useState<"funnel" | "jobs">("funnel");
+  const [leftMode, setLeftMode] = useState<"insights" | "jobs">("insights");
+  const [insights, setInsights] = useState<Insights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportName, setExportName] = useState("Resume");
@@ -93,6 +112,17 @@ export default function ResumeDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [versionId]);
+
+  // Fetch AI insights when entering the Insights tab.
+  useEffect(() => {
+    if (leftMode !== "insights" || !versionId || insights || insightsLoading) return;
+    setInsightsLoading(true);
+    fetch(`/api/versions/${versionId}/insights`)
+      .then((r) => r.json())
+      .then((data: Insights) => setInsights(data))
+      .catch(() => {})
+      .finally(() => setInsightsLoading(false));
+  }, [leftMode, versionId, insights, insightsLoading]);
 
   // Preview resizing via mouse drag on the resizer bar (same as master editor).
   const resizeState = useRef<{ startX: number; startValue: number; mainWidth: number } | null>(null);
@@ -124,7 +154,7 @@ export default function ResumeDetailPage() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-on-surface-variant">
-        Loading resume…
+        Loading resume...
       </div>
     );
   }
@@ -141,6 +171,17 @@ export default function ResumeDetailPage() {
   }
 
   const pdfBytes = version.pdfBase64 ? base64ToUint8(version.pdfBase64) : null;
+  const apps = version.applications;
+
+  // Compute usage stats from applications.
+  const outcomeCounts: Record<string, number> = {};
+  for (const a of apps) {
+    outcomeCounts[a.outcome] = (outcomeCounts[a.outcome] ?? 0) + 1;
+  }
+  const totalApps = apps.length;
+  const interviewCount = apps.filter((a) => a.outcome === "interviewing" || a.outcome === "offer" || a.outcome === "declined" || a.outcome === "rejected").length;
+  const offerCount = outcomeCounts.offer ?? 0;
+  const responseRate = totalApps > 0 ? Math.round(((totalApps - (outcomeCounts.ghosted ?? 0) - (outcomeCounts.draft ?? 0)) / totalApps) * 100) : 0;
 
   function exportAs(kind: "pdf" | "json") {
     const base = exportName.trim() || "Resume";
@@ -218,8 +259,8 @@ export default function ResumeDetailPage() {
               >
                 <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               </Link>
-              <button onClick={() => setLeftMode("funnel")} className={leftMode === "funnel" ? modeActiveBtnCls : smallBtnCls}>
-                Funnel
+              <button onClick={() => setLeftMode("insights")} className={leftMode === "insights" ? modeActiveBtnCls : smallBtnCls}>
+                Insights
               </button>
               <button onClick={() => setLeftMode("jobs")} className={leftMode === "jobs" ? modeActiveBtnCls : smallBtnCls}>
                 Jobs
@@ -227,18 +268,107 @@ export default function ResumeDetailPage() {
             </div>
           </div>
 
-          {/* Left content — toggled by Funnel / Jobs */}
-          {leftMode === "funnel" ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-auto p-md">
-              <SankeyDiagram applications={version.applications} />
-            </div>
+          {/* Left content — toggled by Insights / Jobs */}
+          {leftMode === "insights" ? (
+            <>
+              {/* Top half: Sankey funnel diagram */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
+                <h2 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h2>
+                {apps.length > 0 ? (
+                  <SankeyDiagram applications={apps} />
+                ) : (
+                  <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
+                )}
+              </div>
+
+              {/* Bottom half: AI insights + usage stats */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md space-y-md">
+                {/* Usage stats */}
+                <div className="grid grid-cols-3 gap-sm">
+                  <StatCard label="Times Used" value={totalApps} />
+                  <StatCard label="Interviews" value={interviewCount} />
+                  <StatCard label="Offers" value={offerCount} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-sm">
+                  <StatCard label="Response Rate" value={`${responseRate}%`} />
+                  <StatCard label="Created" value={new Date(version.createdAt).toLocaleDateString()} />
+                </div>
+
+                {/* Outcome breakdown */}
+                {totalApps > 0 && (
+                  <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+                    <h3 className="mb-sm font-label-md text-label-md text-on-surface-variant">Outcome Breakdown</h3>
+                    <div className="space-y-xs">
+                      {Object.entries(outcomeCounts).map(([outcome, count]) => (
+                        <div key={outcome} className="flex items-center justify-between text-sm">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[outcome] || OUTCOME_COLORS.draft}`}>
+                            {OUTCOME_LABELS[outcome] ?? outcome}
+                          </span>
+                          <span className="font-semibold text-on-surface">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Summary */}
+                <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+                  <h3 className="mb-sm flex items-center gap-1 font-label-md text-label-md text-on-surface-variant">
+                    <span className="material-symbols-outlined text-[16px] text-primary">auto_awesome</span>
+                    AI Summary
+                  </h3>
+                  {insightsLoading ? (
+                    <p className="text-sm text-on-surface-variant">Analyzing resume...</p>
+                  ) : insights ? (
+                    <div className="space-y-sm">
+                      {insights.tone && (
+                        <p className="font-semibold text-primary text-sm">{insights.tone}</p>
+                      )}
+                      <p className="text-sm text-on-surface">{insights.summary}</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-on-surface-variant">Unable to generate summary.</p>
+                  )}
+                </div>
+
+                {/* Strengths */}
+                {insights?.strengths && insights.strengths.length > 0 && (
+                  <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+                    <h3 className="mb-sm font-label-md text-label-md text-on-surface-variant">Strengths</h3>
+                    <ul className="space-y-xs">
+                      {insights.strengths.map((s, i) => (
+                        <li key={i} className="flex items-start gap-xs text-sm text-on-surface">
+                          <span className="material-symbols-outlined text-[14px] text-status-success mt-0.5">check_circle</span>
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Keywords */}
+                {insights?.keywords && insights.keywords.length > 0 && (
+                  <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+                    <h3 className="mb-sm font-label-md text-label-md text-on-surface-variant">Keywords</h3>
+                    <div className="flex flex-wrap gap-xs">
+                      {insights.keywords.map((k, i) => (
+                        <span key={i} className="rounded-full bg-secondary-container px-2 py-0.5 text-xs font-medium text-secondary">
+                          {k}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md">
-              {version.applications.length === 0 ? (
+              {apps.length === 0 ? (
                 <p className="text-sm text-on-surface-variant">No applications linked to this resume.</p>
               ) : (
                 <div className="space-y-md">
-                  {version.applications.map((app) => {
+                  {apps.map((app) => {
                     const expanded = selectedAppId === app.id;
                     return (
                     <button
@@ -288,6 +418,15 @@ export default function ResumeDetailPage() {
           actionsExtra={actionsExtra}
         />
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+      <p className="text-label-sm font-label-sm text-on-surface-variant">{label}</p>
+      <p className="font-headline-md text-headline-md text-primary">{value}</p>
     </div>
   );
 }
