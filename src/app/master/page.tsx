@@ -359,11 +359,6 @@ export default function MasterPage() {
     <div className="h-full flex flex-col font-body-md text-body-md text-on-surface bg-background dark:bg-on-background" style={{ zoom: 0.9 }}>
       {/* Full-screen overlay during resize so iframes/panels don&apos;t steal mouse events. */}
       {resizing && <div className="fixed inset-0 z-[60] cursor-col-resize" />}
-      {/* TopNavBar */}
-      <header className="bg-surface-container-lowest dark:bg-surface-dim text-primary dark:text-primary-fixed w-full h-16 sticky top-0 border-b border-outline-variant dark:border-outline flex items-center px-lg w-full z-50">
-        <span className="text-[22px] font-medium tracking-tight text-on-surface dark:text-inverse-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>apted</span>
-      </header>
-
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Main Content Area */}
