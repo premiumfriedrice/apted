@@ -244,49 +244,6 @@ export default function LibraryPage() {
         )}
       </section>
 
-      {/* Master Resume Section */}
-      <section className="mb-12">
-        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
-          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="verified" className="text-[20px]" />
-            Master Resume
-          </h3>
-          <span className="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">Source of Truth</span>
-        </div>
-        <div className="flex flex-col items-center gap-8 border border-border-subtle bg-surface-white p-6 md:flex-row">
-          <div className="relative aspect-[1/1.4] w-full shrink-0 overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask md:w-48">
-            <SkeletonResume />
-          </div>
-          <div className="flex-1 space-y-4">
-            <div>
-              <h4 className="text-headline-lg font-bold text-primary">Global Master Document</h4>
-              <p className="mt-2 text-secondary">
-                This is your primary resume containing all experience, skills, and achievements. Use this as the base for all tailored applications.
-              </p>
-            </div>
-            <div className="flex items-center gap-6 text-sm text-secondary">
-              <div className="flex items-center gap-2">
-                <MaterialIcon name="history" className="text-[18px]" />
-                <span>Last synced {master?.updatedAt ? timeAgo(master.updatedAt) : "never"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MaterialIcon name="article" className="text-[18px]" />
-                <span>{countSections(master?.resume)} Sections</span>
-              </div>
-            </div>
-            <div className="pt-2">
-              <Link
-                href="/master"
-                className={primaryBtnCls + " px-6 py-3"}
-              >
-                <MaterialIcon name="edit_note" className="text-[18px]" />
-                Go to Editor
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Application Tracker Section */}
       <section>
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
@@ -371,6 +328,49 @@ export default function LibraryPage() {
             </div>
           )}
         </div>
+      {/* Master Resume Section */}
+      <section className="mb-12">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
+          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
+            <MaterialIcon name="verified" className="text-[20px]" />
+            Master Resume
+          </h3>
+          <span className="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">Source of Truth</span>
+        </div>
+        <div className="flex flex-col items-center gap-8 border border-border-subtle bg-surface-white p-6 md:flex-row">
+          <div className="relative aspect-[1/1.4] w-full shrink-0 overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask md:w-48">
+            <SkeletonResume />
+          </div>
+          <div className="flex-1 space-y-4">
+            <div>
+              <h4 className="text-headline-lg font-bold text-primary">Global Master Document</h4>
+              <p className="mt-2 text-secondary">
+                This is your primary resume containing all experience, skills, and achievements. Use this as the base for all tailored applications.
+              </p>
+            </div>
+            <div className="flex items-center gap-6 text-sm text-secondary">
+              <div className="flex items-center gap-2">
+                <MaterialIcon name="history" className="text-[18px]" />
+                <span>Last synced {master?.updatedAt ? timeAgo(master.updatedAt) : "never"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MaterialIcon name="article" className="text-[18px]" />
+                <span>{countSections(master?.resume)} Sections</span>
+              </div>
+            </div>
+            <div className="pt-2">
+              <Link
+                href="/master"
+                className={primaryBtnCls + " px-6 py-3"}
+              >
+                <MaterialIcon name="edit_note" className="text-[18px]" />
+                Go to Editor
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       </section>
     </div>
   );
