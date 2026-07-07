@@ -147,7 +147,7 @@ describe("PATCH /api/applications/[id]", () => {
     expect(vals).toContain(1);
   });
 
-  it("auto-sets rejected_after_round=0 when changing outcome to rejected", async () => {
+  it("auto-sets rejected_after_round=0 and clears interview_round for rejected", async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ ...fakeApplication, outcome: "rejected", rejected_after_round: 0 }],
     });
@@ -160,9 +160,10 @@ describe("PATCH /api/applications/[id]", () => {
     expect(res.status).toBe(200);
     const vals = mockQuery.mock.calls[0][1] as unknown[];
     expect(vals).toContain(0);
+    expect(vals).toContain(null);
   });
 
-  it("clears interview_round and rejected_after_round for terminal outcomes", async () => {
+  it("offer clears rejected_after_round but preserves interview_round (furthest reached)", async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ ...fakeApplication, outcome: "offer" }],
     });
@@ -174,10 +175,25 @@ describe("PATCH /api/applications/[id]", () => {
     const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
     expect(res.status).toBe(200);
     const sql = mockQuery.mock.calls[0][0] as string;
-    expect(sql).toContain("interview_round");
-    expect(sql).toContain("rejected_after_round");
+    const setClause = sql.split("WHERE")[0];
+    expect(setClause).toContain("rejected_after_round");
+    // interview_round must NOT be in the SET clause for offer (preserve furthest round).
+    expect(setClause).not.toContain("interview_round");
     const vals = mockQuery.mock.calls[0][1] as unknown[];
-    expect(vals).toContain(null);
+    expect(vals).toContain(null); // rejected_after_round = null
+  });
+
+  it("offer right after screening (no interview_round) skips interviews", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ ...fakeApplication, outcome: "offer", interview_round: null }],
+    });
+    const req = new Request("http://localhost/api/applications/a1", {
+      method: "PATCH",
+      body: JSON.stringify({ outcome: "offer", interviewRound: null }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
+    expect(res.status).toBe(200);
   });
 
   it("returns 400 when no fields provided", async () => {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PdfPreviewPane } from "@/components/PdfPreviewPane";
 import FunnelChart from "@/components/FunnelChart";
-import type { FunnelStats } from "@/components/types";
+import { applicationsToSankey } from "@/lib/funnel";
 import type { Application } from "@/lib/applications";
 
 type Version = {
@@ -142,37 +142,11 @@ export default function ResumeDetailPage() {
     window.addEventListener("mouseup", onUp);
   }
 
-  // Map applications to FunnelStats for the FunnelChart.
-  // NOTE: these hooks must run before any early returns (Rules of Hooks).
+  // Map applications to Sankey flows. Each application traces its own path
+  // through only the stages it reached (offer right after screening skips
+  // technical & final). NOTE: this hook must run before any early returns.
   const appsForStats = version?.applications ?? [];
-  const trackedStats: FunnelStats = useMemo(() => {
-    let screening = 0;
-    let technical = 0;
-    let final = 0;
-    let offers = 0;
-    let screeningRejections = 0;
-    let technicalRejections = 0;
-    let finalRejections = 0;
-    for (const a of appsForStats) {
-      if (a.outcome === "draft") continue; // draft = not submitted
-      screening++; // submitted => entered screening
-      const rejR = a.rejectedAfterRound ?? 0;
-      const intR = a.interviewRound ?? 0;
-      if (a.outcome === "rejected") {
-        if (rejR === 0) { screeningRejections++; continue; }
-        technical++;
-        if (rejR === 1) { technicalRejections++; continue; }
-        final++;
-        finalRejections++; continue;
-      }
-      if (a.outcome === "ghosted" || a.outcome === "applied") continue; // stuck in screening
-      // interviewing, offer, declined => reached at least technical
-      technical++;
-      if (intR >= 2 || a.outcome === "offer" || a.outcome === "declined") final++;
-      if (a.outcome === "offer") offers++;
-    }
-    return { total: appsForStats.length, screening, technical, final, offers, screeningRejections, technicalRejections, finalRejections };
-  }, [appsForStats]);
+  const sankey = useMemo(() => applicationsToSankey(appsForStats), [appsForStats]);
 
   if (loading) {
     return (
@@ -295,7 +269,7 @@ export default function ResumeDetailPage() {
               {/* Top half: Sankey funnel diagram */}
               <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
                 {apps.length > 0 ? (
-                  <FunnelChart stats={trackedStats} />
+                  <FunnelChart flows={sankey} />
                 ) : (
                   <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
                 )}
