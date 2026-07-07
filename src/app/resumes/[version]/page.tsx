@@ -251,10 +251,7 @@ export default function ResumeDetailPage() {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-1 font-semibold text-primary">
-                          <span className="material-symbols-outlined text-[16px] text-on-surface-variant transition-transform duration-200" style={{ transform: expanded ? "rotate(90deg)" : "none" }}>chevron_right</span>
-                          {app.company}
-                        </span>
+                        <span className="font-semibold text-primary">{app.company}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}>
                           {app.outcome}
                         </span>
