@@ -147,7 +147,7 @@ function SidebarInner({
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`h-9 transition-colors duration-200 ${
+              className={`flex h-9 items-center transition-colors duration-200 ${
                 collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
               } ${collapsed ? "justify-center w-full px-0" : ""}`}
             >
