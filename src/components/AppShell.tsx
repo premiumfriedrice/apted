@@ -84,7 +84,7 @@ function SidebarInner({
   return (
     <>
       {/* Brand — aligned with the 64px top app bar */}
-      <div className={`flex shrink-0 items-center ${collapsed ? "pt-1" : "pt-md"} ${collapsed ? "justify-center px-0" : "justify-between px-md"}`}>
+      <div className={`flex shrink-0 items-center ${collapsed ? "pt-1.5" : "pt-md"} ${collapsed ? "justify-center px-0" : "justify-between px-md"}`}>
         {collapsed ? (
           <button
             onClick={() => setCollapsed(false)}
