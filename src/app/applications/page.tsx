@@ -50,6 +50,7 @@ function companyColor(company: string) {
 export default function ApplicationsPage() {
   const [versions, setVersions] = useState<Version[]>([]);
   const [filter, setFilter] = useState<Outcome | "all">("all");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetch("/api/versions")
@@ -64,9 +65,13 @@ export default function ApplicationsPage() {
   }, [versions]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return applications;
-    return applications.filter((a) => a.outcome === filter);
-  }, [applications, filter]);
+    let result = filter === "all" ? applications : applications.filter((a) => a.outcome === filter);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      result = result.filter((a) => `${a.company} ${a.role} ${a.versionName || ""}`.toLowerCase().includes(q));
+    }
+    return result;
+  }, [applications, filter, search]);
 
   const STATUSES: (Outcome | "all")[] = ["all", "applied", "interviewing", "offer", "rejected", "ghosted", "declined"];
 
@@ -78,9 +83,21 @@ const modeActiveBtnCls =
 
   return (
     <div className="mx-auto max-w-[1440px]">
-      <div className="mb-10">
-        <h2 className="font-headline-xl text-headline-xl text-primary">Applications</h2>
-        <p className="mt-1 text-secondary">Track every job application across all your resume versions.</p>
+      <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <div>
+          <h2 className="font-headline-xl text-headline-xl text-primary">Applications</h2>
+          <p className="mt-1 text-secondary">Track every job application across all your resume versions.</p>
+        </div>
+        <div className="relative w-full max-w-xs">
+          <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" />
+          <input
+            type="text"
+            placeholder="Search applications..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2 pl-10 pr-4 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+        </div>
       </div>
 
       <div className="mb-6 flex items-center gap-1">
@@ -145,5 +162,16 @@ const modeActiveBtnCls =
         </table>
       </div>
     </div>
+  );
+}
+
+function MaterialIcon({ name, className = "" }: { name: string; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center align-middle ${className}`}
+      style={{ fontFamily: "'Material Symbols Outlined', sans-serif", fontSize: "20px", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+    >
+      {name}
+    </span>
   );
 }

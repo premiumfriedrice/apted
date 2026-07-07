@@ -67,6 +67,7 @@ function companyColor(company: string) {
 export default function ResumesPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All Resumes");
+  const [search, setSearch] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
 
   useEffect(() => {
@@ -77,14 +78,22 @@ export default function ResumesPage() {
 
   const displayedVersions = useMemo(() => {
     const sorted = [...versions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    let result = sorted;
     if (activeTab === "Active Applications") {
-      return sorted.filter((v) => v.applications.some((a) => ["applied", "interviewing", "ghosted"].includes(a.outcome)));
+      result = sorted.filter((v) => v.applications.some((a) => ["applied", "interviewing", "ghosted"].includes(a.outcome)));
+    } else if (activeTab === "Archived") {
+      result = sorted.filter((v) => v.applications.every((a) => ["rejected", "offer", "declined"].includes(a.outcome)));
     }
-    if (activeTab === "Archived") {
-      return sorted.filter((v) => v.applications.every((a) => ["rejected", "offer", "declined"].includes(a.outcome)));
+    const q = search.trim().toLowerCase();
+    if (q) {
+      result = result.filter((v) => {
+        const name = (v.name || "").toLowerCase();
+        const apps = v.applications.map((a) => `${a.company} ${a.role}`.toLowerCase()).join(" ");
+        return name.includes(q) || apps.includes(q);
+      });
     }
-    return sorted;
-  }, [versions, activeTab]);
+    return result;
+  }, [versions, activeTab, search]);
 
   const deleteVersion = useCallback(async (id: string, name: string | null, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,11 +105,23 @@ export default function ResumesPage() {
   return (
     <div className="mx-auto max-w-[1440px]">
       {/* Header */}
-      <div className="mb-10">
-        <h2 className="font-headline-xl text-headline-xl text-primary">Resumes</h2>
-        <p className="mt-1 max-w-lg text-secondary">
-          All your tailored resume versions, organized and ready to use.
-        </p>
+      <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <div>
+          <h2 className="font-headline-xl text-headline-xl text-primary">Resumes</h2>
+          <p className="mt-1 max-w-lg text-secondary">
+            All your tailored resume versions, organized and ready to use.
+          </p>
+        </div>
+        <div className="relative w-full max-w-xs">
+          <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" />
+          <input
+            type="text"
+            placeholder="Search resumes..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2 pl-10 pr-4 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+        </div>
       </div>
 
       {/* Filters */}
