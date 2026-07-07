@@ -129,6 +129,57 @@ describe("PATCH /api/applications/[id]", () => {
     expect(body.outcome).toBe("interviewing");
   });
 
+  it("auto-sets interview_round=1 when changing outcome to interviewing", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ ...fakeApplication, outcome: "interviewing", interview_round: 1 }],
+    });
+    const req = new Request("http://localhost/api/applications/a1", {
+      method: "PATCH",
+      body: JSON.stringify({ outcome: "interviewing" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
+    expect(res.status).toBe(200);
+    // Inspect the SQL passed to the mock for the auto-set field.
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("interview_round");
+    const vals = mockQuery.mock.calls[0][1] as unknown[];
+    expect(vals).toContain(1);
+  });
+
+  it("auto-sets rejected_after_round=0 when changing outcome to rejected", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ ...fakeApplication, outcome: "rejected", rejected_after_round: 0 }],
+    });
+    const req = new Request("http://localhost/api/applications/a1", {
+      method: "PATCH",
+      body: JSON.stringify({ outcome: "rejected" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
+    expect(res.status).toBe(200);
+    const vals = mockQuery.mock.calls[0][1] as unknown[];
+    expect(vals).toContain(0);
+  });
+
+  it("clears interview_round and rejected_after_round for terminal outcomes", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ ...fakeApplication, outcome: "offer" }],
+    });
+    const req = new Request("http://localhost/api/applications/a1", {
+      method: "PATCH",
+      body: JSON.stringify({ outcome: "offer" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
+    expect(res.status).toBe(200);
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("interview_round");
+    expect(sql).toContain("rejected_after_round");
+    const vals = mockQuery.mock.calls[0][1] as unknown[];
+    expect(vals).toContain(null);
+  });
+
   it("returns 400 when no fields provided", async () => {
     const req = new Request("http://localhost/api/applications/a1", {
       method: "PATCH",

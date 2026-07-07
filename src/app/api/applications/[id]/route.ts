@@ -52,6 +52,28 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (typeof body.outcome === "string" && isOutcome(body.outcome)) {
     fields.push(`outcome = $${i++}`);
     vals.push(body.outcome);
+
+    // Auto-set dependent fields so the DB check constraints stay satisfied
+    // when the caller only changes the outcome.
+    if (body.outcome === "interviewing" && body.interviewRound === undefined) {
+      fields.push(`interview_round = $${i++}`);
+      vals.push(1);
+    }
+    if (body.outcome === "rejected" && body.rejectedAfterRound === undefined) {
+      fields.push(`rejected_after_round = $${i++}`);
+      vals.push(0);
+    }
+    // Terminal outcomes clear the active round.
+    if (["offer", "declined", "ghosted", "applied", "draft"].includes(body.outcome)) {
+      if (body.interviewRound === undefined) {
+        fields.push(`interview_round = $${i++}`);
+        vals.push(null);
+      }
+      if (body.rejectedAfterRound === undefined) {
+        fields.push(`rejected_after_round = $${i++}`);
+        vals.push(null);
+      }
+    }
   }
 
   const interviewRound = parseInterviewRound(body.interviewRound);
