@@ -291,18 +291,14 @@ export default function ResumeDetailPage() {
 
           {/* Left content — toggled by Insights / Jobs */}
           {leftMode === "insights" ? (
-            <>
-              {/* Top half: Sankey funnel diagram */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
-                {apps.length > 0 ? (
-                  <FunnelChart stats={trackedStats} />
-                ) : (
-                  <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
-                )}
-              </div>
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+              {/* Background: Sankey funnel diagram */}
+              {apps.length > 0 && (
+                <FunnelChart stats={trackedStats} />
+              )}
 
-              {/* Bottom: AI insights + usage stats */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md space-y-md">
+              {/* Foreground: AI insights + usage stats floating on top */}
+              <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto p-md space-y-md">
                 {/* Usage stats */}
                 <div className="grid grid-cols-3 gap-sm">
                   <StatCard label="Times Used" value={totalApps} />
@@ -311,7 +307,7 @@ export default function ResumeDetailPage() {
                 </div>
 
                 {/* AI Summary */}
-                <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+                <div className="rounded-lg border border-outline-variant bg-surface-white/95 p-md backdrop-blur-sm">
                   <h3 className="mb-sm flex items-center gap-1 font-label-md text-label-md text-on-surface-variant">
                     <span className="material-symbols-outlined text-[16px] text-primary">auto_awesome</span>
                     AI Summary
@@ -332,7 +328,7 @@ export default function ResumeDetailPage() {
 
                 {/* Strengths */}
                 {insights?.strengths && insights.strengths.length > 0 && (
-                  <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+                  <div className="rounded-lg border border-outline-variant bg-surface-white/95 p-md backdrop-blur-sm">
                     <h3 className="mb-sm font-label-md text-label-md text-on-surface-variant">Strengths</h3>
                     <ul className="space-y-xs">
                       {insights.strengths.map((s, i) => (
@@ -347,7 +343,7 @@ export default function ResumeDetailPage() {
 
                 {/* Keywords */}
                 {insights?.keywords && insights.keywords.length > 0 && (
-                  <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
+                  <div className="rounded-lg border border-outline-variant bg-surface-white/95 p-md backdrop-blur-sm">
                     <h3 className="mb-sm font-label-md text-label-md text-on-surface-variant">Keywords</h3>
                     <div className="flex flex-wrap gap-xs">
                       {insights.keywords.map((k, i) => (
@@ -359,7 +355,7 @@ export default function ResumeDetailPage() {
                   </div>
                 )}
               </div>
-            </>
+            </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md">
               {apps.length === 0 ? (
