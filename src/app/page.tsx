@@ -84,6 +84,7 @@ function companyColor(company: string) {
 export default function LibraryPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All Resumes");
+  const [search, setSearch] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
   const [master, setMaster] = useState<Master | null>(null);
 
@@ -103,8 +104,15 @@ export default function LibraryPage() {
   }, []);
 
   const recentVersions = useMemo(() => {
-    return [...versions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
-  }, [versions]);
+    const sorted = [...versions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
+    const q = search.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter((v) => {
+      const name = (v.name || "").toLowerCase();
+      const apps = v.applications.map((a) => `${a.company} ${a.role}`.toLowerCase()).join(" ");
+      return name.includes(q) || apps.includes(q);
+    });
+  }, [versions, search]);
 
   const applications = useMemo(() => {
     return versions.flatMap((v) => v.applications.map((a) => ({ ...a, versionName: v.name })));
@@ -141,7 +149,20 @@ export default function LibraryPage() {
             An overview of your resumes, master document, and active job applications.
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="relative w-full max-w-xs">
+          <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" />
+          <input
+            type="text"
+            placeholder="Search resumes..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2 pl-10 pr-4 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-6 flex items-center gap-1">
           {TABS.map((tab) => (
             <button
               key={tab}
@@ -152,7 +173,6 @@ export default function LibraryPage() {
             </button>
           ))}
         </div>
-      </div>
 
       {/* Recent Resumes Section */}
       <section className="mb-12">
