@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { SiteHeader } from "@/components/SiteHeader";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "apted",
@@ -14,13 +14,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&family=Outfit:wght@400;500;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&family=Outfit:wght@400;500;600;700;900&display=swap"
           rel="stylesheet"
         />
       </head>
       <body className="min-h-screen h-full bg-background text-on-surface">
-        <SiteHeader />
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
