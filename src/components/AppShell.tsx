@@ -110,7 +110,7 @@ function SidebarInner({
         )}
       </div>
       {/* Nav */}
-      <nav className={`flex-1 space-y-sm pt-sm ${collapsed ? "px-0" : "px-sm"}`}>
+      <nav className={`flex-1 pt-sm ${collapsed ? "space-y-0 px-0" : "space-y-sm px-sm"}`}>
         {SIDEBAR_NAV.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
@@ -118,7 +118,7 @@ function SidebarInner({
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center py-sm transition-colors duration-200 ${
+              className={`flex items-center ${collapsed ? "py-1.5" : "py-sm"} transition-colors duration-200 ${
                 collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
               } ${collapsed ? "justify-center w-full px-0" : ""}`}
             >
