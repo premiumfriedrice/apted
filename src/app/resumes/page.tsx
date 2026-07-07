@@ -95,37 +95,37 @@ export default function ResumesPage() {
 
   return (
     <div className="mx-auto max-w-[1440px]">
-      {/* Header & Filters */}
-      <div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+      {/* Header */}
+      <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <h2 className="font-headline-xl text-headline-xl text-primary">Resumes</h2>
           <p className="mt-1 max-w-lg text-secondary">
             All your tailored resume versions, organized and ready to use.
           </p>
         </div>
-        <div className="flex items-center gap-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={activeTab === tab ? modeActiveBtnCls : smallBtnCls}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <Link href="/builder" className={primaryBtnCls + " shrink-0"}>
+          <MaterialIcon name="add" className="text-[18px]" />
+          New Resume
+        </Link>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-6 flex items-center gap-1">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={activeTab === tab ? modeActiveBtnCls : smallBtnCls}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
       {/* Resumes Grid */}
       {displayedVersions.length === 0 ? (
         <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center">
           <p className="body-sm text-on-surface-variant">No resumes found.</p>
-          <Link
-            href="/builder"
-            className="mt-4 inline-block rounded-lg bg-on-surface px-3 py-1.5 text-xs font-medium text-surface-container-lowest transition hover:bg-on-surface/90"
-          >
-            Create your first resume
-          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
@@ -169,16 +169,6 @@ export default function ResumesPage() {
               </div>
             );
           })}
-          <Link
-            href="/builder"
-            className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
-              <MaterialIcon name="add" className="text-[32px]" />
-            </div>
-            <p className="font-bold text-primary">New Resume</p>
-            <p className="px-4 text-center text-xs text-secondary">Start from a template or import a PDF</p>
-          </Link>
         </div>
       )}
     </div>
