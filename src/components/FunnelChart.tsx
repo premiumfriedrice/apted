@@ -1,19 +1,15 @@
 "use client";
 
 import React, { useState } from 'react';
-import { RefreshCw, Info, Sliders } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { FunnelStats } from './types';
 
 interface FunnelChartProps {
   stats: FunnelStats;
-  onUpdateStats?: (newStats: FunnelStats) => void;
-  isSynced: boolean;
-  onToggleSync: () => void;
 }
 
-export default function FunnelChart({ stats, onUpdateStats, isSynced, onToggleSync }: FunnelChartProps) {
+export default function FunnelChart({ stats }: FunnelChartProps) {
   const [hoveredElement, setHoveredElement] = useState<{ name: string; value: string; rate?: string } | null>(null);
-  const [showControls, setShowControls] = useState(false);
 
   // SVG dimensions
   const width = 1000;
@@ -97,32 +93,6 @@ export default function FunnelChart({ stats, onUpdateStats, isSynced, onToggleSy
     overall: stats.total > 0 ? ((stats.offers / stats.total) * 100).toFixed(1) : '0',
   };
 
-  // Handle local state updates for manual controls
-  const handleStatChange = (key: keyof FunnelStats, val: number) => {
-    if (!onUpdateStats) return;
-    const cleanVal = Math.max(0, val);
-    const updated = { ...stats, [key]: cleanVal };
-
-    // Automatically recalculate dependent values to maintain consistency if desired
-    if (key === 'total') {
-      updated.screening = Math.min(updated.screening, cleanVal);
-      updated.screeningRejections = Math.min(updated.screeningRejections, cleanVal - updated.screening);
-    } else if (key === 'screening') {
-      updated.screening = Math.min(cleanVal, updated.total);
-      updated.technical = Math.min(updated.technical, updated.screening);
-    } else if (key === 'technical') {
-      updated.technical = Math.min(cleanVal, updated.screening);
-      updated.final = Math.min(updated.final, updated.technical);
-    } else if (key === 'final') {
-      updated.final = Math.min(cleanVal, updated.technical);
-      updated.offers = Math.min(updated.offers, updated.final);
-    } else if (key === 'offers') {
-      updated.offers = Math.min(cleanVal, updated.final);
-    }
-
-    onUpdateStats(updated);
-  };
-
   // Pre-calculated fine lines (representing the individual weaving threads in the screenshot)
   const fineLines = [
     { sY: yCoords.total + heights.total * 0.45, eY: yCoords.screening + heights.screening * 0.70 },
@@ -137,137 +107,6 @@ export default function FunnelChart({ stats, onUpdateStats, isSynced, onToggleSy
 
   return (
     <div className="bg-white border border-[#E5E7EB] rounded-md p-6 relative select-none">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="font-display text-xl font-bold text-[#171c20] tracking-tight">
-            Job Application Funnel
-          </h2>
-          <p className="text-xs text-gray-500 font-sans mt-1">
-            Visualizing conversion metrics and dropout volumes across candidate stages.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={onToggleSync}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
-              isSynced
-                ? 'bg-[#1b1b1b] text-white border-black'
-                : 'bg-white text-gray-700 border-[#E5E7EB] hover:bg-gray-50'
-            }`}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSynced ? 'animate-spin-slow' : ''}`} />
-            {isSynced ? 'Synced to Tracker' : 'Manual Demo Mode'}
-          </button>
-
-          <button
-            onClick={() => setShowControls(!showControls)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border bg-white text-gray-700 border-[#E5E7EB] hover:bg-gray-50"
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            {showControls ? 'Hide Controls' : 'Edit Stats'}
-          </button>
-        </div>
-      </div>
-
-      {/* Manual Controls Panel */}
-      {showControls && (
-        <div className="bg-[#f0f4f9] border border-[#dfe3e8] rounded-md p-4 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-200">
-          <div className="col-span-2 md:col-span-4 flex items-center justify-between border-b border-gray-200 pb-2 mb-1">
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-              {isSynced ? 'Funnel Values (Locked in Auto-Sync)' : 'Adjust Funnel Values'}
-            </span>
-            {isSynced && (
-              <span className="text-[10px] bg-white text-[#171c20] border border-gray-300 px-1.5 py-0.5 rounded font-mono">
-                ACTIVE
-              </span>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Total Applications</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.total}
-              onChange={(e) => handleStatChange('total', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Screening Passed</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.screening}
-              onChange={(e) => handleStatChange('screening', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Technical Interviews</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.technical}
-              onChange={(e) => handleStatChange('technical', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Final Rounds</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.final}
-              onChange={(e) => handleStatChange('final', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Offers Received</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.offers}
-              onChange={(e) => handleStatChange('offers', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Screen Rejections</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.screeningRejections}
-              onChange={(e) => handleStatChange('screeningRejections', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Tech Rejections</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.technicalRejections}
-              onChange={(e) => handleStatChange('technicalRejections', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase">Final Rejections</label>
-            <input
-              type="number"
-              disabled={isSynced}
-              value={stats.finalRejections}
-              onChange={(e) => handleStatChange('finalRejections', parseInt(e.target.value) || 0)}
-              className="mt-1 w-full bg-white border border-[#E5E7EB] rounded p-1 text-xs font-mono disabled:opacity-60"
-            />
-          </div>
-        </div>
-      )}
-
       {/* Funnel SVG Render Area */}
       <div className="w-full overflow-x-auto">
         <div className="min-w-[950px] relative">

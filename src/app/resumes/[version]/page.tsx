@@ -86,8 +86,6 @@ export default function ResumeDetailPage() {
   const [leftMode, setLeftMode] = useState<"insights" | "jobs">("insights");
   const [insights, setInsights] = useState<Insights | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
-  const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
-  const [isSynced, setIsSynced] = useState(true);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportName, setExportName] = useState("Resume");
@@ -175,11 +173,6 @@ export default function ResumeDetailPage() {
     }
     return { total: appsForStats.length, screening, technical, final, offers, screeningRejections, technicalRejections, finalRejections };
   }, [appsForStats]);
-
-  // When synced, mirror tracked stats into funnelStats.
-  useEffect(() => {
-    if (isSynced) setFunnelStats(trackedStats);
-  }, [isSynced, trackedStats]);
 
   if (loading) {
     return (
@@ -301,18 +294,8 @@ export default function ResumeDetailPage() {
             <>
               {/* Top half: Sankey funnel diagram */}
               <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
-                <h2 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h2>
-                {apps.length > 0 && funnelStats ? (
-                  <FunnelChart
-                    stats={funnelStats}
-                    isSynced={isSynced}
-                    onToggleSync={() => {
-                      const next = !isSynced;
-                      setIsSynced(next);
-                      if (next) setFunnelStats(trackedStats);
-                    }}
-                    onUpdateStats={(s) => setFunnelStats(s)}
-                  />
+                {apps.length > 0 ? (
+                  <FunnelChart stats={trackedStats} />
                 ) : (
                   <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
                 )}
