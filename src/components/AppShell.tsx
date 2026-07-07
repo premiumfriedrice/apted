@@ -14,6 +14,12 @@ const SETTINGS_NAV = { href: "/settings", label: "Settings", icon: "settings" };
 
 const STORAGE_KEY = "apted:sidebar-collapsed";
 
+// Shared button language (matches the master resume editor header).
+const sideBtnCls =
+  "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
+const sideActiveBtnCls =
+  "inline-flex items-center gap-1 px-3 py-2 text-on-surface text-label-md font-label-md bg-surface-container-high font-semibold rounded";
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -41,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (pathname === "/master") {
     return (
       <div className="h-screen overflow-hidden bg-surface text-on-background">
-        <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white py-lg transition-[width] duration-200 ${sidebarWidth}`}>
+        <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ${sidebarWidth}`}>
           <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
         </aside>
         <div className={`h-full transition-[margin] duration-200 ${mainLeft}`}>
@@ -54,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-on-background">
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white py-lg transition-[width] duration-200 ${sidebarWidth}`}>
+      <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ${sidebarWidth}`}>
         <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
       </aside>
 
@@ -106,45 +112,45 @@ function SidebarInner({
 }) {
   return (
     <>
-      {/* Brand + collapse */}
-      <div className={`mb-6 flex items-center ${collapsed ? "justify-center px-0" : "justify-between px-6"}`}>
+      {/* Brand — aligned with the 64px top app bar */}
+      <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "justify-between px-6"}`}>
         {collapsed ? (
           <Link href="/" className="text-[22px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
             a
           </Link>
         ) : (
-          <Link href="/" className="text-[22px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            apted
-          </Link>
-        )}
-        {!collapsed && (
-          <button
-            onClick={() => setCollapsed(true)}
-            title="Collapse sidebar"
-            className="rounded p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-          >
-            <CollapseIcon />
-          </button>
+          <>
+            <Link href="/" className="text-[22px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              apted
+            </Link>
+            <button
+              onClick={() => setCollapsed(true)}
+              title="Collapse sidebar"
+              className="rounded p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+            >
+              <CollapseIcon />
+            </button>
+          </>
         )}
       </div>
-      {!collapsed && (
-        <p className="mb-6 px-6 font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">
-          Career Manager
-        </p>
-      )}
-
-      {/* Collapse-expand button when collapsed */}
       {collapsed && (
         <button
           onClick={() => setCollapsed(false)}
           title="Expand sidebar"
-          className="mx-auto mb-6 rounded p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+          className="mx-auto mb-2 mt-1 rounded p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
         >
           <ExpandIcon />
         </button>
       )}
 
-      <nav className={`flex-1 space-y-1 ${collapsed ? "px-0" : "px-4"}`}>
+      {!collapsed && (
+        <p className="mb-4 px-6 font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">
+          Career Manager
+        </p>
+      )}
+
+      {/* Nav */}
+      <nav className={`flex-1 space-y-1 ${collapsed ? "px-0" : "px-3"}`}>
         {SIDEBAR_NAV.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
@@ -152,40 +158,20 @@ function SidebarInner({
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`group flex items-center rounded border-r-2 py-2 transition-colors duration-200 ${
-                collapsed ? "justify-center px-0" : "gap-3 px-3"
-              } ${
-                isActive
-                  ? "border-primary text-on-surface font-semibold"
-                  : "border-transparent text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-              }`}
+              className={`flex items-center py-2 transition-colors duration-200 ${
+                collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
+              } ${collapsed ? "justify-center px-0" : ""}`}
             >
               <MaterialIcon name={item.icon} className={collapsed ? "text-[22px]" : "text-[20px]"} />
-              {!collapsed && <span className="font-label-md text-label-md">{item.label}</span>}
+              {!collapsed && <span>{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto space-y-4 px-0">
-        {/* Settings */}
-        <Link
-          href={SETTINGS_NAV.href}
-          title={collapsed ? SETTINGS_NAV.label : undefined}
-          className={`group flex items-center rounded py-2 transition-colors duration-200 ${
-            collapsed ? "justify-center px-0" : "gap-3 px-3"
-          } ${
-            pathname === SETTINGS_NAV.href
-              ? "bg-surface-container-low text-on-surface font-semibold"
-              : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-          }`}
-        >
-          <MaterialIcon name={SETTINGS_NAV.icon} className={collapsed ? "text-[22px]" : "text-[20px]"} />
-          {!collapsed && <span className="font-label-md text-label-md">{SETTINGS_NAV.label}</span>}
-        </Link>
-
-        {/* New Application */}
-        <div className={collapsed ? "flex justify-center" : "px-4"}>
+      {/* Footer: New Application + compact profile with settings */}
+      <div className="shrink-0 space-y-3 px-0 pb-4">
+        <div className={collapsed ? "flex justify-center px-0" : "px-3"}>
           <button
             title={collapsed ? "New Application" : undefined}
             className={`inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary transition-colors duration-200 hover:bg-on-primary-fixed-variant ${collapsed ? "w-10 px-0" : "w-full"}`}
@@ -195,27 +181,46 @@ function SidebarInner({
           </button>
         </div>
 
-        {/* Profile */}
         {collapsed ? (
-          <div className="flex justify-center">
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
-              <span className="text-sm font-bold text-secondary">AU</span>
+          <div className="flex flex-col items-center gap-1 pt-1">
+            <Link
+              href={SETTINGS_NAV.href}
+              title={SETTINGS_NAV.label}
+              className={`rounded p-1.5 transition-colors ${pathname === SETTINGS_NAV.href ? "bg-surface-container-high text-on-surface" : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
+            >
+              <MaterialIcon name={SETTINGS_NAV.icon} className="text-[22px]" />
+            </Link>
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
+              <span className="text-[11px] font-bold text-secondary">AU</span>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 border-t border-outline-variant px-2 pt-6">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
-              <span className="text-sm font-bold text-secondary">AU</span>
+          <div className="flex items-center gap-2 border-t border-outline-variant px-3 pt-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
+              <span className="text-[11px] font-bold text-secondary">AU</span>
             </div>
-            <div className="overflow-hidden">
-              <p className="font-label-md text-label-md truncate">Apted User</p>
-              <p className="text-xs text-on-surface-variant truncate">Free Tier</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-label-md text-label-md truncate leading-tight">Apted User</p>
+              <p className="text-[10px] text-on-surface-variant truncate leading-tight">Free Tier</p>
             </div>
+            <Link
+              href={SETTINGS_NAV.href}
+              title={SETTINGS_NAV.label}
+              className={`rounded p-1.5 transition-colors ${pathname === SETTINGS_NAV.href ? "bg-surface-container-high text-on-surface" : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
+            >
+              <MaterialIcon name={SETTINGS_NAV.icon} className="text-[20px]" />
+            </Link>
           </div>
         )}
       </div>
     </>
   );
+}
+
+function sideIconBtnCls(active: boolean): string {
+  return active
+    ? "bg-surface-container-high text-on-surface"
+    : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface";
 }
 
 function CollapseIcon() {
