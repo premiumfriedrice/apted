@@ -144,6 +144,43 @@ export default function ResumeDetailPage() {
     window.addEventListener("mouseup", onUp);
   }
 
+  // Map applications to FunnelStats for the FunnelChart.
+  // NOTE: these hooks must run before any early returns (Rules of Hooks).
+  const appsForStats = version?.applications ?? [];
+  const trackedStats: FunnelStats = useMemo(() => {
+    let screening = 0;
+    let technical = 0;
+    let final = 0;
+    let offers = 0;
+    let screeningRejections = 0;
+    let technicalRejections = 0;
+    let finalRejections = 0;
+    for (const a of appsForStats) {
+      if (a.outcome === "draft") continue; // draft = not submitted
+      screening++; // submitted => entered screening
+      const rejR = a.rejectedAfterRound ?? 0;
+      const intR = a.interviewRound ?? 0;
+      if (a.outcome === "rejected") {
+        if (rejR === 0) { screeningRejections++; continue; }
+        technical++;
+        if (rejR === 1) { technicalRejections++; continue; }
+        final++;
+        finalRejections++; continue;
+      }
+      if (a.outcome === "ghosted" || a.outcome === "applied") continue; // stuck in screening
+      // interviewing, offer, declined => reached at least technical
+      technical++;
+      if (intR >= 2 || a.outcome === "offer" || a.outcome === "declined") final++;
+      if (a.outcome === "offer") offers++;
+    }
+    return { total: appsForStats.length, screening, technical, final, offers, screeningRejections, technicalRejections, finalRejections };
+  }, [appsForStats]);
+
+  // When synced, mirror tracked stats into funnelStats.
+  useEffect(() => {
+    if (isSynced) setFunnelStats(trackedStats);
+  }, [isSynced, trackedStats]);
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-on-surface-variant">
@@ -174,41 +211,6 @@ export default function ResumeDetailPage() {
   const totalApps = apps.length;
   const interviewCount = apps.filter((a) => a.outcome === "interviewing" || a.outcome === "offer" || a.outcome === "declined" || a.outcome === "rejected").length;
   const offerCount = outcomeCounts.offer ?? 0;
-
-  // Map applications to FunnelStats for the FunnelChart.
-  const trackedStats: FunnelStats = useMemo(() => {
-    let screening = 0;
-    let technical = 0;
-    let final = 0;
-    let offers = 0;
-    let screeningRejections = 0;
-    let technicalRejections = 0;
-    let finalRejections = 0;
-    for (const a of apps) {
-      if (a.outcome === "draft") continue; // draft = not submitted
-      screening++; // submitted => entered screening
-      const rejR = a.rejectedAfterRound ?? 0;
-      const intR = a.interviewRound ?? 0;
-      if (a.outcome === "rejected") {
-        if (rejR === 0) { screeningRejections++; continue; }
-        technical++;
-        if (rejR === 1) { technicalRejections++; continue; }
-        final++;
-        finalRejections++; continue;
-      }
-      if (a.outcome === "ghosted" || a.outcome === "applied") continue; // stuck in screening
-      // interviewing, offer, declined => reached at least technical
-      technical++;
-      if (intR >= 2 || a.outcome === "offer" || a.outcome === "declined") final++;
-      if (a.outcome === "offer") offers++;
-    }
-    return { total: apps.length, screening, technical, final, offers, screeningRejections, technicalRejections, finalRejections };
-  }, [apps]);
-
-  // When synced, mirror tracked stats into funnelStats.
-  useEffect(() => {
-    if (isSynced) setFunnelStats(trackedStats);
-  }, [isSynced, trackedStats]);
   function exportAs(kind: "pdf" | "json") {
     const base = exportName.trim() || "Resume";
     try {
