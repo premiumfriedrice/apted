@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const SIDEBAR_NAV = [
-  { href: "/", label: "Library", icon: "folder_open" },
-  { href: "/master", label: "Editor", icon: "edit_note" },
-  { href: "/applications", label: "Applications", icon: "assignment_turned_in", disabled: true },
-  { href: "/settings", label: "Settings", icon: "settings" },
+  { href: "/", label: "Resumes", icon: "folder_open" },
+  { href: "/master", label: "Master Resume", icon: "edit_note" },
+  { href: "/applications", label: "Applications", icon: "assignment_turned_in" },
 ];
+
+const SETTINGS_NAV = { href: "/settings", label: "Settings", icon: "settings" };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -29,15 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 space-y-1 px-4">
           {SIDEBAR_NAV.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-            return item.disabled ? (
-              <span
-                key={item.href}
-                className="flex cursor-not-allowed items-center gap-3 rounded px-3 py-2 text-secondary opacity-60 transition-colors"
-              >
-                <MaterialIcon name={item.icon} />
-                <span className="font-label-md text-label-md">{item.label}</span>
-              </span>
-            ) : (
+            return (
               <Link
                 key={item.href}
                 href={item.href}
@@ -55,6 +48,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="mt-auto space-y-6 px-4">
+          <Link
+            href={SETTINGS_NAV.href}
+            className={`group -mb-2 flex items-center gap-3 rounded px-3 py-2 transition-colors ${
+              pathname === SETTINGS_NAV.href
+                ? "bg-surface-container-low font-bold text-primary"
+                : "text-secondary hover:bg-surface-container-low hover:text-primary"
+            }`}
+          >
+            <MaterialIcon name={SETTINGS_NAV.icon} />
+            <span className="font-label-md text-label-md">{SETTINGS_NAV.label}</span>
+          </Link>
           <button className="flex w-full items-center justify-center gap-2 rounded bg-primary py-3 text-label-md font-bold text-on-primary transition-all hover:opacity-90 active:scale-[0.98]">
             <MaterialIcon name="add" className="text-[18px]" />
             New Application
