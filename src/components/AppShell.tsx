@@ -89,7 +89,7 @@ function SidebarInner({
           <button
             onClick={() => setCollapsed(false)}
             title="Expand sidebar"
-            className="text-[22px] font-medium tracking-tight leading-none text-on-surface"
+            className="text-[28px] font-medium tracking-tight leading-none text-on-surface"
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
             a
