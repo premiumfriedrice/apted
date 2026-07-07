@@ -19,10 +19,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-border-subtle bg-surface-white py-margin-desktop">
         <div className="mb-8 px-6">
-          <Link href="/" className="text-[28px] font-black tracking-tighter text-primary" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <Link href="/" className="text-[22px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
             apted
           </Link>
-          <p className="mt-1 font-label-md text-label-md uppercase tracking-widest text-secondary">
+          <p className="mt-1 font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">
             Career Manager
           </p>
         </div>
@@ -34,10 +34,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center gap-3 border-r-2 px-3 py-2 transition-colors ${
+                className={`group flex items-center gap-3 rounded border-r-2 px-3 py-2 transition-colors duration-200 ${
                   isActive
-                    ? "border-primary font-bold text-primary"
-                    : "border-transparent text-secondary hover:bg-surface-container-low hover:text-primary"
+                    ? "border-primary text-on-surface font-semibold"
+                    : "border-transparent text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
                 }`}
               >
                 <MaterialIcon name={item.icon} />
@@ -50,16 +50,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mt-auto space-y-6 px-4">
           <Link
             href={SETTINGS_NAV.href}
-            className={`group -mb-2 flex items-center gap-3 rounded px-3 py-2 transition-colors ${
+            className={`group -mb-2 flex items-center gap-3 rounded px-3 py-2 transition-colors duration-200 ${
               pathname === SETTINGS_NAV.href
-                ? "bg-surface-container-low font-bold text-primary"
-                : "text-secondary hover:bg-surface-container-low hover:text-primary"
+                ? "bg-surface-container-low text-on-surface font-semibold"
+                : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
             }`}
           >
             <MaterialIcon name={SETTINGS_NAV.icon} />
             <span className="font-label-md text-label-md">{SETTINGS_NAV.label}</span>
           </Link>
-          <button className="flex w-full items-center justify-center gap-2 rounded bg-primary py-3 text-label-md font-bold text-on-primary transition-all hover:opacity-90 active:scale-[0.98]">
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary transition-colors duration-200 hover:bg-on-primary-fixed-variant">
             <MaterialIcon name="add" className="text-[18px]" />
             New Application
           </button>
@@ -80,23 +80,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="fixed left-64 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-border-subtle bg-surface-white px-margin-desktop">
         <div className="flex flex-1 max-w-xl items-center gap-4">
           <div className="relative w-full">
-            <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-secondary" />
+            <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" />
             <input
               type="text"
               placeholder="Search resumes, companies, or roles..."
-              className="w-full rounded-none border border-border-subtle bg-surface-container-lowest py-2 pl-10 pr-4 text-body-md outline-none focus:border-primary"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2 pl-10 pr-4 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 bg-primary px-5 py-2 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90">
+          <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary transition-colors duration-200 hover:bg-on-primary-fixed-variant">
             Create New
           </button>
-          <div className="ml-2 flex items-center gap-1 border-l border-border-subtle pl-4">
-            <button className="p-2 text-secondary transition-colors hover:bg-surface-container-low">
+          <div className="ml-2 flex items-center gap-1 border-l border-outline-variant pl-4">
+            <button className="rounded p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low">
               <MaterialIcon name="notifications" />
             </button>
-            <button className="p-2 text-secondary transition-colors hover:bg-surface-container-low">
+            <button className="rounded p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low">
               <MaterialIcon name="help_outline" />
             </button>
           </div>

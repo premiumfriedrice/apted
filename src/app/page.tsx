@@ -35,6 +35,14 @@ type Master = {
 
 const TABS = ["All Resumes", "Active Applications", "Archived"] as const;
 
+// Button language shared with the master resume editor (PRE-82 design system).
+const smallBtnCls =
+  "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
+const modeActiveBtnCls =
+  "bg-surface-container-high text-on-surface text-label-md font-label-md px-3 py-2 rounded font-semibold";
+const primaryBtnCls =
+  "inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200";
+
 const OUTCOME_COLORS: Record<string, string> = {
   draft: "bg-surface-container-highest text-secondary",
   applied: "bg-blue-100 text-blue-700",
@@ -133,16 +141,12 @@ export default function LibraryPage() {
             Manage your iterative resumes and track ongoing job applications in a single high-density workspace.
           </p>
         </div>
-        <div className="flex gap-1 rounded bg-surface-container-low p-1">
+        <div className="flex items-center gap-1">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 text-label-md transition-colors ${
-                activeTab === tab
-                  ? "bg-surface-white font-bold text-primary shadow-sm"
-                  : "text-secondary hover:text-primary"
-              }`}
+              className={activeTab === tab ? modeActiveBtnCls : smallBtnCls}
             >
               {tab}
             </button>
@@ -152,12 +156,12 @@ export default function LibraryPage() {
 
       {/* Recent Resumes Section */}
       <section className="mb-12">
-        <div className="mb-4 flex items-center justify-between border-b border-primary border-opacity-10 pb-2">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
             <MaterialIcon name="description" className="text-[20px]" />
             Recent Resumes
           </h3>
-          <Link href="/builder" className="text-label-md text-secondary underline hover:text-primary">
+          <Link href="/builder" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
             View all
           </Link>
         </div>
@@ -177,7 +181,7 @@ export default function LibraryPage() {
                   <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
                     <SkeletonResume />
                     <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
-                      <button className="bg-primary px-4 py-2 text-label-md text-white">Edit Resume</button>
+                      <button className={primaryBtnCls}>Edit Resume</button>
                     </div>
                   </div>
                   <div>
@@ -222,12 +226,12 @@ export default function LibraryPage() {
 
       {/* Master Resume Section */}
       <section className="mb-12">
-        <div className="mb-4 flex items-center justify-between border-b border-primary border-opacity-10 pb-2">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
             <MaterialIcon name="verified" className="text-[20px]" />
             Master Resume
           </h3>
-          <span className="font-label-md text-label-md uppercase tracking-widest text-secondary">Source of Truth</span>
+          <span className="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">Source of Truth</span>
         </div>
         <div className="flex flex-col items-center gap-8 border border-border-subtle bg-surface-white p-6 md:flex-row">
           <div className="relative aspect-[1/1.4] w-full shrink-0 overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask md:w-48">
@@ -253,7 +257,7 @@ export default function LibraryPage() {
             <div className="pt-2">
               <Link
                 href="/master"
-                className="inline-flex items-center gap-2 bg-primary px-6 py-3 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
+                className={primaryBtnCls + " px-6 py-3"}
               >
                 <MaterialIcon name="edit_note" className="text-[18px]" />
                 Go to Editor
@@ -265,17 +269,17 @@ export default function LibraryPage() {
 
       {/* Application Tracker Section */}
       <section>
-        <div className="mb-4 flex items-center justify-between border-b border-primary border-opacity-10 pb-2">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
             <MaterialIcon name="analytics" className="text-[20px]" />
             Application Tracker
           </h3>
-          <div className="flex gap-4">
-            <button className="flex items-center gap-1 text-xs text-secondary transition-colors hover:text-primary">
-              <MaterialIcon name="filter_list" className="text-[14px]" /> Filter
+          <div className="flex gap-2">
+            <button className={smallBtnCls}>
+              <MaterialIcon name="filter_list" className="text-[18px]" /> Filter
             </button>
-            <button className="flex items-center gap-1 text-xs text-secondary transition-colors hover:text-primary">
-              <MaterialIcon name="download" className="text-[14px]" /> Export
+            <button className={smallBtnCls}>
+              <MaterialIcon name="download" className="text-[18px]" /> Export
             </button>
           </div>
         </div>
@@ -329,7 +333,7 @@ export default function LibraryPage() {
                   <td className="py-3 px-4 text-right">
                     <button
                       onClick={() => updateOutcome(app.id, app.outcome, setVersions)}
-                      className="p-1 text-secondary transition-colors hover:text-primary"
+                      className="rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
                       title="Advance stage"
                     >
                       <MaterialIcon name="more_horiz" className="text-[18px]" />
@@ -341,7 +345,7 @@ export default function LibraryPage() {
           </table>
           {activeApplications.length > 10 && (
             <div className="flex justify-center bg-surface-container-low p-3">
-              <button className="font-label-md text-label-md font-bold text-secondary hover:text-primary">
+              <button className="inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded">
                 Load more applications
               </button>
             </div>

@@ -70,6 +70,12 @@ export default function ApplicationsPage() {
 
   const STATUSES: (Outcome | "all")[] = ["all", "applied", "interviewing", "offer", "rejected", "ghosted", "declined"];
 
+// Button language shared with the master resume editor (PRE-82 design system).
+const smallBtnCls =
+  "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
+const modeActiveBtnCls =
+  "bg-surface-container-high text-on-surface text-label-md font-label-md px-3 py-2 rounded font-semibold";
+
   return (
     <div className="mx-auto max-w-[1440px]">
       <div className="mb-10">
@@ -77,14 +83,12 @@ export default function ApplicationsPage() {
         <p className="mt-1 text-secondary">Track every job application across all your resume versions.</p>
       </div>
 
-      <div className="mb-6 flex gap-1 rounded bg-surface-container-low p-1">
+      <div className="mb-6 flex items-center gap-1">
         {STATUSES.map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-4 py-1.5 text-label-md transition-colors ${
-              filter === s ? "bg-surface-white font-bold text-primary shadow-sm" : "text-secondary hover:text-primary"
-            }`}
+            className={filter === s ? modeActiveBtnCls : smallBtnCls}
           >
             {s === "all" ? "All" : s}
           </button>
