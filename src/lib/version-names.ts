@@ -4,15 +4,16 @@ import type { Resume } from "./resume";
 const SYSTEM_PROMPT = `You are a resume labeling assistant. Read the resume and job description, then identify the resume's main focus and domain.
 
 Return a name in one of these formats:
-- "{Role} — {theme1}/{theme2}" (e.g., "Software Engineer — Data/Infra")
+- "{Role} - {theme1}/{theme2}" (e.g., "Software Engineer - Data/Infra")
 - "{Domain}-focused {Role}" (e.g., "Data-focused Backend Engineer")
-- "{Role} — {domain}" (e.g., "Forward-Deployed Engineer — Platform")
+- "{Role} - {domain}" (e.g., "Forward-Deployed Engineer - Platform")
 
 Good themes/domains: Data, ML/AI, DevOps, Infrastructure, Platform, Forward-Deployed, Customer-Facing, Full-Stack, Backend, Mobile, Embedded, Security, Quantitative, SaaS, Cloud, Distributed Systems.
 
 Requirements:
 - 4 to 8 words
 - Tell what the resume emphasizes beyond just the job title
+- NEVER use em dashes (U+2014) in the output. Use regular hyphens instead.
 - Bad examples: "Software Engineer Intern", "Resume Version", "Version from 2026-07-03"
 - Return ONLY the name as plain text. No JSON, no quotes, no explanation.`;
 
@@ -117,7 +118,7 @@ function fallbackName(
 
   if (role?.trim()) {
     if (hints.length > 0) {
-      return `${role.trim()} — ${hints.slice(0, 2).join("/")}`.slice(0, 60);
+      return `${role.trim()} - ${hints.slice(0, 2).join("/")}`.slice(0, 60);
     }
     return role.trim().slice(0, 60);
   }

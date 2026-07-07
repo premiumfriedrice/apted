@@ -28,6 +28,7 @@ Return ONLY valid JSON with this exact shape:
 Rules:
 - Be specific and honest, not generic fluff
 - Keywords should reflect actual skills/tools/domains in the resume
+- NEVER use em dashes (U+2014) anywhere in the output. Use regular hyphens, colons, or commas instead.
 - No quotes around the JSON, no markdown fences, just the JSON object`;
 
 function buildUserPrompt(resume: Resume, applications: Application[]): string {
