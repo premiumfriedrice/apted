@@ -33,16 +33,6 @@ const OUTCOME_COLORS: Record<string, string> = {
   declined: "bg-purple-100 text-purple-700",
 };
 
-const OUTCOME_LABELS: Record<string, string> = {
-  draft: "Draft",
-  applied: "Applied",
-  ghosted: "Ghosted",
-  interviewing: "Interviewing",
-  rejected: "Rejected",
-  offer: "Offer",
-  declined: "Declined",
-};
-
 // Shared button language (matches the master resume editor header).
 const smallBtnCls =
   "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
@@ -181,8 +171,6 @@ export default function ResumeDetailPage() {
   const totalApps = apps.length;
   const interviewCount = apps.filter((a) => a.outcome === "interviewing" || a.outcome === "offer" || a.outcome === "declined" || a.outcome === "rejected").length;
   const offerCount = outcomeCounts.offer ?? 0;
-  const responseRate = totalApps > 0 ? Math.round(((totalApps - (outcomeCounts.ghosted ?? 0) - (outcomeCounts.draft ?? 0)) / totalApps) * 100) : 0;
-
   function exportAs(kind: "pdf" | "json") {
     const base = exportName.trim() || "Resume";
     try {
@@ -271,46 +259,14 @@ export default function ResumeDetailPage() {
           {/* Left content — toggled by Insights / Jobs */}
           {leftMode === "insights" ? (
             <>
-              {/* Top half: Sankey funnel diagram */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
-                <h2 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h2>
-                {apps.length > 0 ? (
-                  <SankeyDiagram applications={apps} />
-                ) : (
-                  <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
-                )}
-              </div>
-
-              {/* Bottom half: AI insights + usage stats */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md space-y-md">
+              {/* Top: AI insights + usage stats */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-b border-outline-variant p-md space-y-md">
                 {/* Usage stats */}
                 <div className="grid grid-cols-3 gap-sm">
                   <StatCard label="Times Used" value={totalApps} />
                   <StatCard label="Interviews" value={interviewCount} />
                   <StatCard label="Offers" value={offerCount} />
                 </div>
-
-                <div className="grid grid-cols-2 gap-sm">
-                  <StatCard label="Response Rate" value={`${responseRate}%`} />
-                  <StatCard label="Created" value={new Date(version.createdAt).toLocaleDateString()} />
-                </div>
-
-                {/* Outcome breakdown */}
-                {totalApps > 0 && (
-                  <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
-                    <h3 className="mb-sm font-label-md text-label-md text-on-surface-variant">Outcome Breakdown</h3>
-                    <div className="space-y-xs">
-                      {Object.entries(outcomeCounts).map(([outcome, count]) => (
-                        <div key={outcome} className="flex items-center justify-between text-sm">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[outcome] || OUTCOME_COLORS.draft}`}>
-                            {OUTCOME_LABELS[outcome] ?? outcome}
-                          </span>
-                          <span className="font-semibold text-on-surface">{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* AI Summary */}
                 <div className="rounded-lg border border-outline-variant bg-surface-white p-md">
@@ -359,6 +315,16 @@ export default function ResumeDetailPage() {
                       ))}
                     </div>
                   </div>
+                )}
+              </div>
+
+              {/* Bottom half: Sankey funnel diagram */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-auto p-md">
+                <h2 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h2>
+                {apps.length > 0 ? (
+                  <SankeyDiagram applications={apps} />
+                ) : (
+                  <p className="text-sm text-on-surface-variant">No applications to visualize yet.</p>
                 )}
               </div>
             </>

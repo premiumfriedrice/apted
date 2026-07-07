@@ -15,11 +15,11 @@ const STAGE_COLORS: Record<string, { fill: string; stroke: string; text: string 
   declined: { fill: "#f3e8ff", stroke: "#c084fc", text: "#581c87" },
 };
 
-const UNIT = 18;
-const GAP = 8;
-const PADDING = 20;
-const NODE_WIDTH = 84;
-const MIN_WIDTH = 360;
+const UNIT = 22;
+const GAP = 6;
+const PADDING = 24;
+const NODE_WIDTH = 100;
+const MIN_WIDTH = 420;
 
 interface Stage {
   id: string;
@@ -245,19 +245,28 @@ export function SankeyDiagram({ applications }: { applications: Application[] })
   if (applications.length === 0) return null;
 
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-outline-variant bg-surface-container-lowest p-3">
+    <div className="w-full overflow-x-auto">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="mx-auto block"
         style={{ minWidth: `${width}px`, height: `${height}px` }}
         aria-label="Application funnel"
       >
+        <defs>
+          {links.map((link, i) => (
+            <linearGradient key={`grad-${i}`} id={`grad-${i}`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={stages.find((s) => s.id === link.sourceStage)?.fill ?? "#e5e7eb"} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={link.fill} stopOpacity={0.5} />
+            </linearGradient>
+          ))}
+        </defs>
+
         {links.map((link, i) => (
           <path
             key={`link-${i}`}
             d={linkPath(link.x0, link.y0, link.x1, link.y1, UNIT)}
-            fill={link.fill}
-            opacity={0.55}
+            fill={`url(#grad-${i})`}
+            opacity={0.7}
             stroke="none"
           />
         ))}
@@ -269,29 +278,29 @@ export function SankeyDiagram({ applications }: { applications: Application[] })
               y={stage.top}
               width={NODE_WIDTH}
               height={stage.bottom - stage.top}
-              rx={5}
+              rx={6}
               fill={stage.fill}
               stroke={stage.stroke}
-              strokeWidth={1}
+              strokeWidth={1.5}
             />
             <text
               x={stage.x + NODE_WIDTH / 2}
-              y={stage.y - (stage.sublabel ? 5 : 0)}
+              y={stage.y - (stage.sublabel ? 6 : 0)}
               textAnchor="middle"
               dominantBaseline="middle"
               fill={stage.text}
-              fontSize={10}
-              fontWeight={600}
+              fontSize={11}
+              fontWeight={700}
             >
               {stage.label}
             </text>
             <text
               x={stage.x + NODE_WIDTH / 2}
-              y={stage.y + 9}
+              y={stage.y + 10}
               textAnchor="middle"
               dominantBaseline="middle"
               fill={stage.text}
-              fontSize={8}
+              fontSize={9}
               opacity={0.85}
             >
               {stage.value}
@@ -299,11 +308,11 @@ export function SankeyDiagram({ applications }: { applications: Application[] })
             {stage.sublabel && (
               <text
                 x={stage.x + NODE_WIDTH / 2}
-                y={stage.y + 16}
+                y={stage.y + 18}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fill={stage.text}
-                fontSize={7}
+                fontSize={8}
                 opacity={0.7}
               >
                 {stage.sublabel}
