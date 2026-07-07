@@ -53,6 +53,7 @@ export default function ApplicationsPage() {
   const [versions, setVersions] = useState<Version[]>([]);
   const [filter, setFilter] = useState<Outcome | "all">("all");
   const [search, setSearch] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/versions")
@@ -112,6 +113,32 @@ export default function ApplicationsPage() {
       finalRejections,
     };
   }, [applications]);
+
+  async function updateOutcome(appId: string, outcome: Outcome) {
+    setUpdatingId(appId);
+    // Optimistic: update local state immediately.
+    setVersions((prev) =>
+      prev.map((v) => ({
+        ...v,
+        applications: v.applications.map((a) =>
+          a.id === appId ? { ...a, outcome } : a,
+        ),
+      })),
+    );
+    try {
+      const res = await fetch(`/api/applications/${appId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome }),
+      });
+      if (!res.ok) throw new Error("update failed");
+    } catch {
+      // Revert on failure by reloading.
+      fetch("/api/versions").then((r) => r.json()).then((data: Version[]) => setVersions(data));
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   const STATUSES: (Outcome | "all")[] = ["all", "applied", "interviewing", "offer", "rejected", "ghosted", "declined"];
 
@@ -198,9 +225,18 @@ const modeActiveBtnCls =
                   </Link>
                 </td>
                 <td className="py-3 px-4 text-center">
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[app.outcome]}`}>
-                    {app.outcome}
-                  </span>
+                  <select
+                    value={app.outcome}
+                    disabled={updatingId === app.id}
+                    onChange={(e) => updateOutcome(app.id, e.target.value as Outcome)}
+                    className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter outline-none ring-1 ring-inset ring-transparent transition focus:ring-primary ${OUTCOME_COLORS[app.outcome]} ${updatingId === app.id ? "opacity-50" : ""}`}
+                  >
+                    {(["draft", "applied", "ghosted", "interviewing", "rejected", "offer", "declined"] as Outcome[]).map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="py-3 px-4 text-xs text-secondary">{formatDate(app.createdAt)}</td>
               </tr>
