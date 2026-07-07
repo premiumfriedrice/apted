@@ -84,7 +84,7 @@ function SidebarInner({
   return (
     <>
       {/* Brand — aligned with the 64px top app bar */}
-      <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "justify-between px-6"}`}>
+      <div className={`flex shrink-0 items-center pt-4 ${collapsed ? "justify-center px-0" : "justify-between px-6"}`}>
         {collapsed ? (
           <button
             onClick={() => setCollapsed(false)}
@@ -110,7 +110,7 @@ function SidebarInner({
         )}
       </div>
       {/* Nav */}
-      <nav className={`flex-1 space-y-1 ${collapsed ? "px-0" : "px-3"}`}>
+      <nav className={`flex-1 space-y-1 pt-2 ${collapsed ? "px-0" : "px-3"}`}>
         {SIDEBAR_NAV.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
