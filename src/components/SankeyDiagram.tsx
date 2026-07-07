@@ -3,258 +3,291 @@
 import { useMemo } from "react";
 import type { Application } from "@/lib/applications";
 
-type Outcome = Application["outcome"];
+// Sankey funnel matching the reference SVG:
+// - Thin black vertical nodes (first node wider at 100px, rest 20px)
+// - Flows rendered as stroked paths (not filled), black + gray shades
+// - Stage labels above nodes with small icons
+// - Rejections branch downward at each stage
 
-// Monochrome palette matching the screenshot: black nodes, gray flows,
-// dark terminals, light text labels.
-const PALETTE = {
-  source: { fill: "#111827", stroke: "#1f2937", text: "#ffffff", flow: "#111827" },
-  screen: { fill: "#111827", stroke: "#1f2937", text: "#ffffff", flow: "#111827" },
-  interview: { fill: "#1f2937", stroke: "#374151", text: "#ffffff", flow: "#4b5563" },
-  final: { fill: "#111827", stroke: "#1f2937", text: "#ffffff", flow: "#4b5563" },
-  offer: { fill: "#065f46", stroke: "#047857", text: "#ffffff", flow: "#6b7280" },
-  rejection: { fill: "#dc2626", stroke: "#b91c1c", text: "#ffffff", flow: "#9ca3af" },
-  ghosted: { fill: "#6b7280", stroke: "#4b5563", text: "#ffffff", flow: "#9ca3af" },
-};
+const NODE_WIDTH_FIRST = 100;
+const NODE_WIDTH = 20;
+const COL_GAP = 191; // x distance between column starts
+const PADDING_X = 54;
+const NODE_TOP_Y = 307; // baseline top for the first node
+const MAX_NODE_HEIGHT = 411;
+const LABEL_Y_OFFSET = 57; // label above node top
+const VALUE_Y_OFFSET = 32; // value below label
+const ICON_Y_OFFSET = 82; // icon above label
 
-const NODE_WIDTH = 24;
-const NODE_GAP = 140;
-const MIN_NODE_HEIGHT = 48;
-const PADDING_X = 40;
-const PADDING_Y = 56;
-const LINK_CURVE = 0.5;
-
-type StageKey =
-  | "applied"
-  | "screening"
-  | "technical"
-  | "final"
-  | "offer"
-  | "rejection-after-screen"
-  | "rejection-after-technical"
-  | "rejection-after-final"
-  | "ghosted";
-
-interface StageDef {
-  key: StageKey;
-  col: number;
+interface StagePos {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
   label: string;
-  sublabel?: string;
-  palette: typeof PALETTE.source;
-  terminal?: "down" | "right";
+  value: number;
+  icon: "total" | "search" | "code" | "users" | "x" | "handshake";
+  labelSide: "above" | "right";
 }
 
-const STAGES: StageDef[] = [
-  { key: "applied", col: 0, label: "Total Applications", palette: PALETTE.source },
-  { key: "screening", col: 1, label: "Screening", palette: PALETTE.screen },
-  { key: "rejection-after-screen", col: 1, label: "Rejection", palette: PALETTE.rejection, terminal: "down" },
-  { key: "technical", col: 2, label: "Technical Interview", palette: PALETTE.interview },
-  { key: "rejection-after-technical", col: 2, label: "Rejection", palette: PALETTE.rejection, terminal: "down" },
-  { key: "final", col: 3, label: "Final Round", palette: PALETTE.final },
-  { key: "rejection-after-final", col: 3, label: "Rejection", palette: PALETTE.rejection, terminal: "down" },
-  { key: "offer", col: 4, label: "Offers", palette: PALETTE.offer },
-];
+interface FlowDef {
+  d: string;
+  strokeWidth: number;
+  stroke: string;
+  opacity: number;
+}
 
-function buildPath(application: Application): StageKey[] {
-  const path: StageKey[] = ["applied", "screening"];
+function buildPath(application: Application): {
+  screening: boolean;
+  technical: boolean;
+  final: boolean;
+  offer: boolean;
+  rejectedAfter: "screen" | "technical" | "final" | null;
+} {
   const interviewR = application.interviewRound ?? 0;
   const rejectedR = application.rejectedAfterRound ?? 0;
 
-  if (application.outcome === "draft") return ["applied"];
-  if (application.outcome === "applied") return path;
-  if (application.outcome === "ghosted") return [...path, "ghosted"];
-  if (application.outcome === "rejected") {
-    if (rejectedR === 0) return [...path, "rejection-after-screen"];
-    if (rejectedR === 1) return [...path, "technical", "rejection-after-technical"];
-    return [...path, "technical", "final", "rejection-after-final"];
+  if (application.outcome === "draft") {
+    return { screening: false, technical: false, final: false, offer: false, rejectedAfter: null };
   }
-  if (application.outcome === "interviewing") {
-    if (interviewR <= 1) return [...path, "technical"];
-    return [...path, "technical", "final"];
-  }
-  // offer / declined
-  return [...path, "technical", "final", "offer"];
-}
 
-function linkPath(x0: number, y0: number, x1: number, y1: number, thickness: number) {
-  const c0x = x0 + (x1 - x0) * LINK_CURVE;
-  const c1x = x1 - (x1 - x0) * LINK_CURVE;
-  const ht = thickness / 2;
-  return `
-    M ${x0} ${y0 - ht}
-    C ${c0x} ${y0 - ht}, ${c1x} ${y1 - ht}, ${x1} ${y1 - ht}
-    L ${x1} ${y1 + ht}
-    C ${c1x} ${y1 + ht}, ${c0x} ${y0 + ht}, ${x0} ${y0 + ht}
-    Z
-  `;
+  const screening = true;
+  const technical = interviewR >= 1 || (application.outcome !== "applied" && application.outcome !== "ghosted" && rejectedR >= 1);
+  const final = interviewR >= 2 || ((application.outcome === "offer" || application.outcome === "declined") && interviewR >= 2) || rejectedR >= 2;
+  const offer = application.outcome === "offer";
+
+  let rejectedAfter: "screen" | "technical" | "final" | null = null;
+  if (application.outcome === "rejected") {
+    if (rejectedR === 0) rejectedAfter = "screen";
+    else if (rejectedR === 1) rejectedAfter = "technical";
+    else rejectedAfter = "final";
+  }
+
+  return { screening, technical, final, offer, rejectedAfter };
 }
 
 export function SankeyDiagram({ applications }: { applications: Application[] }) {
-  const { width, height, stages, links } = useMemo(() => {
-    // Count per stage.
-    const counts = new Map<StageKey, number>();
-    const paths: { appIndex: number; keys: StageKey[] }[] = [];
+  const { stages, flows, width, height } = useMemo(() => {
+    // Count each stage.
+    let total = applications.length;
+    let screeningCount = 0;
+    let technicalCount = 0;
+    let finalCount = 0;
+    let offerCount = 0;
+    let rejScreen = 0;
+    let rejTechnical = 0;
+    let rejFinal = 0;
 
-    applications.forEach((app, appIndex) => {
-      const keys = buildPath(app);
-      paths.push({ appIndex, keys });
-      keys.forEach((k) => counts.set(k, (counts.get(k) ?? 0) + 1));
-    });
-
-    const maxValue = Math.max(1, ...Array.from(counts.values()));
-    const totalHeight = 320;
-    const availableHeight = totalHeight - PADDING_Y * 2;
-
-    function nodeHeight(value: number) {
-      const ratio = value / maxValue;
-      return Math.max(MIN_NODE_HEIGHT, availableHeight * ratio);
+    const parsed = applications.map(buildPath);
+    for (const p of parsed) {
+      if (p.screening) screeningCount++;
+      if (p.technical) technicalCount++;
+      if (p.final) finalCount++;
+      if (p.offer) offerCount++;
+      if (p.rejectedAfter === "screen") rejScreen++;
+      if (p.rejectedAfter === "technical") rejTechnical++;
+      if (p.rejectedAfter === "final") rejFinal++;
     }
 
-    // X positions for each column.
-    const colX = [0, 1, 2, 3, 4].map((col) => PADDING_X + col * (NODE_WIDTH + NODE_GAP));
+    const maxVal = Math.max(1, total);
 
-    // Compute stage positions.
-    const stageMap = new Map<StageKey, { x: number; y: number; w: number; h: number; def: StageDef; value: number }>();
-
-    // Column 0: applied (centered vertically).
-    const appliedH = nodeHeight((counts.get("applied") ?? applications.length) || 1);
-    stageMap.set("applied", {
-      x: colX[0],
-      y: PADDING_Y + (availableHeight - appliedH) / 2,
-      w: NODE_WIDTH,
-      h: appliedH,
-      def: STAGES.find((s) => s.key === "applied")!,
-      value: (counts.get("applied") ?? applications.length) || 0,
-    });
-
-    // Column 1: screening top, rejection-after-screen bottom.
-    const screeningH = nodeHeight(counts.get("screening") ?? 0);
-    const rejScreenH = nodeHeight(counts.get("rejection-after-screen") ?? 0);
-    const gap1 = 24;
-    const col1Total = screeningH + rejScreenH + gap1;
-    const col1Top = PADDING_Y + (availableHeight - col1Total) / 2;
-    stageMap.set("screening", {
-      x: colX[1],
-      y: col1Top,
-      w: NODE_WIDTH,
-      h: screeningH,
-      def: STAGES.find((s) => s.key === "screening")!,
-      value: counts.get("screening") ?? 0,
-    });
-    if (counts.get("rejection-after-screen")) {
-      stageMap.set("rejection-after-screen", {
-        x: colX[1],
-        y: col1Top + screeningH + gap1,
-        w: NODE_WIDTH,
-        h: rejScreenH,
-        def: STAGES.find((s) => s.key === "rejection-after-screen")!,
-        value: counts.get("rejection-after-screen") ?? 0,
-      });
+    function hFor(value: number): number {
+      if (value === 0) return 0;
+      return Math.max(4, (value / maxVal) * MAX_NODE_HEIGHT);
     }
 
-    // Column 2: technical top, rejection-after-technical bottom.
-    const technicalH = nodeHeight(counts.get("technical") ?? 0);
-    const rejTechH = nodeHeight(counts.get("rejection-after-technical") ?? 0);
-    const gap2 = 24;
-    const col2Total = technicalH + rejTechH + gap2;
-    const col2Top = PADDING_Y + (availableHeight - col2Total) / 2;
-    stageMap.set("technical", {
-      x: colX[2],
-      y: col2Top,
-      w: NODE_WIDTH,
-      h: technicalH,
-      def: STAGES.find((s) => s.key === "technical")!,
-      value: counts.get("technical") ?? 0,
-    });
-    if (counts.get("rejection-after-technical")) {
-      stageMap.set("rejection-after-technical", {
-        x: colX[2],
-        y: col2Top + technicalH + gap2,
-        w: NODE_WIDTH,
-        h: rejTechH,
-        def: STAGES.find((s) => s.key === "rejection-after-technical")!,
-        value: counts.get("rejection-after-technical") ?? 0,
-      });
+    const colX = [0, 1, 2, 3, 4].map((c) => PADDING_X + c * COL_GAP);
+
+    // Node positions.
+    // Col 0: Total Applications - centered around y=512 (middle of 307..718)
+    const totalH = hFor(total);
+    const totalY = NODE_TOP_Y + (MAX_NODE_HEIGHT - totalH) / 2;
+
+    // Col 1: Screening top, Rejection-screen bottom
+    const screeningH = hFor(screeningCount);
+    const rejScreenH = hFor(rejScreen);
+    const col1Gap = 20;
+    const col1Total = screeningH + rejScreenH + col1Gap;
+    const col1Top = NODE_TOP_Y + (MAX_NODE_HEIGHT - col1Total) / 2;
+    const screeningY = col1Top;
+    const rejScreenY = col1Top + screeningH + col1Gap;
+
+    // Col 2: Technical top, Rejection-technical bottom
+    const technicalH = hFor(technicalCount);
+    const rejTechH = hFor(rejTechnical);
+    const col2Gap = 20;
+    const col2Total = technicalH + rejTechH + col2Gap;
+    const col2Top = NODE_TOP_Y + (MAX_NODE_HEIGHT - col2Total) / 2;
+    const technicalY = col2Top;
+    const rejTechY = col2Top + technicalH + col2Gap;
+
+    // Col 3: Final top, Rejection-final bottom
+    const finalH = hFor(finalCount);
+    const rejFinalH = hFor(rejFinal);
+    const col3Gap = 20;
+    const col3Total = finalH + rejFinalH + col3Gap;
+    const col3Top = NODE_TOP_Y + (MAX_NODE_HEIGHT - col3Total) / 2;
+    const finalY = col3Top;
+    const rejFinalY = col3Top + finalH + col3Gap;
+
+    // Col 4: Offers top, Rejection-final-right bottom
+    const offerH = hFor(offerCount);
+    const offerY = NODE_TOP_Y + (MAX_NODE_HEIGHT - offerH) / 2 - 30;
+
+    const stageList: StagePos[] = [
+      { x: colX[0], y: totalY, w: NODE_WIDTH_FIRST, h: totalH, label: "Total Applications", value: total, icon: "total", labelSide: "above" },
+      { x: colX[1], y: screeningY, w: NODE_WIDTH, h: screeningH, label: "Screening", value: screeningCount, icon: "search", labelSide: "above" },
+      { x: colX[1], y: rejScreenY, w: NODE_WIDTH, h: rejScreenH, label: "Rejections", value: rejScreen, icon: "x", labelSide: "right" },
+      { x: colX[2], y: technicalY, w: NODE_WIDTH, h: technicalH, label: "Technical Interview", value: technicalCount, icon: "code", labelSide: "above" },
+      { x: colX[2], y: rejTechY, w: NODE_WIDTH, h: rejTechH, label: "Rejections", value: rejTechnical, icon: "x", labelSide: "right" },
+      { x: colX[3], y: finalY, w: NODE_WIDTH, h: finalH, label: "Final Round", value: finalCount, icon: "users", labelSide: "above" },
+      { x: colX[3], y: rejFinalY, w: NODE_WIDTH, h: rejFinalH, label: "Rejections", value: rejFinal, icon: "x", labelSide: "right" },
+      { x: colX[4], y: offerY, w: NODE_WIDTH, h: offerH, label: "Offers", value: offerCount, icon: "handshake", labelSide: "above" },
+    ];
+
+    // Build flows as stroked paths.
+    const flowList: FlowDef[] = [];
+
+    // Slot tracking for even distribution within each node.
+    const sourceSlots = new Map<string, { idx: number; total: number }>();
+    const targetSlots = new Map<string, { idx: number; total: number }>();
+
+    function initSlots(key: string, total: number) {
+      if (!sourceSlots.has(key)) sourceSlots.set(key, { idx: 0, total });
+      if (!targetSlots.has(key)) targetSlots.set(key, { idx: 0, total });
     }
 
-    // Column 3: final top, rejection-after-final bottom.
-    const finalH = nodeHeight(counts.get("final") ?? 0);
-    const rejFinalH = nodeHeight(counts.get("rejection-after-final") ?? 0);
-    const gap3 = 24;
-    const col3Total = finalH + rejFinalH + gap3;
-    const col3Top = PADDING_Y + (availableHeight - col3Total) / 2;
-    stageMap.set("final", {
-      x: colX[3],
-      y: col3Top,
-      w: NODE_WIDTH,
-      h: finalH,
-      def: STAGES.find((s) => s.key === "final")!,
-      value: counts.get("final") ?? 0,
-    });
-    if (counts.get("rejection-after-final")) {
-      stageMap.set("rejection-after-final", {
-        x: colX[3],
-        y: col3Top + finalH + gap3,
-        w: NODE_WIDTH,
-        h: rejFinalH,
-        def: STAGES.find((s) => s.key === "rejection-after-final")!,
-        value: counts.get("rejection-after-final") ?? 0,
-      });
+    // Initialize slot counts.
+    initSlots("total", total);
+    initSlots("screening", screeningCount);
+    initSlots("technical", technicalCount);
+    initSlots("final", finalCount);
+    initSlots("rejScreen", rejScreen);
+    initSlots("rejTechnical", rejTechnical);
+    initSlots("rejFinal", rejFinal);
+    initSlots("offer", offerCount);
+
+    function sourceY(key: string, stage: StagePos): number {
+      const s = sourceSlots.get(key)!;
+      const slot = s.idx++;
+      const t = s.total || 1;
+      return stage.y + (stage.h * (slot + 0.5)) / t;
     }
 
-    // Column 4: offer.
-    const offerH = nodeHeight(counts.get("offer") ?? 0);
-    stageMap.set("offer", {
-      x: colX[4],
-      y: PADDING_Y + (availableHeight - offerH) / 2,
-      w: NODE_WIDTH,
-      h: offerH,
-      def: STAGES.find((s) => s.key === "offer")!,
-      value: counts.get("offer") ?? 0,
-    });
+    function targetY(key: string, stage: StagePos): number {
+      const s = targetSlots.get(key)!;
+      const slot = s.idx++;
+      const t = s.total || 1;
+      return stage.y + (stage.h * (slot + 0.5)) / t;
+    }
 
-    // Build links with slot-based positions for clean routing.
-    const links: { x0: number; y0: number; x1: number; y1: number; thickness: number; fill: string }[] = [];
+    const totalStage = stageList[0];
+    const screeningStage = stageList[1];
+    const rejScreenStage = stageList[2];
+    const technicalStage = stageList[3];
+    const rejTechStage = stageList[4];
+    const finalStage = stageList[5];
+    const rejFinalStage = stageList[6];
+    const offerStage = stageList[7];
 
-    // For each source stage, evenly distribute outgoing apps across its height.
-    const sourceSlotIndex = new Map<string, number>();
-    const getSourceY = (key: StageKey) => {
-      const s = stageMap.get(key)!;
-      const idx = sourceSlotIndex.get(key) ?? 0;
-      sourceSlotIndex.set(key, idx + 1);
-      return s.y + (s.h * (idx + 0.5)) / (counts.get(key) || 1);
+    const flowThickness = (fromVal: number, toVal: number) => {
+      if (toVal === 0) return 0;
+      return Math.max(3, (toVal / Math.max(fromVal, 1)) * Math.min(totalStage.h, 80));
     };
 
-    const targetSlotIndex = new Map<string, number>();
-    const getTargetY = (key: StageKey) => {
-      const s = stageMap.get(key)!;
-      const idx = targetSlotIndex.get(key) ?? 0;
-      targetSlotIndex.set(key, idx + 1);
-      return s.y + (s.h * (idx + 0.5)) / (counts.get(key) || 1);
-    };
+    for (const p of parsed) {
+      if (!p.screening) continue;
 
-    paths.forEach(({ keys }) => {
-      for (let i = 0; i < keys.length - 1; i++) {
-        const sourceKey = keys[i];
-        const targetKey = keys[i + 1];
-        const source = stageMap.get(sourceKey)!;
-        const target = stageMap.get(targetKey)!;
-        const thickness = Math.max(2, Math.min(source.h, target.h) / (counts.get(sourceKey) || 1));
-        links.push({
-          x0: source.x + source.w,
-          y0: getSourceY(sourceKey),
-          x1: target.x,
-          y1: getTargetY(targetKey),
-          thickness,
-          fill: target.def.palette.flow,
+      // Total -> Screening
+      const sy0 = sourceY("total", totalStage);
+      const ty0 = targetY("screening", screeningStage);
+      flowList.push({
+        d: `M ${totalStage.x + totalStage.w} ${sy0} C ${(totalStage.x + totalStage.w + screeningStage.x) / 2} ${sy0}, ${(totalStage.x + totalStage.w + screeningStage.x) / 2} ${ty0}, ${screeningStage.x} ${ty0}`,
+        strokeWidth: flowThickness(total, screeningCount),
+        stroke: "black",
+        opacity: 0.9,
+      });
+
+      if (p.rejectedAfter === "screen") {
+        // Screening -> Rejection (screen)
+        const sy1 = sourceY("screening", screeningStage);
+        const ty1 = targetY("rejScreen", rejScreenStage);
+        flowList.push({
+          d: `M ${screeningStage.x + screeningStage.w} ${sy1} C ${(screeningStage.x + screeningStage.w + rejScreenStage.x) / 2} ${sy1}, ${(screeningStage.x + screeningStage.w + rejScreenStage.x) / 2} ${ty1}, ${rejScreenStage.x} ${ty1}`,
+          strokeWidth: flowThickness(screeningCount, rejScreen),
+          stroke: "#555",
+          opacity: 0.8,
         });
+        continue;
       }
-    });
 
-    const width = colX[4] + NODE_WIDTH + PADDING_X;
-    const height = totalHeight;
+      if (p.technical) {
+        // Screening -> Technical
+        const sy1 = sourceY("screening", screeningStage);
+        const ty1 = targetY("technical", technicalStage);
+        flowList.push({
+          d: `M ${screeningStage.x + screeningStage.w} ${sy1} C ${(screeningStage.x + screeningStage.w + technicalStage.x) / 2} ${sy1}, ${(screeningStage.x + screeningStage.w + technicalStage.x) / 2} ${ty1}, ${technicalStage.x} ${ty1}`,
+          strokeWidth: flowThickness(screeningCount, technicalCount),
+          stroke: "#888",
+          opacity: 0.9,
+        });
 
-    return { width, height, stages: Array.from(stageMap.values()), links };
+        if (p.rejectedAfter === "technical") {
+          // Technical -> Rejection (technical)
+          const sy2 = sourceY("technical", technicalStage);
+          const ty2 = targetY("rejTechnical", rejTechStage);
+          flowList.push({
+            d: `M ${technicalStage.x + technicalStage.w} ${sy2} C ${(technicalStage.x + technicalStage.w + rejTechStage.x) / 2} ${sy2}, ${(technicalStage.x + technicalStage.w + rejTechStage.x) / 2} ${ty2}, ${rejTechStage.x} ${ty2}`,
+            strokeWidth: flowThickness(technicalCount, rejTechnical),
+            stroke: "#666",
+            opacity: 0.8,
+          });
+          continue;
+        }
+
+        if (p.final) {
+          // Technical -> Final
+          const sy2 = sourceY("technical", technicalStage);
+          const ty2 = targetY("final", finalStage);
+          flowList.push({
+            d: `M ${technicalStage.x + technicalStage.w} ${sy2} C ${(technicalStage.x + technicalStage.w + finalStage.x) / 2} ${sy2}, ${(technicalStage.x + technicalStage.w + finalStage.x) / 2} ${ty2}, ${finalStage.x} ${ty2}`,
+            strokeWidth: flowThickness(technicalCount, finalCount),
+            stroke: "#aaa",
+            opacity: 0.9,
+          });
+
+          if (p.rejectedAfter === "final") {
+            // Final -> Rejection (final)
+            const sy3 = sourceY("final", finalStage);
+            const ty3 = targetY("rejFinal", rejFinalStage);
+            flowList.push({
+              d: `M ${finalStage.x + finalStage.w} ${sy3} C ${(finalStage.x + finalStage.w + rejFinalStage.x) / 2} ${sy3}, ${(finalStage.x + finalStage.w + rejFinalStage.x) / 2} ${ty3}, ${rejFinalStage.x} ${ty3}`,
+              strokeWidth: flowThickness(finalCount, rejFinal),
+              stroke: "#999",
+              opacity: 0.8,
+            });
+            continue;
+          }
+
+          if (p.offer) {
+            // Final -> Offers
+            const sy3 = sourceY("final", finalStage);
+            const ty3 = targetY("offer", offerStage);
+            flowList.push({
+              d: `M ${finalStage.x + finalStage.w} ${sy3} C ${(finalStage.x + finalStage.w + offerStage.x) / 2} ${sy3}, ${(finalStage.x + finalStage.w + offerStage.x) / 2} ${ty3}, ${offerStage.x} ${ty3}`,
+              strokeWidth: flowThickness(finalCount, offerCount),
+              stroke: "#ccc",
+              opacity: 0.9,
+            });
+          }
+        }
+      }
+    }
+
+    const w = colX[4] + NODE_WIDTH + PADDING_X + 160;
+    const h = 768;
+
+    return { stages: stageList, flows: flowList, width: w, height: h };
   }, [applications]);
 
   if (applications.length === 0) return null;
@@ -262,67 +295,76 @@ export function SankeyDiagram({ applications }: { applications: Application[] })
   return (
     <div className="w-full overflow-x-auto">
       <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto block" style={{ minWidth: `${width}px`, height: `${height}px` }}>
-        {links.map((link, i) => (
+        {/* Flows */}
+        {flows.map((flow, i) => (
           <path
-            key={`link-${i}`}
-            d={linkPath(link.x0, link.y0, link.x1, link.y1, link.thickness)}
-            fill={link.fill}
-            opacity={0.6}
+            key={`flow-${i}`}
+            d={flow.d}
+            stroke={flow.stroke}
+            strokeWidth={flow.strokeWidth}
+            fill="none"
+            opacity={flow.opacity}
           />
         ))}
 
-        {stages.map((stage) => (
-          <g key={stage.def.key}>
-            <rect
-              x={stage.x}
-              y={stage.y}
-              width={stage.w}
-              height={stage.h}
-              rx={6}
-              fill={stage.def.palette.fill}
-              stroke={stage.def.palette.stroke}
-              strokeWidth={1}
-            />
-            <text
-              x={stage.x + stage.w / 2}
-              y={stage.y + stage.h / 2 - 4}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={stage.def.palette.text}
-              fontSize={11}
-              fontWeight={700}
-            >
-              {stage.def.label}
-            </text>
-            <text
-              x={stage.x + stage.w / 2}
-              y={stage.y + stage.h / 2 + 9}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={stage.def.palette.text}
-              fontSize={10}
-              opacity={0.9}
-            >
-              {stage.value}
-            </text>
-          </g>
-        ))}
+        {/* Nodes */}
+        {stages.map((stage, i) => {
+          if (stage.h === 0) return null;
+          const labelX = stage.labelSide === "right" ? stage.x + stage.w + 26 : stage.x;
+          const labelY = stage.y - LABEL_Y_OFFSET;
+          const valueY = stage.y - VALUE_Y_OFFSET;
+          const iconY = stage.y - ICON_Y_OFFSET;
+          return (
+            <g key={`stage-${i}`}>
+              <rect x={stage.x} y={stage.y} width={stage.w} height={stage.h} fill="black" />
 
-        {/* Stage labels above nodes */}
-        {stages.map((stage) => (
-          <text
-            key={`label-${stage.def.key}`}
-            x={stage.x + stage.w / 2}
-            y={stage.y - 12}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="#374151"
-            fontSize={11}
-            fontWeight={500}
-          >
-            {stage.def.label}
-          </text>
-        ))}
+              {/* Icon */}
+              {stage.icon === "search" && (
+                <g transform={`translate(${stage.x - 5} ${iconY})`}>
+                  <circle cx="10" cy="10" r="10" stroke="black" strokeWidth="2" fill="none" />
+                  <line x1="17" y1="17" x2="25" y2="25" stroke="black" strokeWidth="2" />
+                </g>
+              )}
+              {stage.icon === "code" && (
+                <text x={stage.x} y={iconY + 14} fontFamily="monospace" fontSize="14" fontWeight="bold" fill="black">&lt;/&gt;</text>
+              )}
+              {stage.icon === "users" && (
+                <g transform={`translate(${stage.x} ${iconY})`}>
+                  <circle cx="7" cy="8" r="5" stroke="black" strokeWidth="2" fill="none" />
+                  <path d="M0 18 Q 7 12 14 18" stroke="black" strokeWidth="2" fill="none" />
+                </g>
+              )}
+              {stage.icon === "x" && (
+                <g transform={`translate(${stage.x + 23} ${iconY})`}>
+                  <circle cx="10" cy="10" r="10" stroke="black" strokeWidth="1.5" fill="none" />
+                  <line x1="5" y1="5" x2="15" y2="15" stroke="black" strokeWidth="1.5" />
+                  <line x1="15" y1="5" x2="5" y2="15" stroke="black" strokeWidth="1.5" />
+                </g>
+              )}
+              {stage.icon === "handshake" && (
+                <g transform={`translate(${stage.x - 8} ${iconY})`}>
+                  <path d="M0 10 Q 10 5 20 10 M 5 20 Q 15 15 25 20" stroke="black" strokeWidth="1.5" fill="none" />
+                </g>
+              )}
+              {stage.icon === "total" && (
+                <g transform={`translate(${stage.x} ${iconY})`}>
+                  <rect x="0" y="2" width="18" height="4" fill="black" />
+                  <rect x="0" y="10" width="18" height="4" fill="black" />
+                  <rect x="0" y="18" width="12" height="4" fill="black" />
+                </g>
+              )}
+
+              {/* Label */}
+              <text x={labelX} y={labelY} fontFamily="Inter, sans-serif" fontSize="16" fontWeight="600" fill="black">
+                {stage.label}
+              </text>
+              {/* Value */}
+              <text x={labelX} y={valueY} fontFamily="Inter, sans-serif" fontSize="20" fontWeight="400" fill="black">
+                {stage.value}
+              </text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
