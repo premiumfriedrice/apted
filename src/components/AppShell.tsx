@@ -38,9 +38,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0"); } catch { /* ignore */ }
   }, [collapsed, mounted]);
 
-  const sidebarWidth = collapsed ? "w-16" : "w-64";
-  const topbarLeft = collapsed ? "left-16" : "left-64";
-  const mainLeft = collapsed ? "ml-16" : "ml-64";
+  const sidebarWidth = collapsed ? "w-12" : "w-64";
+  const topbarLeft = collapsed ? "left-12" : "left-64";
+  const mainLeft = collapsed ? "ml-12" : "ml-64";
 
   // The master editor keeps the global sidebar but renders full-bleed with
   // its own headers and split pane — no shell topbar or page padding.
