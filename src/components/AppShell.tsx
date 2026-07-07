@@ -115,9 +115,14 @@ function SidebarInner({
       {/* Brand — aligned with the 64px top app bar */}
       <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "justify-between px-6"}`}>
         {collapsed ? (
-          <Link href="/" className="text-[22px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <button
+            onClick={() => setCollapsed(false)}
+            title="Expand sidebar"
+            className="text-[22px] font-medium tracking-tight text-on-surface"
+            style={{ fontFamily: "'Outfit', sans-serif" }}
+          >
             a
-          </Link>
+          </button>
         ) : (
           <>
             <Link href="/" className="text-[22px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -133,16 +138,6 @@ function SidebarInner({
           </>
         )}
       </div>
-      {collapsed && (
-        <button
-          onClick={() => setCollapsed(false)}
-          title="Expand sidebar"
-          className="mx-auto mb-2 mt-1 rounded p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-        >
-          <ExpandIcon />
-        </button>
-      )}
-
       {/* Nav */}
       <nav className={`flex-1 space-y-1 ${collapsed ? "px-0" : "px-3"}`}>
         {SIDEBAR_NAV.map((item) => {
@@ -154,7 +149,7 @@ function SidebarInner({
               title={collapsed ? item.label : undefined}
               className={`h-9 transition-colors duration-200 ${
                 collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
-              } ${collapsed ? "justify-center px-0 w-9 mx-auto" : ""}`}
+              } ${collapsed ? "justify-center w-full px-0" : ""}`}
             >
               <MaterialIcon name={item.icon} className={collapsed ? "text-[22px]" : "text-[20px]"} />
               {!collapsed && <span>{item.label}</span>}
@@ -174,9 +169,13 @@ function SidebarInner({
             >
               <MaterialIcon name={SETTINGS_NAV.icon} className="text-[22px]" />
             </Link>
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
-              <span className="text-[11px] font-bold text-secondary">AU</span>
-            </div>
+            <button
+              onClick={() => setCollapsed(false)}
+              title="Expand sidebar"
+              className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
+            >
+              <span className="text-[11px] font-bold">AU</span>
+            </button>
           </div>
         ) : (
           <div className="flex items-center gap-2 border-t border-outline-variant px-3 pt-3">
@@ -217,15 +216,6 @@ function CollapseIcon() {
   );
 }
 
-function ExpandIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <line x1="9" y1="4" x2="9" y2="20" />
-      <polyline points="11 10 13 12 11 14" transform="translate(2 0)" />
-    </svg>
-  );
-}
 
 function MaterialIcon({ name, className = "" }: { name: string; className?: string }) {
   return (
