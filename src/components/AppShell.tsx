@@ -36,7 +36,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const topbarLeft = collapsed ? "left-16" : "left-64";
   const mainLeft = collapsed ? "ml-16" : "ml-64";
 
-  const hideSearch = pathname === "/master";
+  // The master editor is a standalone full-viewport surface with its own
+  // header; it bypasses the global sidebar/topbar shell entirely.
+  if (pathname === "/master") {
+    return <>{children}</>;
+  }
   const flush = pathname === "/master";
 
   return (
@@ -156,8 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Top app bar */}
       <header className={`fixed top-0 right-0 z-40 flex h-16 items-center justify-between border-b border-outline-variant bg-surface-white px-margin-desktop transition-[left] duration-200 ${topbarLeft}`}>
         <div className="flex flex-1 items-center gap-4">
-          {!hideSearch && (
-            <div className="flex max-w-xl flex-1 items-center gap-4">
+          <div className="flex max-w-xl flex-1 items-center gap-4">
               <div className="relative w-full">
                 <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" />
                 <input
@@ -167,7 +170,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 />
               </div>
             </div>
-          )}
         </div>
         <div className="flex items-center gap-4">
           <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary transition-colors duration-200 hover:bg-on-primary-fixed-variant">
@@ -186,11 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className={`transition-[margin] duration-200 ${mainLeft} ${
-          flush
-            ? "h-[calc(100vh-64px)] overflow-hidden"
-            : "min-h-screen p-margin-desktop pt-[calc(64px+32px)]"
-        }`}
+        className={`min-h-screen p-margin-desktop pt-[calc(64px+32px)] transition-[margin] duration-200 ${mainLeft}`}
       >
         {children}
       </main>

@@ -7,9 +7,9 @@ const config: Config = {
     extend: {
       fontFamily: {
         serif: ["Charter", "Georgia", "Cambria", "Times New Roman", "serif"],
-        "headline-xl": ["Outfit", "Inter", "system-ui", "sans-serif"],
-        "headline-lg": ["Outfit", "Inter", "system-ui", "sans-serif"],
-        "headline-md": ["Outfit", "Inter", "system-ui", "sans-serif"],
+        "headline-xl": ["Inter", "system-ui", "sans-serif"],
+        "headline-lg": ["Inter", "system-ui", "sans-serif"],
+        "headline-md": ["Inter", "system-ui", "sans-serif"],
         "body-md": ["Inter", "system-ui", "sans-serif"],
         "body-sm": ["Inter", "system-ui", "sans-serif"],
         "body-lg": ["Inter", "system-ui", "sans-serif"],
@@ -17,13 +17,13 @@ const config: Config = {
         "label-sm": ["Inter", "system-ui", "sans-serif"],
       },
       fontSize: {
-        "headline-xl": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }],
-        "headline-lg": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "600" }],
-        "headline-md": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        "headline-xl": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        "headline-lg": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        "headline-md": ["15px", { lineHeight: "20px", letterSpacing: "-0.01em", fontWeight: "600" }],
         "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
         "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
         "body-sm": ["13px", { lineHeight: "18px", fontWeight: "400" }],
-        "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+        "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.01em", fontWeight: "500" }],
         "label-sm": ["11px", { lineHeight: "14px", fontWeight: "600" }],
       },
       colors: {
