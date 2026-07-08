@@ -43,7 +43,7 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
 
   // --- Layout constants ---
   const nodeW = 16;
-  const topY = 70; // y of the top of every main-chain node
+  const topY = 86; // y of the top of every main-chain node (room for larger labels)
   const maxBar = compact ? 160 : 280; // pixel height of the tallest node (total)
   const scale = maxBar / stats.total;
   const colGap = 200;
@@ -297,7 +297,7 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
         <rect
           x={colX[0]} y={topY} width={nodeW} height={hTotal} fill="#000" rx={1}
           className="cursor-pointer hover:opacity-80 transition-opacity"
-          onMouseEnter={() => onHover("Total Applications", stats.total, "100%")}
+          onMouseEnter={() => onHover("Total", stats.total, "100%")}
           onMouseLeave={onLeave}
         />
         {stats.screening > 0 && (
@@ -356,49 +356,49 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
         {/* ===== LABELS ===== */}
 
         {/* Main chain labels (above nodes) */}
-        <text x={colX[0]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
-          Total Applications
+        <text x={colX[0]} y={topY - 40} className="font-display font-bold text-sm" fill="#171c20">
+          Total
         </text>
-        <text x={colX[0]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+        <text x={colX[0]} y={topY - 20} className="font-sans text-base font-medium" fill="#4c4546">
           {stats.total}
         </text>
 
         {stats.screening > 0 && (
           <>
-            <text x={colX[1]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+            <text x={colX[1]} y={topY - 40} className="font-display font-bold text-sm" fill="#171c20">
               Screening
             </text>
-            <text x={colX[1]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+            <text x={colX[1]} y={topY - 20} className="font-sans text-base font-medium" fill="#4c4546">
               {stats.screening}
             </text>
           </>
         )}
         {stats.technical > 0 && (
           <>
-            <text x={colX[2]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+            <text x={colX[2]} y={topY - 40} className="font-display font-bold text-sm" fill="#171c20">
               Technical Interview
             </text>
-            <text x={colX[2]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+            <text x={colX[2]} y={topY - 20} className="font-sans text-base font-medium" fill="#4c4546">
               {stats.technical}
             </text>
           </>
         )}
         {stats.final > 0 && (
           <>
-            <text x={colX[3]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+            <text x={colX[3]} y={topY - 40} className="font-display font-bold text-sm" fill="#171c20">
               Final Round
             </text>
-            <text x={colX[3]} y={topY - 16} className="font-sans text-sm font-medium" fill="#4c4546">
+            <text x={colX[3]} y={topY - 20} className="font-sans text-base font-medium" fill="#4c4546">
               {stats.final}
             </text>
           </>
         )}
         {stats.offers > 0 && (
           <>
-            <text x={colX[4]} y={topY - 34} className="font-display font-bold text-xs" fill="#171c20">
+            <text x={colX[4]} y={topY - 40} className="font-display font-bold text-sm" fill="#171c20">
               Offers
             </text>
-            <text x={colX[4]} y={topY - 16} className="font-sans text-sm font-semibold" fill="#10B981">
+            <text x={colX[4]} y={topY - 20} className="font-sans text-base font-semibold" fill="#10B981">
               {stats.offers}
             </text>
           </>
