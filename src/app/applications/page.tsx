@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import FunnelChart from "@/components/FunnelChart";
+import { useSidebarCollapsed } from "@/components/AppShell";
 import type { FunnelStats } from "@/components/types";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
@@ -50,6 +51,7 @@ function companyColor(company: string) {
 }
 
 export default function ApplicationsPage() {
+  const sidebarCollapsed = useSidebarCollapsed();
   const [versions, setVersions] = useState<Version[]>([]);
   const [filter, setFilter] = useState<Outcome | "all">("all");
   const [search, setSearch] = useState("");
@@ -170,7 +172,7 @@ const modeActiveBtnCls =
       {applications.length > 0 && (
         <div className="mb-6 rounded-lg border border-border-subtle bg-surface-white p-md">
           <h3 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h3>
-          <FunnelChart stats={funnelStats} />
+          <FunnelChart stats={funnelStats} compact={sidebarCollapsed} />
         </div>
       )}
 
