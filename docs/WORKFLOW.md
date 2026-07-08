@@ -100,14 +100,20 @@ Do not claim work is complete without running these. Evidence before assertions.
 git add -A
 git commit -m "feat: description"
 
-# Switch to main and merge
+# Switch to main and squash-merge
 git checkout main
 git pull origin main
-git merge feature/<name> --no-ff -m "Merge PR: <description> (<ISSUE-ID>)"
+git merge --squash feature/<name>
+git commit -m "feat: <description> (<ISSUE-ID>)
+
+<Full summary of what changed and was added.>
+"
 git push origin main
 ```
 
-The `--no-ff` flag preserves the merge commit so the feature branch history is visible.
+Squash merges collapse all feature branch commits into a single commit on
+main. The commit message should include a comprehensive summary of what
+changed — new files, modified files, features added, and behavior changes.
 
 ### Clean up
 
