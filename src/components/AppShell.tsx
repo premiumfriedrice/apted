@@ -53,10 +53,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <SidebarCollapsedContext.Provider value={collapsed}>
         <div className="h-screen overflow-hidden bg-surface text-on-background">
-          <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-300 ease-out ${sidebarWidth}`}>
+          <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}>
             <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
           </aside>
-          <div className={`h-full transition-[margin] duration-300 ease-out ${mainLeft}`}>
+          <div className={`h-full transition-[margin] duration-200 ease-out ${mainLeft}`}>
             {children}
           </div>
         </div>
@@ -68,12 +68,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarCollapsedContext.Provider value={collapsed}>
       <div className="min-h-screen bg-surface text-on-background">
         {/* Sidebar */}
-        <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-300 ease-out ${sidebarWidth}`}>
+        <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}>
           <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
         </aside>
 
         {/* Main content */}
-        <main className={`min-h-screen p-margin-desktop transition-[margin] duration-300 ease-out ${mainLeft}`}>
+        <main className={`min-h-screen p-margin-desktop transition-[margin] duration-200 ease-out ${mainLeft}`}>
           {children}
         </main>
       </div>
