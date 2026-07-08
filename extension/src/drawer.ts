@@ -2212,8 +2212,11 @@ export function createInitialState(): DrawerState {
           els.injectPdf.disabled = false;
         }, 2000);
       } else {
-        els.injectPdf.textContent = "Failed";
+        els.injectPdf.textContent = "Inject to page";
         els.injectPdf.disabled = false;
+        // Show the diagnostic log from the injected function
+        console.warn("[apted] inject failed:", reply.error);
+        setStatus(reply.error ? `Inject failed: ${reply.error.split("\n").join(" ")}` : "Inject failed", "error");
       }
     } catch (e) {
       els.injectPdf.textContent = "Inject to page";

@@ -377,26 +377,79 @@ async function handle(msg: Msg): Promise<unknown> {
           await chrome.storage.session.remove(["aptedDragPdfB64", "aptedDragPdfFilename"]);
         }
         // Inject a function that converts base64 to a File and fills the input.
-        await chrome.scripting.executeScript({
+        // Returns diagnostic info so the caller can report what happened.
+        const results = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           args: [b64, filename],
           func: (base64: string, name: string) => {
-            const bin = atob(base64);
-            const bytes = new Uint8Array(bin.length);
-            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-            const file = new File([bytes], name, { type: "application/pdf", lastModified: Date.now() });
-            const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='file']"));
-            if (!inputs.length) return;
-            const target = inputs.find((i) => /pdf/i.test(i.accept))
-              ?? inputs.find((i) => i.offsetParent !== null)
-              ?? inputs[0]!;
-            if (!target) return;
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            target.files = dt.files;
-            target.dispatchEvent(new Event("change", { bubbles: true }));
+            const log: string[] = [];
+            try {
+              const bin = atob(base64);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              const file = new File([bytes], name, { type: "application/pdf", lastModified: Date.now() });
+              log.push(`File created: ${file.size} bytes, ${file.type}`);
+
+              const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='file']"));
+              log.push(`Found ${inputs.length} file input(s) on document`);
+
+              // Also check inside iframes (Ashby nests application form in an iframe sometimes)
+              let iframeInputs: HTMLInputElement[] = [];
+              try {
+                for (const frame of document.querySelectorAll('iframe')) {
+                  try {
+                    const doc = frame.contentDocument;
+                    if (doc) {
+                      const fInputs = Array.from(doc.querySelectorAll<HTMLInputElement>("input[type='file']"));
+                      if (fInputs.length) {
+                        log.push(`Found ${fInputs.length} file input(s) in iframe src=${frame.src.slice(0, 80)}`);
+                        iframeInputs.push(...fInputs);
+                      }
+                    }
+                  } catch { /* cross-origin iframe — can't peek inside */ }
+                }
+              } catch { /* ignore */ }
+
+              const allInputs = [...inputs, ...iframeInputs];
+              if (!allInputs.length) {
+                log.push("NO file inputs found anywhere");
+                return { ok: false, log };
+              }
+
+              const target = allInputs.find((i) => /pdf/i.test(i.accept))
+                ?? allInputs.find((i) => i.offsetParent !== null)
+                ?? allInputs[0]!;
+              if (!target) {
+                log.push("No suitable target input");
+                return { ok: false, log };
+              }
+
+              log.push(`Target input found: accept="${target.accept}" hidden=${target.hidden} parent=${target.offsetParent !== null}`);
+
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              target.files = dt.files;
+              log.push(`Set target.files to ${target.files?.length ?? 0} file(s)`);
+
+              // Dispatch both change and input events for React/other frameworks
+              target.dispatchEvent(new Event("change", { bubbles: true }));
+              target.dispatchEvent(new Event("input", { bubbles: true }));
+              log.push("Dispatched change + input events");
+
+              return { ok: true, log };
+            } catch (e) {
+              log.push(`EXCEPTION: ${e instanceof Error ? e.message : String(e)}`);
+              return { ok: false, log };
+            }
           },
         });
+        // executeScript returns an array of results (one per frame injected)
+        const injectResult = results?.[0] as { ok: boolean; log: string[] } | undefined;
+        if (injectResult && !injectResult.ok) {
+          return { ok: false, error: injectResult.log.join("\n") };
+        }
+        // Also log the success case so we can see what happened
+        if (injectResult?.log) console.log("[apted] inject diagnostics:", injectResult.log.join("\n"));
         return { ok: true };
       } catch (e) {
         return { ok: false, error: e instanceof Error ? e.message : String(e) };
