@@ -128,10 +128,10 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
   const offerRate = pct(stats.offers, stats.total);
 
   return (
-    <div className="relative select-none">
+    <div className="relative flex h-full flex-col select-none">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full h-auto"
+        className="w-full h-auto flex-1"
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
@@ -467,8 +467,8 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
         )}
       </svg>
 
-      {/* Tooltip / summary bar */}
-      <div className="mt-3 flex items-center justify-between text-xs">
+      {/* Tooltip / summary bar - pinned to bottom of the pane */}
+      <div className="mt-3 flex shrink-0 items-center justify-between border-t border-outline-variant pt-2 text-xs">
         {hovered ? (
           <span className="flex items-center gap-2 font-medium text-on-surface">
             <Info className="h-3.5 w-3.5 text-on-surface-variant" />

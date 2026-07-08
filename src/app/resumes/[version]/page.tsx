@@ -293,7 +293,7 @@ export default function ResumeDetailPage() {
           {leftMode === "insights" ? (
             <>
               {/* Top half: Sankey funnel diagram */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-auto border-b border-outline-variant p-md">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-outline-variant p-md">
                 {apps.length > 0 ? (
                   <FunnelChart stats={trackedStats} compact />
                 ) : (
