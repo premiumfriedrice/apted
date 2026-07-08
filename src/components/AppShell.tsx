@@ -105,7 +105,7 @@ function SidebarInner({
           </button>
         ) : (
           <>
-            <Link href="/" className="text-[22px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            <Link href="/" className="text-[28px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
               apted
             </Link>
             <button
