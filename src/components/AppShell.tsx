@@ -53,7 +53,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <SidebarCollapsedContext.Provider value={collapsed}>
         <div className="h-screen overflow-hidden bg-surface text-on-background">
-          <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}>
+          <aside
+            onClick={collapsed ? () => setCollapsed(false) : undefined}
+            className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}
+          >
             <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
           </aside>
           <div className={`h-full transition-[margin] duration-200 ease-out ${mainLeft}`}>
@@ -68,7 +71,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarCollapsedContext.Provider value={collapsed}>
       <div className="min-h-screen bg-surface text-on-background">
         {/* Sidebar */}
-        <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}>
+        <aside
+          onClick={collapsed ? () => setCollapsed(false) : undefined}
+          className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}
+        >
           <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
         </aside>
 
@@ -95,14 +101,15 @@ function SidebarInner({
       {/* Brand — aligned with the collapsed 'a' square (h-12) */}
       <div className={`flex h-12 shrink-0 items-center ${collapsed ? "w-12 justify-center px-0" : "justify-between px-md"}`}>
         {collapsed ? (
-          <button
-            onClick={() => setCollapsed(false)}
-            title="Expand sidebar"
+          <Link
+            href="/"
+            title="apted"
+            onClick={(e) => e.stopPropagation()}
             className="text-[28px] font-medium tracking-tight leading-none flex items-center justify-center pb-1 text-on-surface"
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
             a
-          </button>
+          </Link>
         ) : (
           <>
             <Link href="/" className="text-[28px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -128,6 +135,7 @@ function SidebarInner({
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
+              onClick={collapsed ? (e) => e.stopPropagation() : undefined}
               className={`flex items-center ${collapsed ? "py-1.5" : "py-sm"} transition-colors duration-200 ${
                 collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
               } ${collapsed ? "justify-center w-full px-0" : ""}`}
@@ -146,17 +154,19 @@ function SidebarInner({
             <Link
               href={SETTINGS_NAV.href}
               title={SETTINGS_NAV.label}
+              onClick={(e) => e.stopPropagation()}
               className={`rounded p-1.5 transition-colors ${pathname === SETTINGS_NAV.href ? "bg-surface-container-high text-on-surface" : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
             >
               <MaterialIcon name={SETTINGS_NAV.icon} className="text-[22px]" />
             </Link>
-            <button
-              onClick={() => setCollapsed(false)}
-              title="Expand sidebar"
+            <Link
+              href={SETTINGS_NAV.href}
+              title="Profile"
+              onClick={(e) => e.stopPropagation()}
               className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
             >
               <span className="text-label-sm font-bold">AU</span>
-            </button>
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-sm border-t border-outline-variant px-sm pt-sm">
