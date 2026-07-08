@@ -215,7 +215,7 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
             opacity={0.5}
             className="cursor-pointer transition-opacity hover:opacity-100"
             onMouseEnter={() =>
-              onHover("Ghosted / No Response", ghosted, `${pct(ghosted, stats.screening)}% of screened`)
+              onHover("Ghosted", ghosted, `${pct(ghosted, stats.screening)}% of screened`)
             }
             onMouseLeave={onLeave}
           />
@@ -468,7 +468,7 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
       </svg>
 
       {/* Tooltip / summary bar - pinned to bottom of the pane */}
-      <div className="mt-3 flex shrink-0 items-center justify-between border-t border-outline-variant pt-2 text-xs">
+      <div className="mt-3 flex shrink-0 items-center justify-between text-xs">
         {hovered ? (
           <span className="flex items-center gap-2 font-medium text-on-surface">
             <Info className="h-3.5 w-3.5 text-on-surface-variant" />
