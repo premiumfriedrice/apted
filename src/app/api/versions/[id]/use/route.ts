@@ -9,7 +9,12 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function POST(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const r = await pool.query(
-    "SELECT company, role, job_description, tailored_content FROM resume_versions WHERE id = $1",
+    `SELECT v.tailored_content, a.job_description
+     FROM resume_versions v
+     LEFT JOIN LATERAL (
+       SELECT job_description FROM applications WHERE version_id = v.id ORDER BY created_at DESC LIMIT 1
+     ) a ON true
+     WHERE v.id = $1`,
     [id],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -18,7 +23,7 @@ export async function POST(_req: Request, { params }: Ctx) {
     `INSERT INTO drafts (job_description, content, history)
      VALUES ($1, $2::jsonb, '[]'::jsonb)
      RETURNING id, job_description, content, history, created_at, updated_at`,
-    [row.job_description, JSON.stringify(Resume.parse(row.tailored_content))],
+    [row.job_description ?? "", JSON.stringify(Resume.parse(row.tailored_content))],
   );
   const draft = ins.rows[0];
   return NextResponse.json({

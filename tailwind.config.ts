@@ -6,17 +6,22 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
+        display: ["Outfit", "Inter", "system-ui", "sans-serif"],
         serif: ["Charter", "Georgia", "Cambria", "Times New Roman", "serif"],
+        "headline-xl": ["Inter", "system-ui", "sans-serif"],
         "headline-lg": ["Inter", "system-ui", "sans-serif"],
         "headline-md": ["Inter", "system-ui", "sans-serif"],
         "body-md": ["Inter", "system-ui", "sans-serif"],
         "body-sm": ["Inter", "system-ui", "sans-serif"],
+        "body-lg": ["Inter", "system-ui", "sans-serif"],
         "label-md": ["Inter", "system-ui", "sans-serif"],
         "label-sm": ["Inter", "system-ui", "sans-serif"],
       },
       fontSize: {
+        "headline-xl": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "600" }],
         "headline-lg": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
         "headline-md": ["15px", { lineHeight: "20px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
         "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
         "body-sm": ["13px", { lineHeight: "18px", fontWeight: "400" }],
         "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.01em", fontWeight: "500" }],
@@ -70,6 +75,11 @@ const config: Config = {
         "on-secondary-container": "#66645e",
         "on-tertiary-fixed-variant": "#7d2d00",
         "surface-container-high": "#e7e8e9",
+        "surface-white": "#ffffff",
+        "border-subtle": "#e5e7eb",
+        "status-success": "#10b981",
+        "status-alert": "#ef4444",
+        "text-muted": "#6b7280",
       },
       spacing: {
         xs: "4px",
@@ -80,12 +90,23 @@ const config: Config = {
         base: "4px",
         gutter: "16px",
         "container-max": "1200px",
+        "margin-desktop": "32px",
+        "margin-mobile": "16px",
       },
       borderRadius: {
         DEFAULT: "0.125rem",
         lg: "0.25rem",
         xl: "0.5rem",
         full: "0.75rem",
+      },
+      keyframes: {
+        "spin-slow": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+      },
+      animation: {
+        "spin-slow": "spin-slow 3s linear infinite",
       },
     },
   },

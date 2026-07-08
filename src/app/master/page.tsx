@@ -20,6 +20,8 @@ import type {
 import { injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
 
+import { PdfPreviewPane } from "@/components/PdfPreviewPane";
+
 type ProseKind = "experience" | "projects" | "education";
 
 type ProseModalState = {
@@ -356,14 +358,9 @@ export default function MasterPage() {
   }
 
   return (
-    <div className="h-full flex flex-col font-body-md text-body-md text-on-surface bg-background dark:bg-on-background" style={{ zoom: 0.9 }}>
+    <div className="h-full flex flex-col font-body-md text-body-md text-on-surface bg-background dark:bg-on-background">
       {/* Full-screen overlay during resize so iframes/panels don&apos;t steal mouse events. */}
       {resizing && <div className="fixed inset-0 z-[60] cursor-col-resize" />}
-      {/* TopNavBar */}
-      <header className="bg-surface-container-lowest dark:bg-surface-dim text-primary dark:text-primary-fixed w-full h-16 sticky top-0 border-b border-outline-variant dark:border-outline flex items-center px-lg w-full z-50">
-        <span className="text-[22px] font-medium tracking-tight text-on-surface dark:text-inverse-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>apted</span>
-      </header>
-
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Main Content Area */}
@@ -547,10 +544,6 @@ async function fetchBlob(input: string | URL, init?: RequestInit) {
 
 const previewBtnCls =
   "px-3 py-2 text-inverse-on-surface text-label-md font-label-md hover:bg-white/10 transition-colors duration-200 rounded flex items-center gap-1";
-const previewPrimaryBtnCls =
-  "bg-inverse-on-surface text-inverse-surface text-label-md font-label-md px-4 py-2 rounded hover:bg-inverse-on-surface/90 transition-colors duration-200";
-const previewIconBtnCls =
-  "p-2 text-inverse-on-surface hover:bg-white/10 transition-colors duration-200 rounded disabled:opacity-30";
 
 function PreviewPane({
   updatedAt,
@@ -569,18 +562,9 @@ function PreviewPane({
 }) {
   const version = updatedAt ? new Date(updatedAt).getTime() : 0;
   const pdfSrc = editorMode === "latex" && compiledPdfUrl ? compiledPdfUrl : `/api/master/pdf?v=${version}`;
-  const [pdf, setPdf] = useState<any>(null);
-  const [numPages, setNumPages] = useState(0);
-  const [zoom, setZoom] = useState(100);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-
-
-  const [error, setError] = useState<string | null>(null);
+  const ready = !!(updatedAt || compiledPdfUrl);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useClickAway<HTMLDivElement>(exportOpen, () => setExportOpen(false));
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const pageRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const [exportName, setExportName] = useState<string>("MasterResume");
   const nameInitialized = useRef(false);
 
@@ -592,111 +576,6 @@ function PreviewPane({
       setExportName(base ? `${base}MasterResume` : "MasterResume");
     }
   }, [resume]);
-
-  // Load PDF and fit first page to viewer width.
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      setPage(1);
-      try {
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-        const doc = await pdfjsLib.getDocument(pdfSrc).promise;
-        if (cancelled) return;
-        setPdf(doc);
-        setNumPages(doc.numPages);
-        const container = viewerRef.current;
-        if (container) {
-          const firstPage = await doc.getPage(1);
-          const unscaled = firstPage.getViewport({ scale: 1 });
-          const targetWidth = container.clientWidth - 48;
-          if (targetWidth > 0 && unscaled.width > 0) {
-            setZoom(Math.round((targetWidth / unscaled.width) * 100));
-          }
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "failed to load PDF");
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (updatedAt || compiledPdfUrl) load();
-    return () => { cancelled = true; };
-  }, [pdfSrc, updatedAt, compiledPdfUrl]);
-
-  // Render all pages at current zoom with device-pixel-ratio scaling.
-  // Use an offscreen canvas so the visible canvas is only cleared once the new page is ready.
-  useEffect(() => {
-    if (!pdf || numPages === 0) return;
-    let cancelled = false;
-    async function renderAll() {
-      const dpr = window.devicePixelRatio || 1;
-      for (let i = 1; i <= numPages; i++) {
-        if (cancelled) return;
-        const canvas = pageRefs.current[i - 1];
-        if (!canvas) continue;
-        const pg = await pdf.getPage(i);
-        const viewport = pg.getViewport({ scale: (zoom / 100) * dpr });
-        const offscreen = document.createElement("canvas");
-        offscreen.width = viewport.width;
-        offscreen.height = viewport.height;
-        const offCtx = offscreen.getContext("2d")!;
-        await pg.render({ canvasContext: offCtx, viewport }).promise;
-        if (cancelled) return;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width = `${viewport.width / dpr}px`;
-        canvas.style.height = `${viewport.height / dpr}px`;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(offscreen, 0, 0);
-      }
-    }
-    renderAll();
-    return () => { cancelled = true; };
-  }, [pdf, zoom, numPages]);
-
-  // Track the currently visible page from scroll position.
-  useEffect(() => {
-    const el = viewerRef.current;
-    if (!el || numPages === 0) return;
-    const root = el;
-    function onScroll() {
-      const top = root.scrollTop + 24;
-      let best = 0;
-      pageRefs.current.forEach((canvas, i) => {
-        if (!canvas) return;
-        if (canvas.offsetTop <= top) best = i;
-      });
-      setPage(best + 1);
-    }
-    root.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => root.removeEventListener("scroll", onScroll);
-  }, [pdf, numPages, zoom]);
-
-  // Trackpad / ctrl+wheel zoom inside the viewer.
-  useEffect(() => {
-    const el = viewerRef.current;
-    if (!el) return;
-    function onWheel(e: WheelEvent) {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -3 : 3;
-        setZoom((z) => Math.max(25, Math.min(300, z + delta)));
-      }
-    }
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
-
-  function scrollToPage(p: number) {
-    const canvas = pageRefs.current[Math.max(0, Math.min(numPages - 1, p - 1))];
-    if (canvas && viewerRef.current) {
-      canvas.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
 
   async function exportAs(kind: "pdf" | "tex" | "json") {
     const base = exportName.trim() || "MasterResume";
@@ -720,106 +599,51 @@ function PreviewPane({
     setExportOpen(false);
   }
 
-  return (
-    <div className="hidden lg:flex flex-col bg-inverse-surface relative" style={{ width: `${width}%` }}>
-      <div className="h-12 border-b border-inverse-on-surface/10 bg-inverse-surface flex items-center justify-between px-md sticky top-0 z-10">
-        <span className="text-label-md font-label-md text-inverse-on-surface font-semibold flex items-center gap-2">
-          <input
-            value={exportName}
-            onChange={(e) => setExportName(e.target.value)}
-            size={Math.max(20, exportName.length)}
-            className="bg-transparent border-none focus:ring-0 outline-none p-0 text-label-md font-label-md text-inverse-on-surface"
-            aria-label="Export filename"
-          />
-        </span>
-        <div className="flex items-center gap-1">
-          <div ref={exportRef} className="relative">
-            <button onClick={() => setExportOpen((s) => !s)} className={previewBtnCls}>
-              <span className="material-symbols-outlined text-[18px]">download</span> Export
-              <span className="material-symbols-outlined text-[16px]">expand_more</span>
-            </button>
-            {exportOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-inverse-surface border border-inverse-on-surface/20 rounded-lg shadow-lg py-1 min-w-[9rem] z-20">
-                {(["pdf", "tex", "json"] as const).map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => exportAs(k)}
-                    className="w-full text-left px-3 py-1.5 text-body-md font-body-md text-inverse-on-surface hover:bg-white/10 capitalize"
-                  >
-                    Export as {k.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="w-px h-5 bg-inverse-on-surface/20 mx-1" />
-          <button
-            onClick={() => scrollToPage(page - 1)}
-            disabled={page <= 1 || !pdf}
-            className={previewIconBtnCls}
-            aria-label="Previous page"
-          >
-            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-          </button>
-          <div className="flex items-center gap-1 px-2 py-1 rounded bg-inverse-on-surface/10 text-body-sm font-body-sm text-inverse-on-surface min-w-[4rem] justify-center">
-            {page}<span className="text-inverse-on-surface/60">/</span>{numPages || "-"}
-          </div>
-          <button
-            onClick={() => scrollToPage(page + 1)}
-            disabled={page >= (numPages || 1) || !pdf}
-            className={previewIconBtnCls}
-            aria-label="Next page"
-          >
-            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-          </button>
-          <div className="w-px h-5 bg-inverse-on-surface/20 mx-1" />
-          <button
-            onClick={() => setZoom((z) => Math.max(25, z - 25))}
-            disabled={!pdf}
-            className={previewIconBtnCls}
-            aria-label="Zoom out"
-          >
-            <span className="material-symbols-outlined text-[18px]">remove</span>
-          </button>
-          <span className="text-body-sm font-body-sm text-inverse-on-surface min-w-[3rem] text-center">{zoom}%</span>
-          <button
-            onClick={() => setZoom((z) => Math.min(300, z + 25))}
-            disabled={!pdf}
-            className={previewIconBtnCls}
-            aria-label="Zoom in"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-          </button>
-        </div>
-      </div>
-      <div ref={viewerRef} className="flex-1 overflow-auto bg-inverse-surface">
-        {updatedAt || compiledPdfUrl ? (
-          loading ? (
-            <div className="w-full h-full flex items-center justify-center text-body-sm text-inverse-on-surface/70">
-              Loading preview…
-            </div>
-          ) : error ? (
-            <div className="w-full h-full flex items-center justify-center text-body-sm text-error px-8 text-center">
-              {error}
-            </div>
-          ) : (
-            <div className="min-w-full w-fit flex flex-col items-center py-6 gap-4">
-              {Array.from({ length: numPages }, (_, i) => (
-                <canvas
-                  key={i}
-                  ref={(el) => { pageRefs.current[i] = el; }}
-                  className="bg-white shadow-2xl shrink-0"
-                />
-              ))}
-            </div>
-          )
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-body-sm text-inverse-on-surface/70">
-            Loading preview…
+  const headerExtra = (
+    <span className="text-label-md font-label-md text-inverse-on-surface font-semibold flex items-center gap-2">
+      <input
+        value={exportName}
+        onChange={(e) => setExportName(e.target.value)}
+        size={Math.max(20, exportName.length)}
+        className="bg-transparent border-none focus:ring-0 outline-none p-0 text-label-md font-label-md text-inverse-on-surface"
+        aria-label="Export filename"
+      />
+    </span>
+  );
+
+  const actionsExtra = (
+    <>
+      <div ref={exportRef} className="relative">
+        <button onClick={() => setExportOpen((s) => !s)} className={previewBtnCls}>
+          <span className="material-symbols-outlined text-[18px]">download</span> Export
+          <span className="material-symbols-outlined text-[16px]">expand_more</span>
+        </button>
+        {exportOpen && (
+          <div className="absolute right-0 top-full mt-1 bg-inverse-surface border border-inverse-on-surface/20 rounded-lg shadow-lg py-1 min-w-[9rem] z-20">
+            {(["pdf", "tex", "json"] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => exportAs(k)}
+                className="w-full text-left px-3 py-1.5 text-body-md font-body-md text-inverse-on-surface hover:bg-white/10 capitalize"
+              >
+                Export as {k.toUpperCase()}
+              </button>
+            ))}
           </div>
         )}
       </div>
-    </div>
+      <div className="w-px h-5 bg-inverse-on-surface/20 mx-1" />
+    </>
+  );
+
+  return (
+    <PdfPreviewPane
+      src={pdfSrc}
+      ready={ready}
+      width={width}
+      headerExtra={headerExtra}
+      actionsExtra={actionsExtra}
+    />
   );
 }
 

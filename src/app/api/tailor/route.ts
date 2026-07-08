@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       const master = Resume.parse(mr.rows[0].content);
 
       const vr = await client.query(
-        "SELECT company, role, tailored_content FROM resume_versions ORDER BY created_at DESC LIMIT 20",
+        "SELECT tailored_content FROM resume_versions ORDER BY created_at DESC LIMIT 20",
       );
       const priorVersions = vr.rows.map((r) => ({
         company: r.company,

@@ -9,29 +9,61 @@ import type { RedactionMap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
-const OUTCOMES = ["draft", "applied", "interview", "offer", "rejected"] as const;
-type Outcome = (typeof OUTCOMES)[number];
-
 type Ctx = { params: Promise<{ id: string }> };
+
+const SELECT = `
+  SELECT
+    v.id,
+    v.name,
+    v.tailored_content,
+    v.created_at,
+    v.pdf,
+    COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', a.id,
+          'versionId', a.version_id,
+          'company', a.company,
+          'role', a.role,
+          'jobDescription', a.job_description,
+          'outcome', a.outcome,
+          'interviewRound', a.interview_round,
+          'rejectedAfterRound', a.rejected_after_round,
+          'createdAt', a.created_at
+        ) ORDER BY a.created_at DESC
+      ) FILTER (WHERE a.id IS NOT NULL),
+      '[]'::jsonb
+    ) AS applications
+  FROM resume_versions v
+  LEFT JOIN applications a ON a.version_id = v.id
+`;
 
 function rowToJson(row: Record<string, unknown>) {
   const pdfBuf = row.pdf as Buffer | null;
   return {
     id: row.id,
-    company: row.company,
-    role: row.role,
-    jobDescription: row.job_description,
+    name: row.name,
     tailoredContent: row.tailored_content,
-    outcome: row.outcome,
     createdAt: row.created_at,
     pdfBase64: pdfBuf ? pdfBuf.toString("base64") : null,
+    applications: row.applications as Array<{
+      id: string;
+      versionId: string;
+      company: string;
+      role: string;
+      jobDescription: string;
+      outcome: string;
+      interviewRound: number | null;
+      rejectedAfterRound: number | null;
+      createdAt: string;
+    }>,
   };
 }
 
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const r = await pool.query(
-    "SELECT id, company, role, job_description, tailored_content, outcome, created_at, pdf FROM resume_versions WHERE id = $1",
+    `${SELECT} WHERE v.id = $1 GROUP BY v.id`,
     [id],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -44,14 +76,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const fields: string[] = [];
   const vals: unknown[] = [];
   let i = 1;
-  if (typeof body.company === "string")          { fields.push(`company = $${i++}`);          vals.push(body.company); }
-  if (typeof body.role === "string")             { fields.push(`role = $${i++}`);             vals.push(body.role); }
-  if (typeof body.jobDescription === "string")   { fields.push(`job_description = $${i++}`);  vals.push(body.jobDescription); }
-  if (body.tailoredContent !== undefined)        { fields.push(`tailored_content = $${i++}::jsonb`); vals.push(JSON.stringify(Resume.parse(body.tailoredContent))); }
-  if (typeof body.outcome === "string" && OUTCOMES.includes(body.outcome)) {
-    fields.push(`outcome = $${i++}`); vals.push(body.outcome);
+
+  if (body.tailoredContent !== undefined) {
+    fields.push(`tailored_content = $${i++}::jsonb`);
+    vals.push(JSON.stringify(Resume.parse(body.tailoredContent)));
   }
-  if (fields.length === 0) return NextResponse.json({ error: "no fields" }, { status: 400 });
+  if (typeof body.name === "string") {
+    fields.push(`name = $${i++}`);
+    vals.push(body.name.trim() || null);
+  }
+
+  if (fields.length === 0) {
+    return NextResponse.json({ error: "no fields" }, { status: 400 });
+  }
 
   // If tailored_content changes, re-compile the PDF.
   if (body.tailoredContent !== undefined) {
@@ -73,9 +110,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
 
   vals.push(id);
-  const r = await pool.query(
-    `UPDATE resume_versions SET ${fields.join(", ")} WHERE id = $${i} RETURNING id, company, role, job_description, tailored_content, outcome, created_at, pdf`,
+  await pool.query(
+    `UPDATE resume_versions SET ${fields.join(", ")} WHERE id = $${i}`,
     vals,
+  );
+
+  const r = await pool.query(
+    `${SELECT} WHERE v.id = $1 GROUP BY v.id`,
+    [id],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(rowToJson(r.rows[0]));

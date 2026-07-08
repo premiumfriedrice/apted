@@ -12,9 +12,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "jobDescription required" }, { status: 400 });
   }
 
-  // Fetch all resume versions.
+  // Fetch all resume versions with their most recent application for display.
   const { rows } = await pool.query(
-    "SELECT id, company, role, job_description, tailored_content FROM resume_versions ORDER BY created_at DESC",
+    `SELECT v.id, v.tailored_content, a.company, a.role, v.created_at
+     FROM resume_versions v
+     LEFT JOIN LATERAL (
+       SELECT company, role FROM applications WHERE version_id = v.id ORDER BY created_at DESC LIMIT 1
+     ) a ON true
+     ORDER BY v.created_at DESC`,
   );
 
   if (!rows.length) {
@@ -28,8 +33,8 @@ export async function POST(req: Request) {
         const content = Resume.parse(row.tailored_content);
         return {
           id: row.id as string,
-          company: row.company as string,
-          role: row.role as string,
+          company: (row.company as string) ?? "Untitled",
+          role: (row.role as string) ?? "",
           createdAt: row.created_at as string,
           tailored_content: content,
         };

@@ -30,6 +30,10 @@ Preserve every \`id\` field on sections, items, and bullets exactly as
 given. Mint new ids (short kebab-case) only for genuinely new content.
 Reuse existing bullet text verbatim when it already fits — rewrite only
 when tailoring genuinely improves the match.
+
+NEVER use em dashes (U+2014) anywhere in any text you generate. Use regular
+hyphens, colons, or commas instead. This applies to bullet text, section
+titles, notes, and every other string field.
 `.trim();
 
 // EXTRACT_FRAME is the runtime CONTRACT for parse-prose + import (raw text in →
@@ -54,6 +58,10 @@ Generate fresh, short, kebab-case \`id\` values for every section, item,
 and bullet you produce. Default \`tags\` to \`[]\` unless the prose
 explicitly says otherwise. Apply the formatting constraints (no em-dashes,
 no inline bold in bullets, strong action verbs) when phrasing bullets.
+
+NEVER use em dashes (U+2014) anywhere in any text you generate. Use regular
+hyphens, colons, or commas instead. This applies to bullet text, section
+titles, notes, and every other string field.
 
 Output JSON only. No prose, no markdown, no code fences.
 `.trim();
