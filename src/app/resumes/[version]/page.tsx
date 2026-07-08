@@ -83,7 +83,7 @@ export default function ResumeDetailPage() {
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [previewWidth, setPreviewWidth] = useState(50);
   const [resizing, setResizing] = useState(false);
-  const [leftMode, setLeftMode] = useState<"insights" | "jobs">("insights");
+  const [leftMode, setLeftMode] = useState<"insights" | "tracked">("insights");
   const [insights, setInsights] = useState<Insights | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
 
@@ -283,13 +283,13 @@ export default function ResumeDetailPage() {
               <button onClick={() => setLeftMode("insights")} className={leftMode === "insights" ? modeActiveBtnCls : smallBtnCls}>
                 Insights
               </button>
-              <button onClick={() => setLeftMode("jobs")} className={leftMode === "jobs" ? modeActiveBtnCls : smallBtnCls}>
-                Jobs
+              <button onClick={() => setLeftMode("tracked")} className={leftMode === "tracked" ? modeActiveBtnCls : smallBtnCls}>
+                Tracked
               </button>
             </div>
           </div>
 
-          {/* Left content — toggled by Insights / Jobs */}
+          {/* Left content — toggled by Insights / Tracked */}
           {leftMode === "insights" ? (
             <>
               {/* Top half: Sankey funnel diagram */}
