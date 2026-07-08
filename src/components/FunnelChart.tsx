@@ -6,6 +6,8 @@ import { FunnelStats } from "./types";
 
 interface FunnelChartProps {
   stats: FunnelStats;
+  /** Shrink the chart height for compact containers (e.g. resume detail pane). */
+  compact?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ interface FunnelChartProps {
  * - Drop-off buckets (drafts, ghosted, declined) are derived and shown so
  *   that every application is accounted for at every stage.
  */
-export default function FunnelChart({ stats }: FunnelChartProps) {
+export default function FunnelChart({ stats, compact = false }: FunnelChartProps) {
   const [hovered, setHovered] = useState<{
     label: string;
     value: number;
@@ -42,7 +44,7 @@ export default function FunnelChart({ stats }: FunnelChartProps) {
   // --- Layout constants ---
   const nodeW = 16;
   const topY = 70; // y of the top of every main-chain node
-  const maxBar = 280; // pixel height of the tallest node (total)
+  const maxBar = compact ? 160 : 280; // pixel height of the tallest node (total)
   const scale = maxBar / stats.total;
   const colGap = 200;
   const colX = [70, 70 + colGap, 70 + colGap * 2, 70 + colGap * 3, 70 + colGap * 4];
