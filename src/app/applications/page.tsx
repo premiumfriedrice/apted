@@ -171,7 +171,6 @@ const modeActiveBtnCls =
 
       {applications.length > 0 && (
         <div className="mb-6 rounded-lg border border-border-subtle bg-surface-white p-md">
-          <h3 className="mb-sm font-label-lg text-label-lg text-on-surface">Application Funnel</h3>
           <FunnelChart stats={funnelStats} compact={sidebarCollapsed} />
         </div>
       )}

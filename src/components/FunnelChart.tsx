@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Info } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Download, Info } from "lucide-react";
 import { FunnelStats } from "./types";
 
 interface FunnelChartProps {
@@ -22,6 +22,7 @@ interface FunnelChartProps {
  *   that every application is accounted for at every stage.
  */
 export default function FunnelChart({ stats, compact = false }: FunnelChartProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
   const [hovered, setHovered] = useState<{
     label: string;
     value: number;
@@ -127,9 +128,58 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
   const techRate = pct(stats.technical, stats.screening);
   const offerRate = pct(stats.offers, stats.total);
 
+  function exportSvg() {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const data = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([data], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "apted-funnel.svg";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportPng() {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const data = new XMLSerializer().serializeToString(clone);
+    const svgBlob = new Blob([data], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const scale = 2;
+      canvas.width = W * scale;
+      canvas.height = H * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const pngUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = pngUrl;
+        a.download = "apted-funnel.png";
+        a.click();
+        URL.revokeObjectURL(pngUrl);
+      }, "image/png");
+    };
+    img.src = url;
+  }
+
   return (
     <div className="relative flex h-full flex-col select-none">
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto flex-1"
         preserveAspectRatio="xMidYMid meet"
@@ -465,6 +515,20 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
             Declined ({declined})
           </text>
         )}
+
+        {/* apted logo watermark (top-right) */}
+        <text
+          x={W - 14}
+          y={28}
+          textAnchor="end"
+          style={{ fontFamily: "'Outfit', sans-serif" }}
+          fontSize={compact ? 20 : 28}
+          fontWeight={500}
+          fill="#171c20"
+          opacity={0.35}
+        >
+          apted
+        </text>
       </svg>
 
       {/* Tooltip / summary bar - pinned to bottom of the pane */}
@@ -481,16 +545,26 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
             Hover over any node or flow for details.
           </span>
         )}
-        <div className="hidden items-center gap-4 md:flex">
-          <span>
-            <strong className="font-mono text-on-surface">{screenRate}%</strong> screen pass
-          </span>
-          <span>
-            <strong className="font-mono text-on-surface">{techRate}%</strong> interview pass
-          </span>
-          <span className="text-status-success">
-            <strong className="font-mono">{offerRate}%</strong> offer rate
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-4 md:flex">
+            <span>
+              <strong className="font-mono text-on-surface">{screenRate}%</strong> screen pass
+            </span>
+            <span>
+              <strong className="font-mono text-on-surface">{techRate}%</strong> interview pass
+            </span>
+            <span className="text-status-success">
+              <strong className="font-mono">{offerRate}%</strong> offer rate
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={exportPng} title="Export as PNG" className="inline-flex items-center gap-1 rounded px-2 py-1 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface">
+              <Download className="h-3.5 w-3.5" /> PNG
+            </button>
+            <button onClick={exportSvg} title="Export as SVG" className="inline-flex items-center gap-1 rounded px-2 py-1 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface">
+              <Download className="h-3.5 w-3.5" /> SVG
+            </button>
+          </div>
         </div>
       </div>
     </div>
