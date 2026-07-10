@@ -109,7 +109,7 @@ function useClickAway<T extends HTMLElement>(enabled: boolean, onClickAway: () =
 
 // Material-style utility classes used across the redesigned editor.
 const inputCls =
-  "w-full border border-outline-variant rounded-lg px-3 py-2 text-body-md bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary outline-none";
+  "w-full border border-outline-variant rounded px-3 py-2 text-body-md bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary outline-none";
 const ghostInputCls =
   "w-full bg-transparent border-b border-transparent hover:border-outline-variant focus:border-primary focus:ring-0 outline-none px-1 py-1";
 const smallBtnCls =
@@ -682,7 +682,7 @@ function ContactCard({
   };
 
   return (
-    <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col gap-md">
+    <section className="bg-surface-white border border-border-subtle p-lg flex flex-col gap-md">
       <h3 className="text-headline-md font-headline-md text-on-surface flex items-center gap-2">
         <span className="material-symbols-outlined text-[20px] text-on-surface-variant">person</span>
         Contact Info
@@ -756,7 +756,7 @@ function ContactCard({
         <div className="flex flex-col gap-xs">
           {links.map((l, i) => (
             <div key={i} className="flex items-center gap-sm">
-              <div className="flex-1 flex items-center border border-outline-variant rounded-lg bg-surface px-2 h-8">
+              <div className="flex-1 flex items-center border border-outline-variant rounded bg-surface px-2 h-8">
                 <span className="material-symbols-outlined text-[16px] text-on-surface-variant mr-2">link</span>
                 <input
                   className="bg-transparent border-none p-0 w-full text-body-md focus:ring-0 outline-none"
@@ -766,7 +766,7 @@ function ContactCard({
                   onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
                 />
               </div>
-              <div className="flex-[2] flex items-center border border-outline-variant rounded-lg bg-surface px-2 h-8 relative">
+              <div className="flex-[2] flex items-center border border-outline-variant rounded bg-surface px-2 h-8 relative">
                 <span className="material-symbols-outlined text-[16px] text-on-surface-variant mr-2">language</span>
                 <input
                   className="bg-transparent border-none p-0 w-full text-body-md focus:ring-0 outline-none"
@@ -837,8 +837,8 @@ function SectionCard({
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(); }}
       onDrop={(e) => { e.preventDefault(); onDrop?.(); }}
       className={[
-        "bg-surface-container-lowest border rounded-xl p-md flex flex-col gap-md transition-all",
-        isDragOver ? "border-primary ring-1 ring-primary" : "border-outline-variant",
+        "bg-surface-white border p-md flex flex-col gap-md transition-all",
+        isDragOver ? "border-primary ring-1 ring-primary" : "border-border-subtle",
       ].join(" ")}
     >
       <div className="flex justify-between items-center cursor-pointer" onClick={onToggleCollapse}>
@@ -882,11 +882,11 @@ function SectionFooter({
 }) {
   return (
     <div className="flex flex-col gap-sm">
-      <button onClick={onAdd} className="w-full py-3 border-2 border-dashed border-outline-variant rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+      <button onClick={onAdd} className="w-full py-3 border-2 border-dashed border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
         <span className="material-symbols-outlined text-[18px]">add</span> Add {label}
       </button>
       {onAddFromProse && (
-        <button onClick={onAddFromProse} className="w-full py-2 border border-outline-variant rounded-lg text-primary font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+        <button onClick={onAddFromProse} className="w-full py-2 border border-border-subtle text-primary font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
           <span className="material-symbols-outlined text-[16px]">auto_awesome</span> Add from prose
         </button>
       )}
@@ -1195,7 +1195,7 @@ function AddSectionMenu({
   const missing = kinds.filter((k) => !existing.includes(k));
   if (missing.length === 0) return null;
   return (
-    <button className="w-full py-3 border-2 border-dashed border-outline-variant rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+    <button className="w-full py-3 border-2 border-dashed border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
       <span className="material-symbols-outlined text-[18px]">add</span>
       <select
         className="bg-transparent border-none outline-none text-on-surface-variant font-label-md text-label-md cursor-pointer"
@@ -1244,8 +1244,8 @@ function ItemFrame({
         onDrop?.();
       }}
       className={[
-        "border rounded-lg p-md flex flex-col gap-sm relative bg-surface-bright transition-all",
-        isDragOver ? "border-primary ring-1 ring-primary" : "border-outline-variant",
+        "border p-md flex flex-col gap-sm relative bg-surface transition-all",
+        isDragOver ? "border-primary ring-1 ring-primary" : "border-border-subtle",
       ].join(" ")}
     >
       <div
@@ -1455,7 +1455,7 @@ function ProseInput({
     <div className="flex flex-col gap-1 mt-1">
       <label className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Brain dump / Raw Notes</label>
       <textarea
-        className="w-full bg-[#FFFBF2] dark:bg-surface-container-high border-none rounded-lg p-2 text-body-md focus:ring-2 focus:ring-primary outline-none resize-y"
+        className="w-full bg-[#FFFBF2] dark:bg-surface-container-high border-none rounded p-2 text-body-md focus:ring-2 focus:ring-primary outline-none resize-y"
         placeholder="Dump everything you remember... led a team of 5, increased conversion by 20%, redesigned the core dashboard..."
         rows={3}
         value={value}
@@ -1596,7 +1596,7 @@ function ModalShell({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-surface-container-lowest shadow-xl border border-outline-variant"
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-surface-white shadow-xl border border-outline-variant"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-start justify-between border-b border-outline-variant px-5 py-3">
@@ -1694,7 +1694,7 @@ function AddFromProseModal({
         onChange={(e) => setProse(e.target.value)}
         placeholder={labels[kind].placeholder}
         rows={10}
-        className="w-full resize-none rounded-lg border border-outline-variant bg-surface p-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+        className="w-full resize-none rounded border border-outline-variant bg-surface p-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none"
       />
       <p className="mt-2 text-body-sm text-on-surface-variant">
         Tip: include dates and your role/title explicitly so Claude doesn&apos;t have to guess. Bullets and metrics come straight from what you write — anything not in the prose stays empty.
@@ -1811,7 +1811,7 @@ function ImportResumeModal({
       </div>
 
       {mode === "upload" && (
-        <div className="mb-3 rounded-lg border border-dashed border-outline-variant p-4 text-center text-body-md text-on-surface-variant bg-surface">
+        <div className="mb-3 rounded border border-dashed border-outline-variant p-4 text-center text-body-md text-on-surface-variant bg-surface">
           <input
             ref={fileInputRef}
             type="file"
@@ -1841,7 +1841,7 @@ function ImportResumeModal({
             : "Extracted text will appear here. You can edit before importing."
         }
         rows={14}
-        className="w-full resize-none rounded-lg border border-outline-variant bg-surface p-3 font-mono text-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+        className="w-full resize-none rounded border border-outline-variant bg-surface p-3 font-mono text-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
       />
       <p className="mt-2 text-body-sm text-on-surface-variant">
         Claude is told to be faithful to your input — it won&apos;t invent dates or metrics. You can still edit everything after import.
