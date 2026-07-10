@@ -682,7 +682,7 @@ function ContactCard({
   };
 
   return (
-    <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col gap-md">
+    <section className="bg-surface-white border border-border-subtle p-lg flex flex-col gap-md">
       <h3 className="text-headline-md font-headline-md text-on-surface flex items-center gap-2">
         <span className="material-symbols-outlined text-[20px] text-on-surface-variant">person</span>
         Contact Info
@@ -837,8 +837,8 @@ function SectionCard({
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(); }}
       onDrop={(e) => { e.preventDefault(); onDrop?.(); }}
       className={[
-        "bg-surface-container-lowest border rounded-xl p-md flex flex-col gap-md transition-all",
-        isDragOver ? "border-primary ring-1 ring-primary" : "border-outline-variant",
+        "bg-surface-white border p-md flex flex-col gap-md transition-all",
+        isDragOver ? "border-primary ring-1 ring-primary" : "border-border-subtle",
       ].join(" ")}
     >
       <div className="flex justify-between items-center cursor-pointer" onClick={onToggleCollapse}>
@@ -882,11 +882,11 @@ function SectionFooter({
 }) {
   return (
     <div className="flex flex-col gap-sm">
-      <button onClick={onAdd} className="w-full py-3 border-2 border-dashed border-outline-variant rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+      <button onClick={onAdd} className="w-full py-3 border-2 border-dashed border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
         <span className="material-symbols-outlined text-[18px]">add</span> Add {label}
       </button>
       {onAddFromProse && (
-        <button onClick={onAddFromProse} className="w-full py-2 border border-outline-variant rounded-lg text-primary font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+        <button onClick={onAddFromProse} className="w-full py-2 border border-border-subtle text-primary font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
           <span className="material-symbols-outlined text-[16px]">auto_awesome</span> Add from prose
         </button>
       )}
@@ -1195,7 +1195,7 @@ function AddSectionMenu({
   const missing = kinds.filter((k) => !existing.includes(k));
   if (missing.length === 0) return null;
   return (
-    <button className="w-full py-3 border-2 border-dashed border-outline-variant rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+    <button className="w-full py-3 border-2 border-dashed border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
       <span className="material-symbols-outlined text-[18px]">add</span>
       <select
         className="bg-transparent border-none outline-none text-on-surface-variant font-label-md text-label-md cursor-pointer"
@@ -1244,8 +1244,8 @@ function ItemFrame({
         onDrop?.();
       }}
       className={[
-        "border rounded-lg p-md flex flex-col gap-sm relative bg-surface-bright transition-all",
-        isDragOver ? "border-primary ring-1 ring-primary" : "border-outline-variant",
+        "border p-md flex flex-col gap-sm relative bg-surface transition-all",
+        isDragOver ? "border-primary ring-1 ring-primary" : "border-border-subtle",
       ].join(" ")}
     >
       <div
@@ -1348,7 +1348,7 @@ function BulletRow({
       </div>
       <textarea
         rows={2}
-        className="flex-1 bg-surface-container-lowest border border-outline-variant rounded p-1.5 text-body-sm font-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-y"
+        className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg p-1.5 text-body-sm font-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-y"
         value={bullet.text}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -1596,7 +1596,7 @@ function ModalShell({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-surface-container-lowest shadow-xl border border-outline-variant"
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-surface-white shadow-xl border border-outline-variant"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-start justify-between border-b border-outline-variant px-5 py-3">
