@@ -160,7 +160,7 @@ function SidebarInner({
       {/* Footer: Settings, compact profile */}
       <div className="shrink-0 space-y-sm px-0 pb-md">
         {collapsed ? (
-          <div className="flex flex-col items-center gap-xs pt-xs">
+          <div className="flex w-12 flex-col items-center gap-xs pt-xs">
             <Link
               href={SETTINGS_NAV.href}
               title={SETTINGS_NAV.label}
