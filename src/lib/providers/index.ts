@@ -9,6 +9,7 @@ import OpenAI from "openai";
 import { AnthropicProvider } from "./anthropic";
 import { OpenAICompatibleProvider } from "./openai";
 import type { Provider } from "./types";
+import { resolveApiKey } from "../api-keys";
 
 export type ProviderName = "anthropic" | "openai" | "gemini" | "deepseek" | "opencode";
 export type { Provider } from "./types";
@@ -44,16 +45,19 @@ function defaultModel(name: ProviderName): string {
   }
 }
 
+// Build a provider, preferring a user-stored API key (DB) over the env var.
+// Keys configured via the settings page win; env vars are the fallback so the
+// app keeps working for users who never touch that UI.
 function build(name: ProviderName): Provider {
   switch (name) {
     case "anthropic":
       return new AnthropicProvider(
-        new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! }),
+        new Anthropic({ apiKey: resolveApiKey("anthropic") }),
         defaultModel("anthropic"),
       );
     case "openai":
       return new OpenAICompatibleProvider(
-        new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
+        new OpenAI({ apiKey: resolveApiKey("openai") }),
         defaultModel("openai"),
         "openai",
       );
@@ -65,13 +69,13 @@ function build(name: ProviderName): Provider {
       );
     case "deepseek":
       return new OpenAICompatibleProvider(
-        new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY!, baseURL: DEEPSEEK_BASE_URL }),
+        new OpenAI({ apiKey: resolveApiKey("deepseek"), baseURL: DEEPSEEK_BASE_URL }),
         defaultModel("deepseek"),
         "deepseek",
       );
     case "opencode":
       return new OpenAICompatibleProvider(
-        new OpenAI({ apiKey: process.env.OPENCODE_API_KEY!, baseURL: OPENCODE_BASE_URL }),
+        new OpenAI({ apiKey: resolveApiKey("opencode"), baseURL: OPENCODE_BASE_URL }),
         defaultModel("opencode"),
         "opencode",
       );
@@ -80,8 +84,16 @@ function build(name: ProviderName): Provider {
 
 const cache = new Map<ProviderName, Provider>();
 
+// Drop every cached SDK client. Call this after api-keys PUT/DELETE so the
+// next build() rebuilds providers with the now-current key instead of reusing
+// a client frozen on the old (env) key. Without this, a newly-saved BYOK key
+// wouldn't take effect until a server restart.
+export function resetProviderCache(): void {
+  cache.clear();
+}
+
 export function getProvider(name?: string): Provider {
-  const fallback = process.env.OPENCODE_API_KEY ? "opencode" : "anthropic";
+  const fallback = hasOpenCodeKey() ? "opencode" : "anthropic";
   const resolved = (name ?? process.env.LLM_PROVIDER ?? fallback) as ProviderName;
   if (!PROVIDER_NAMES.includes(resolved)) {
     throw new Error(
@@ -96,11 +108,18 @@ export function getProvider(name?: string): Provider {
   return provider;
 }
 
+// Whether OpenCode is usable: a key is present either in the DB or the env.
+// Replaces the bare process.env.OPENCODE_API_KEY checks in flow routing so the
+// OpenCode path activates once the user enters an OpenCode key via settings.
+function hasOpenCodeKey(): boolean {
+  return resolveApiKey("opencode") != null;
+}
+
 // Build an OpenCode provider with a specific model. Used by getTailorProvider
 // and getStructureProvider to route different models through the same proxy.
 function buildOpenCodeProvider(model: string): Provider {
   return new OpenAICompatibleProvider(
-    new OpenAI({ apiKey: process.env.OPENCODE_API_KEY!, baseURL: OPENCODE_BASE_URL }),
+    new OpenAI({ apiKey: resolveApiKey("opencode"), baseURL: OPENCODE_BASE_URL }),
     model,
     "opencode",
   );
@@ -124,7 +143,7 @@ export function getProviderForFlow(flow: Flow): Provider {
   // When OpenCode is configured, route all quality-sensitive flows through it.
   // Tailor: Sonnet via OpenCode for bullet rewording.
   // Edit/import/parse-prose: also Sonnet for quality.
-  if (process.env.OPENCODE_API_KEY) {
+  if (hasOpenCodeKey()) {
     if (flow === "tailor" || flow === "edit") return getTailorProvider();
     // Lighter flows can use a cheaper model if desired; for now, same.
     return getTailorProvider();
@@ -146,10 +165,10 @@ export function getTailorProvider(): Provider {
 // structure-selection step. Uses DeepSeek v4 flash via OpenCode when configured;
 // falls back to DeepSeek direct, then Anthropic.
 export function getStructureProvider(): Provider {
-  if (process.env.OPENCODE_API_KEY) {
+  if (hasOpenCodeKey()) {
     const model = process.env.OPENCODE_STRUCTURE_MODEL ?? "deepseek-v4-flash";
     return buildOpenCodeProvider(model);
   }
-  if (process.env.DEEPSEEK_API_KEY) return getProvider("deepseek");
+  if (resolveApiKey("deepseek") != null) return getProvider("deepseek");
   return getProvider("anthropic");
 }
