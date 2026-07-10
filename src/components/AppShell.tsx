@@ -46,6 +46,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarWidth = collapsed ? "w-12" : "w-64";
   const mainLeft = collapsed ? "ml-12" : "ml-64";
 
+  // When collapsed, the whole sidebar rail is a click target to expand. The
+  // inner links/brand call stopPropagation so they keep working; they share the
+  // same bg-surface-container-low hover token, so the rail shows a uniform
+  // affordance on hover instead of clashing.
+  const asideCls = collapsed
+    ? `${sidebarWidth} cursor-pointer hover:bg-surface-container-low`
+    : sidebarWidth;
+
   // Full-bleed routes keep the sidebar but render edge-to-edge with no page
   // padding so they can manage their own split-pane layouts.
   const flush = pathname === "/master" || pathname.startsWith("/resumes/");
@@ -55,7 +63,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="h-screen overflow-hidden bg-surface text-on-background">
           <aside
             onClick={collapsed ? () => setCollapsed(false) : undefined}
-            className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}
+            title={collapsed ? "Click to expand sidebar" : undefined}
+            className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
           >
             <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
           </aside>
@@ -73,7 +82,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside
           onClick={collapsed ? () => setCollapsed(false) : undefined}
-          className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${sidebarWidth}`}
+          title={collapsed ? "Click to expand sidebar" : undefined}
+          className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
         >
           <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
         </aside>
@@ -119,7 +129,7 @@ function SidebarInner({
               onClick={() => setCollapsed(true)}
               title="Collapse sidebar"
               aria-label="Collapse sidebar"
-              className="h-9 w-9 shrink-0 rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             >
               <CollapseIcon />
             </button>
