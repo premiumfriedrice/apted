@@ -1,9 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import ApiKeysSection from "./api-keys-section";
 
 type Option = { name: string; label: string };
+
+const primaryBtnCls =
+  "inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200 disabled:opacity-50";
 
 export default function SettingsPage() {
   const [options, setOptions] = useState<Option[]>([]);
@@ -35,30 +38,28 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <Link href="/resumes" className="text-sm text-neutral-600 underline">
-          Back to library
-        </Link>
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-8">
+        <h2 className="font-headline-xl text-headline-xl text-primary">Settings</h2>
+        <p className="mt-1 text-secondary">Configure your resume template and bring your own API keys.</p>
       </div>
 
-      <section className="mt-8 rounded-md border border-neutral-200 bg-white p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+      <section className="border border-border-subtle bg-surface-white p-md">
+        <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
           Resume template
-        </h2>
-        <p className="mt-2 text-sm text-neutral-600">
+        </h3>
+        <p className="mt-1 text-body-sm text-on-surface-variant">
           Used by every render of your master resume and tailored drafts.
         </p>
 
         {loading ? (
-          <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+          <p className="mt-4 text-body-sm text-on-surface-variant">Loading...</p>
         ) : (
           <div className="mt-4 space-y-2">
             {options.map((o) => (
               <label
                 key={o.name}
-                className="flex cursor-pointer items-start gap-3 rounded-md border border-neutral-200 p-3 hover:border-neutral-400"
+                className="flex cursor-pointer items-start gap-3 border border-border-subtle p-3 transition-colors hover:border-primary"
               >
                 <input
                   type="radio"
@@ -69,25 +70,23 @@ export default function SettingsPage() {
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="block text-sm font-medium">{o.label}</span>
-                  <span className="block text-xs text-neutral-500">{o.name}</span>
+                  <span className="block font-headline-md text-headline-md text-on-surface">{o.label}</span>
+                  <span className="block text-label-md text-secondary">{o.name}</span>
                 </span>
               </label>
             ))}
           </div>
         )}
 
-        <div className="mt-5 flex items-center gap-3">
-          <button
-            onClick={save}
-            disabled={saving || loading}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save"}
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={save} disabled={saving || loading} className={primaryBtnCls}>
+            {saving ? "Saving..." : "Save"}
           </button>
-          {message && <span className="text-xs text-neutral-500">{message}</span>}
+          {message && <span className="text-label-md text-secondary">{message}</span>}
         </div>
       </section>
-    </main>
+
+      <ApiKeysSection />
+    </div>
   );
 }
