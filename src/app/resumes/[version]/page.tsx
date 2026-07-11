@@ -80,7 +80,6 @@ export default function ResumeDetailPage() {
   const versionId = params.version as string;
   const [version, setVersion] = useState<Version | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [previewWidth, setPreviewWidth] = useState(50);
   const [resizing, setResizing] = useState(false);
   const [leftMode, setLeftMode] = useState<"insights" | "tracked">("insights");
@@ -97,7 +96,6 @@ export default function ResumeDetailPage() {
       .then((r) => r.json())
       .then((data: Version) => {
         setVersion(data);
-        if (data.applications[0]) setSelectedAppId(data.applications[0].id);
         const base = (data.name || "Resume").replace(/\s+/g, "").trim();
         setExportName(base || "Resume");
       })
@@ -366,17 +364,11 @@ export default function ResumeDetailPage() {
                 <p className="text-sm text-on-surface-variant">No applications linked to this resume.</p>
               ) : (
                 <div className="space-y-md">
-                  {apps.map((app) => {
-                    const expanded = selectedAppId === app.id;
-                    return (
-                    <button
+                  {apps.map((app) => (
+                    <Link
                       key={app.id}
-                      onClick={() => setSelectedAppId(expanded ? null : app.id)}
-                      className={`w-full rounded-lg border p-md text-left transition-colors ${
-                        expanded
-                          ? "border-primary bg-surface-white"
-                          : "border-outline-variant bg-surface-white hover:border-outline"
-                      }`}
+                      href={`/applications/${app.id}`}
+                      className="block rounded-lg border border-outline-variant bg-surface-white p-md transition-colors hover:border-primary"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-primary">{app.company}</span>
@@ -385,14 +377,8 @@ export default function ResumeDetailPage() {
                         </span>
                       </div>
                       <div className="text-xs text-on-surface-variant">{app.role}</div>
-                      {expanded && app.jobDescription && (
-                        <div className="mt-sm border-t border-outline-variant pt-sm text-sm text-on-surface whitespace-pre-wrap">
-                          {app.jobDescription}
-                        </div>
-                      )}
-                    </button>
-                    );
-                  })}
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>

@@ -16,6 +16,8 @@ function rowToJson(row: Record<string, unknown>) {
     outcome: row.outcome,
     interviewRound: row.interview_round,
     rejectedAfterRound: row.rejected_after_round,
+    portalUrl: row.portal_url,
+    notes: row.notes,
     createdAt: row.created_at,
   };
 }
@@ -23,7 +25,7 @@ function rowToJson(row: Record<string, unknown>) {
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const r = await pool.query(
-    "SELECT id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, created_at FROM applications WHERE version_id = $1 ORDER BY created_at DESC",
+    "SELECT id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at FROM applications WHERE version_id = $1 ORDER BY created_at DESC",
     [id],
   );
   return NextResponse.json(r.rows.map(rowToJson));
@@ -55,7 +57,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const r = await pool.query(
     `INSERT INTO applications (version_id, company, role, job_description, outcome, interview_round, rejected_after_round)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, created_at`,
+     RETURNING id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at`,
     [
       id,
       company,
