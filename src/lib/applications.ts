@@ -26,6 +26,8 @@ export type Application = {
   outcome: Outcome;
   interviewRound: number | null;
   rejectedAfterRound: number | null;
+  portalUrl: string | null;
+  notes: string | null;
   createdAt: string;
 };
 

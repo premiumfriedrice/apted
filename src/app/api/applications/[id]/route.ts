@@ -16,6 +16,8 @@ function rowToJson(row: Record<string, unknown>) {
     outcome: row.outcome,
     interviewRound: row.interview_round,
     rejectedAfterRound: row.rejected_after_round,
+    portalUrl: row.portal_url,
+    notes: row.notes,
     createdAt: row.created_at,
   };
 }
@@ -23,7 +25,7 @@ function rowToJson(row: Record<string, unknown>) {
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const r = await pool.query(
-    "SELECT id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, created_at FROM applications WHERE id = $1",
+    "SELECT id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at FROM applications WHERE id = $1",
     [id],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -44,6 +46,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (typeof body.role === "string") {
     fields.push(`role = $${i++}`);
     vals.push(body.role);
+  }
+  if (typeof body.portalUrl === "string") {
+    fields.push(`portal_url = $${i++}`);
+    vals.push(body.portalUrl.trim() ? body.portalUrl.trim() : null);
+  }
+  if (body.notes !== undefined && typeof body.notes === "string") {
+    fields.push(`notes = $${i++}`);
+    vals.push(body.notes);
   }
   if (typeof body.jobDescription === "string") {
     fields.push(`job_description = $${i++}`);
@@ -98,7 +108,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
   vals.push(id);
   const r = await pool.query(
-    `UPDATE applications SET ${fields.join(", ")} WHERE id = $${i} RETURNING id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, created_at`,
+    `UPDATE applications SET ${fields.join(", ")} WHERE id = $${i} RETURNING id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at`,
     vals,
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });

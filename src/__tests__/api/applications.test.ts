@@ -24,6 +24,8 @@ const fakeApplication = {
   role: "Engineer",
   job_description: "Build things",
   outcome: "draft",
+  portal_url: null,
+  notes: null,
   created_at: "2024-01-01T00:00:00Z",
 };
 
@@ -35,6 +37,8 @@ function appJson(row: Record<string, unknown>) {
     role: row.role,
     jobDescription: row.job_description,
     outcome: row.outcome,
+    portalUrl: row.portal_url,
+    notes: row.notes,
     createdAt: row.created_at,
   };
 }
@@ -133,6 +137,7 @@ describe("PATCH /api/applications/[id]", () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ ...fakeApplication, outcome: "interviewing", interview_round: 1 }],
     });
+
     const req = new Request("http://localhost/api/applications/a1", {
       method: "PATCH",
       body: JSON.stringify({ outcome: "interviewing" }),
@@ -188,6 +193,46 @@ describe("PATCH /api/applications/[id]", () => {
     });
     const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
     expect(res.status).toBe(400);
+  });
+
+  it("updates portalUrl and notes", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ ...fakeApplication, portal_url: "https://careers.acme.com/123", notes: "recruiter: Jane" }],
+    });
+    const req = new Request("http://localhost/api/applications/a1", {
+      method: "PATCH",
+      body: JSON.stringify({
+        portalUrl: "https://careers.acme.com/123",
+        notes: "recruiter: Jane",
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.portalUrl).toBe("https://careers.acme.com/123");
+    expect(body.notes).toBe("recruiter: Jane");
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("portal_url");
+    expect(sql).toContain("notes");
+  });
+
+  it("clears portalUrl when given an empty string", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ ...fakeApplication, portal_url: null }],
+    });
+    const req = new Request("http://localhost/api/applications/a1", {
+      method: "PATCH",
+      body: JSON.stringify({ portalUrl: "   " }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "a1" }) });
+    expect(res.status).toBe(200);
+
+    const vals = mockQuery.mock.calls[0][1] as unknown[];
+    expect(vals).toContain(null);
   });
 });
 
