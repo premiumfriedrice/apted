@@ -49,7 +49,7 @@ export function PdfPreviewPane({
       try {
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-        const params = typeof src === "string" ? src : { data: src };
+        const params = typeof src === "string" ? src : { data: new Uint8Array(src) };
         const doc = await pdfjsLib.getDocument(params).promise;
         if (cancelled) return;
         setPdf(doc);
@@ -74,8 +74,11 @@ export function PdfPreviewPane({
   }, [src, ready]);
 
   // Render all pages at current zoom with device-pixel-ratio scaling.
+  // Depends on `loading` too: the <canvas> elements are only mounted once
+  // loading flips false, so rendering before that hits null refs and draws
+  // nothing — leaving blank white boxes until a zoom change re-triggers.
   useEffect(() => {
-    if (!pdf || numPages === 0) return;
+    if (!pdf || numPages === 0 || loading) return;
     let cancelled = false;
     async function renderAll() {
       const dpr = window.devicePixelRatio || 1;
@@ -101,7 +104,7 @@ export function PdfPreviewPane({
     }
     renderAll();
     return () => { cancelled = true; };
-  }, [pdf, zoom, numPages]);
+  }, [pdf, zoom, numPages, loading]);
 
   // Track the currently visible page from scroll position.
   useEffect(() => {

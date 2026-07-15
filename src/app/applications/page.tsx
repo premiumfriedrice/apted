@@ -197,6 +197,19 @@ const modeActiveBtnCls =
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
+            <tr>
+              <td colSpan={5} className="py-3 px-4">
+                <Link
+                  href="/applications/new"
+                  className="flex items-center gap-3 rounded-lg border border-dashed border-outline-variant bg-surface-container-lowest px-4 py-3 text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded text-on-surface-variant">
+                    <span className="material-symbols-outlined text-[20px]">add</span>
+                  </span>
+                  <span className="text-body-md font-semibold">New application</span>
+                </Link>
+              </td>
+            </tr>
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="py-6 px-4 text-center text-sm text-secondary">

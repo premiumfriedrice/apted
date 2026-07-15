@@ -56,10 +56,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Full-bleed routes keep the sidebar but render edge-to-edge with no page
   // padding so they can manage their own split-pane layouts.
+  // /applications/new is a form, not a split-pane, so it keeps page padding.
   const flush =
     pathname === "/master" ||
     pathname.startsWith("/resumes/") ||
-    pathname.startsWith("/applications/");
+    (pathname.startsWith("/applications/") && pathname !== "/applications/new");
   if (flush) {
     return (
       <SidebarCollapsedContext.Provider value={collapsed}>

@@ -361,9 +361,25 @@ export default function ResumeDetailPage() {
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-md">
               {apps.length === 0 ? (
-                <p className="text-sm text-on-surface-variant">No applications linked to this resume.</p>
+                <div className="space-y-md">
+                  <p className="text-sm text-on-surface-variant">No applications linked to this resume.</p>
+                  <Link
+                    href={`/applications/new?version=${versionId}`}
+                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary transition-opacity hover:opacity-90"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                    New application
+                  </Link>
+                </div>
               ) : (
                 <div className="space-y-md">
+                  <Link
+                    href={`/applications/new?version=${versionId}`}
+                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary transition-opacity hover:opacity-90"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                    New application
+                  </Link>
                   {apps.map((app) => (
                     <Link
                       key={app.id}
