@@ -712,6 +712,7 @@ export function createDrawerStyles(): string {
       align-items: center;
       justify-content: space-between;
       gap: 10px;
+      margin-top: 12px;
       padding: 10px 12px;
       background: var(--apted-surface-container-lowest);
       border: 1px solid var(--apted-outline-variant);
@@ -736,6 +737,7 @@ export function createDrawerStyles(): string {
 
     .apted-current-draft-card--preview-open + #apted-preview-block {
       margin-top: -12px;
+      margin-bottom: 12px;
       border-top-left-radius: 0;
       border-top-right-radius: 0;
     }
