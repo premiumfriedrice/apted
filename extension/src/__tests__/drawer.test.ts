@@ -279,17 +279,18 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("similar-section");
   });
 
-  it("swaps Matching/All Resumes via a header toggle in one section", () => {
+  it("swaps Matching/All Resumes via a right-side 'View more' toggle in one section", () => {
     const html = createDrawerHTML();
     expect(html).toContain("apted-section-view-toggle");
-    expect(html).toContain("apted-section-toggle-icon");
+    expect(html).toContain("apted-section-view-toggle-label");
     expect(html).toContain("apted-section-title-text");
     expect(html).toContain("apted-matching-view");
     expect(html).toContain("apted-all-resumes-view");
     expect(html).toContain("apted-all-resumes-search");
     expect(html).toContain("apted-all-resumes-list");
     expect(html).toContain("apted-all-resumes-refresh");
-    // The expand/collapse button + standalone section are gone.
+    // The leading icon toggle + standalone section are gone.
+    expect(html).not.toContain("apted-section-toggle-icon");
     expect(html).not.toContain("apted-view-all-resumes");
     expect(html).not.toContain("apted-all-resumes-section");
   });

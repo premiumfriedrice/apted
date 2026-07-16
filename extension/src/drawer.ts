@@ -864,27 +864,19 @@ export function createDrawerStyles(): string {
     }
 
     /* ── Resumes section view-swap (Matching Ã¢Â· All) ──────────────────── */
-    // The section title's leading icon is also the toggle/back button. Tap
-    // it to swap between the top-3 matches view and the full past-resumes
-    // browser; the icon flips to a back arrow in the All Resumes view.
-    .apted-section-toggle-btn {
+    // Right-side toggle button in the section title. "View more" in the
+    // matching view (chevron down), "Back" in the all view (chevron flips up).
+    .apted-section-view-toggle {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      padding: 0;
-      border: none;
-      background: transparent;
-      color: var(--apted-on-surface-variant);
-      cursor: pointer;
-      border-radius: 6px;
+      gap: 4px;
       flex-shrink: 0;
-      transition: background 0.15s, color 0.15s;
     }
-    .apted-section-toggle-btn:hover {
-      color: var(--apted-on-surface);
-      background: var(--apted-surface-container-low);
+    .apted-section-view-toggle svg {
+      transition: transform 0.15s ease;
+    }
+    .apted-section-view-toggle--open svg {
+      transform: rotate(180deg);
     }
     .apted-section-title-text {
       font-size: 14px;
@@ -1261,18 +1253,14 @@ export function createDrawerHTML(): string {
 
           <section id="apted-similar-section" class="apted-drawer-section" hidden>
             <h2 class="apted-section-title">
-              <button id="apted-section-view-toggle" class="apted-section-toggle-btn" type="button" title="View all resumes" aria-label="View all resumes" hidden>
-                <svg id="apted-section-toggle-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
-              </button>
               <span id="apted-section-title-text" class="apted-section-title-text">Matching Resumes</span>
               <div class="apted-spacer"></div>
+              <button id="apted-section-view-toggle" class="apted-btn apted-btn--sm apted-section-view-toggle" type="button" title="View all past resumes" hidden>
+                <span class="apted-section-view-toggle-label">View more</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
             </h2>
             <div id="apted-matching-view" class="apted-resume-view">
               <div id="apted-similar-list" class="apted-similar-list"></div>
@@ -1592,7 +1580,6 @@ export function createInitialState(): DrawerState {
     matchingView: $<HTMLElement>("apted-matching-view"),
     allResumesView: $<HTMLElement>("apted-all-resumes-view"),
     sectionViewToggle: $<HTMLButtonElement>("apted-section-view-toggle"),
-    sectionToggleIcon: $<SVGElement>("apted-section-toggle-icon"),
     sectionTitleText: $<HTMLElement>("apted-section-title-text"),
     allResumesList: $<HTMLElement>("apted-all-resumes-list"),
     allResumesSearch: $<HTMLInputElement>("apted-all-resumes-search"),
@@ -1777,9 +1764,6 @@ export function createInitialState(): DrawerState {
   // The section header's leading icon is the toggle: a list icon in the
   // matching view ("View all resumes") that flips to a back arrow in the all
   // view ("Back to matching resumes"), with the title text swapping too.
-  const TOGGLE_ICON_LIST = `<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>`;
-  const TOGGLE_ICON_BACK = `<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>`;
-
   function updateSectionVisibility(): void {
     const hasContent =
       !!state.similarResumes.length || !!state.draft || !!state.allResumes.length;
@@ -1793,19 +1777,23 @@ export function createInitialState(): DrawerState {
       (!state.allResumesView && state.allResumesLoaded && state.allResumes.length === 0);
   }
 
-  // Swap which view is mounted. Also updates the header title + toggle icon.
+  // Swap which view is mounted. Also updates the header title + right-side
+  // toggle button (label flips between "View more" and "Back", chevron
+  // rotates to point up when the All Resumes view is open).
   function setResumesView(view: "matching" | "all"): void {
     state.allResumesView = view === "all";
     els.matchingView.hidden = state.allResumesView;
     els.allResumesView.hidden = !state.allResumesView;
     els.sectionTitleText.textContent = state.allResumesView ? "All Resumes" : "Matching Resumes";
-    els.sectionToggleIcon.innerHTML = state.allResumesView ? TOGGLE_ICON_BACK : TOGGLE_ICON_LIST;
-    els.sectionViewToggle.title = state.allResumesView ? "Back to matching resumes" : "View all resumes";
-    els.sectionViewToggle.setAttribute("aria-label", state.allResumesView ? "Back to matching resumes" : "View all resumes");
+    const label = els.sectionViewToggle.querySelector(".apted-section-view-toggle-label");
+    if (label instanceof HTMLElement) {
+      label.textContent = state.allResumesView ? "Back" : "View more";
+    }
+    els.sectionViewToggle.title = state.allResumesView ? "Back to matching resumes" : "View all past resumes";
+    els.sectionViewToggle.setAttribute("aria-label", state.allResumesView ? "Back to matching resumes" : "View all past resumes");
+    els.sectionViewToggle.classList.toggle("apted-section-view-toggle--open", state.allResumesView);
     updateSectionVisibility();
     if (state.allResumesView) {
-      // Focusing the search is nice but can steal focus from the JD field on
-      // load; leave it.
       if (!state.allResumesLoaded && !state.allResumesLoading) {
         void loadAllResumes(true);
       } else {
