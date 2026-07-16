@@ -863,7 +863,47 @@ export function createDrawerStyles(): string {
       color: var(--apted-on-surface);
     }
 
-    /* ── All Resumes browser ───────────────────────────────────────────── */
+    /* ── All Resumes browser (expandable under Matching Resumes) ──────── */
+    .apted-view-all-btn {
+      gap: 6px;
+      color: var(--apted-on-surface-variant);
+      border-color: transparent;
+      background: transparent;
+    }
+    .apted-view-all-btn:hover {
+      background: var(--apted-surface-container-low);
+      color: var(--apted-on-surface);
+    }
+    .apted-view-all-btn svg {
+      transition: transform 0.15s ease;
+    }
+    .apted-view-all-btn--open svg {
+      transform: rotate(180deg);
+    }
+    .apted-all-resumes-expanded {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 4px;
+    }
+    .apted-all-resumes-expanded[hidden] {
+      display: none;
+    }
+    .apted-all-resumes-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .apted-all-resumes-toolbar .apted-input {
+      flex: 1;
+      margin: 0;
+    }
+    .apted-all-resumes-toolbar .apted-btn--sm {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+    }
     .apted-all-resumes-search {
       font-size: 12px;
       padding: 6px 10px;
@@ -1241,27 +1281,25 @@ export function createDrawerHTML(): string {
               </span>
               <span class="apted-card-black-text">Tailor new draft</span>
             </button>
-          </section>
-
-          <section id="apted-all-resumes-section" class="apted-drawer-section" hidden>
-            <h2 class="apted-section-title">
-              <span class="apted-section-title-main">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                All Resumes
-              </span>
-              <div class="apted-spacer"></div>
-              <button id="apted-all-resumes-refresh" class="apted-btn apted-btn--sm" type="button" title="Refresh">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <polyline points="1 20 1 14 7 14"></polyline>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                </svg>
-              </button>
-            </h2>
-            <input id="apted-all-resumes-search" class="apted-input apted-all-resumes-search" type="search" placeholder="Search company or role…" autocomplete="off" />
-            <div id="apted-all-resumes-list" class="apted-similar-list apted-all-resumes-list"></div>
+            <button id="apted-view-all-resumes" type="button" class="apted-btn apted-btn--sm apted-btn--full apted-view-all-btn" hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <span class="apted-view-all-label">View all resumes</span>
+            </button>
+            <div id="apted-all-resumes-expanded" class="apted-all-resumes-expanded" hidden>
+              <div class="apted-all-resumes-toolbar">
+                <input id="apted-all-resumes-search" class="apted-input apted-all-resumes-search" type="search" placeholder="Search company or role…" autocomplete="off" />
+                <button id="apted-all-resumes-refresh" class="apted-btn apted-btn--sm" type="button" title="Refresh">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                  </svg>
+                </button>
+              </div>
+              <div id="apted-all-resumes-list" class="apted-similar-list apted-all-resumes-list"></div>
+            </div>
           </section>
 
           <div id="apted-preview-holder" hidden></div>
@@ -1410,6 +1448,7 @@ export type DrawerState = {
   allResumes: VersionListItem[];
   allResumesLoaded: boolean;
   allResumesLoading: boolean;
+  allResumesExpanded: boolean;
 };
 
 export function createInitialState(): DrawerState {
@@ -1432,6 +1471,7 @@ export function createInitialState(): DrawerState {
     allResumes: [],
     allResumesLoaded: false,
     allResumesLoading: false,
+    allResumesExpanded: false,
   };
 }
 
@@ -1535,7 +1575,8 @@ export function createInitialState(): DrawerState {
 
     similarSection: $<HTMLElement>("apted-similar-section"),
     similarList: $<HTMLElement>("apted-similar-list"),
-    allResumesSection: $<HTMLElement>("apted-all-resumes-section"),
+    viewAllResumes: $<HTMLButtonElement>("apted-view-all-resumes"),
+    allResumesExpanded: $<HTMLElement>("apted-all-resumes-expanded"),
     allResumesList: $<HTMLElement>("apted-all-resumes-list"),
     allResumesSearch: $<HTMLInputElement>("apted-all-resumes-search"),
     allResumesRefresh: $<HTMLButtonElement>("apted-all-resumes-refresh"),
@@ -1702,19 +1743,29 @@ export function createInitialState(): DrawerState {
     card.classList.add(state.selectedVersionId ? "apted-similar-item--preview-open" : "apted-current-draft-card--preview-open");
   }
 
+  // The combined Matching Resumes section is visible when there are JD-
+  // matched resumes, a current draft, OR any saved past resumes to browse.
+  function updateSectionVisibility(): void {
+    const hasContent =
+      !!state.similarResumes.length || !!state.draft || !!state.allResumes.length;
+    els.similarSection.hidden = !hasContent;
+    // The "View all resumes" toggle only makes sense once we know there are
+    // past resumes to show. Hidden until the library has loaded.
+    els.viewAllResumes.hidden = !state.allResumes.length;
+  }
+
   function renderSimilarResumes(similar: SimilarResume[]): void {
-    const hasContent = !!similar?.length || !!state.draft;
-    if (!hasContent) {
-      els.similarSection.hidden = true;
-      return;
-    }
-    els.similarSection.hidden = false;
+    state.similarResumes = similar;
+    updateSectionVisibility();
+    if (els.similarSection.hidden) return;
     renderCurrentDraftCard();
     // Park the preview block so re-rendering the list doesn't destroy it.
     els.previewHolder.appendChild(els.previewBlock);
     if (!similar?.length) {
       els.similarList.innerHTML = "";
       placePreview();
+      // The expanded list may still have content (past resumes only).
+      renderAllResumes();
       return;
     }
     els.similarList.innerHTML = similar
@@ -1745,26 +1796,34 @@ export function createInitialState(): DrawerState {
       })
       .join("");
     placePreview();
+    renderAllResumes();
   }
 
-  // ── All Resumes browser ────────────────────────────────────────────────────
-  // Renders the full version library, filtered by the search input. Items
-  // reuse the .apted-similar-item card style so setActiveCard/placePreview
-  // (which query the shadow root) also handle selections made from here.
+  // ── All Resumes browser (expanded under Matching Resumes) ─────────────────
+  // Renders the full version library below the matched top-3, filtered by the
+  // search input. Items reuse the .apted-similar-item card style so
+  // setActiveCard/placePreview (which query the shadow root) also handle
+  // selections made from here. The matched top-3 IDs are excluded so a resume
+  // never appears twice in the section at once.
   function renderAllResumes(): void {
+    updateSectionVisibility();
+    if (!state.allResumes.length) {
+      els.allResumesList.innerHTML = "";
+      return;
+    }
+
+    const matchedIds = new Set(
+      state.similarResumes.slice(0, 3).map((s) => s.id).filter(Boolean) as string[],
+    );
     const q = els.allResumesSearch.value.trim().toLowerCase();
     const items = state.allResumes.filter((v) => {
+      if (matchedIds.has(v.id)) return false;
       if (!q) return true;
       const hay = `${v.company ?? ""} ${v.role ?? ""} ${v.name ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
 
-    if (!state.allResumes.length) {
-      els.allResumesSection.hidden = true;
-      els.allResumesList.innerHTML = "";
-      return;
-    }
-    els.allResumesSection.hidden = false;
+    // Park the preview block so re-rendering the list doesn't destroy it.
     els.previewHolder.appendChild(els.previewBlock);
 
     if (!items.length) {
@@ -1793,6 +1852,27 @@ export function createInitialState(): DrawerState {
     placePreview();
   }
 
+  function updateViewAllToggle(): void {
+    const open = state.allResumesExpanded;
+    els.allResumesExpanded.hidden = !open;
+    els.viewAllResumes.classList.toggle("apted-view-all-btn--open", open);
+    const label = els.viewAllResumes.querySelector(".apted-view-all-label");
+    if (label instanceof HTMLElement) label.textContent = open ? "Show less" : "View all resumes";
+  }
+
+  // Toggle the expanded past-resumes browser. Lazy-loads the version library
+  // on first expand rather than on every drawer open, since GET /api/versions
+  // ships a base64 PDF per row.
+  async function toggleAllResumes(): Promise<void> {
+    state.allResumesExpanded = !state.allResumesExpanded;
+    updateViewAllToggle();
+    if (state.allResumesExpanded && !state.allResumesLoaded) {
+      await loadAllResumes(true);
+    } else {
+      renderAllResumes();
+    }
+  }
+
   async function loadAllResumes(force = false): Promise<void> {
     if (state.allResumesLoading) return;
     if (!force && state.allResumesLoaded) {
@@ -1805,6 +1885,7 @@ export function createInitialState(): DrawerState {
       state.allResumes = list;
       state.allResumesLoaded = true;
       renderAllResumes();
+      updateViewAllToggle();
     } catch (e) {
       setStatus("Couldn't load resumes: " + errMsg(e), "error");
     } finally {
@@ -1995,9 +2076,6 @@ export function createInitialState(): DrawerState {
     }
     showUnreadDot(false);
     void chrome.storage.local.set({ [`aptedDrawerOpen:${location.hostname}`]: true });
-    // Lazy-load the version library on first open so the All Resumes browser
-    // is populated without paying the round-trip on every page load.
-    void loadAllResumes();
   }
 
   function closeDrawer(): void {
@@ -2511,6 +2589,7 @@ export function createInitialState(): DrawerState {
   });
   els.allResumesSearch.addEventListener("input", () => renderAllResumes());
   els.allResumesRefresh.addEventListener("click", () => void loadAllResumes(true));
+  els.viewAllResumes.addEventListener("click", () => void toggleAllResumes());
   // Prevent wheel events from the preview iframe from bubbling to the main page
   els.preview.addEventListener("wheel", (e) => {
     e.stopPropagation();

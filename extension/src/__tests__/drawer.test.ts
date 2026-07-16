@@ -279,12 +279,16 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("similar-section");
   });
 
-  it("includes All Resumes browser section with search and list", () => {
+  it("folds the All Resumes browser into the Matching Resumes section", () => {
     const html = createDrawerHTML();
-    expect(html).toContain("apted-all-resumes-section");
+    expect(html).toContain("apted-view-all-resumes");
+    expect(html).toContain("apted-all-resumes-expanded");
     expect(html).toContain("apted-all-resumes-search");
     expect(html).toContain("apted-all-resumes-list");
     expect(html).toContain("apted-all-resumes-refresh");
+    // The standalone All Resumes section is gone — everything lives under the
+    // matching section now.
+    expect(html).not.toContain("id=\"apted-all-resumes-section\"");
   });
 
   it("preview body is natively resizable like the textarea", () => {
@@ -376,17 +380,19 @@ describe("DrawerState", () => {
       "allResumes",
       "allResumesLoaded",
       "allResumesLoading",
+      "allResumesExpanded",
     ];
     for (const key of requiredKeys) {
       expect(key in state).toBe(true);
     }
   });
 
-  it("all-resumes browser state starts empty and unloaded", () => {
+  it("all-resumes browser state starts collapsed and unloaded", () => {
     const state = createInitialState();
     expect(state.allResumes).toEqual([]);
     expect(state.allResumesLoaded).toBe(false);
     expect(state.allResumesLoading).toBe(false);
+    expect(state.allResumesExpanded).toBe(false);
   });
 });
 
