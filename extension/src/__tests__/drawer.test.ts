@@ -279,16 +279,19 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("similar-section");
   });
 
-  it("folds the All Resumes browser into the Matching Resumes section", () => {
+  it("swaps Matching/All Resumes via a header toggle in one section", () => {
     const html = createDrawerHTML();
-    expect(html).toContain("apted-view-all-resumes");
-    expect(html).toContain("apted-all-resumes-expanded");
+    expect(html).toContain("apted-section-view-toggle");
+    expect(html).toContain("apted-section-toggle-icon");
+    expect(html).toContain("apted-section-title-text");
+    expect(html).toContain("apted-matching-view");
+    expect(html).toContain("apted-all-resumes-view");
     expect(html).toContain("apted-all-resumes-search");
     expect(html).toContain("apted-all-resumes-list");
     expect(html).toContain("apted-all-resumes-refresh");
-    // The standalone All Resumes section is gone — everything lives under the
-    // matching section now.
-    expect(html).not.toContain("id=\"apted-all-resumes-section\"");
+    // The expand/collapse button + standalone section are gone.
+    expect(html).not.toContain("apted-view-all-resumes");
+    expect(html).not.toContain("apted-all-resumes-section");
   });
 
   it("preview body is natively resizable like the textarea", () => {
@@ -380,19 +383,19 @@ describe("DrawerState", () => {
       "allResumes",
       "allResumesLoaded",
       "allResumesLoading",
-      "allResumesExpanded",
+      "allResumesView",
     ];
     for (const key of requiredKeys) {
       expect(key in state).toBe(true);
     }
   });
 
-  it("all-resumes browser state starts collapsed and unloaded", () => {
+  it("all-resumes browser state starts in the matching view and unloaded", () => {
     const state = createInitialState();
     expect(state.allResumes).toEqual([]);
     expect(state.allResumesLoaded).toBe(false);
     expect(state.allResumesLoading).toBe(false);
-    expect(state.allResumesExpanded).toBe(false);
+    expect(state.allResumesView).toBe(false);
   });
 });
 

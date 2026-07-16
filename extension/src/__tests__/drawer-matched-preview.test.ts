@@ -164,7 +164,7 @@ describe("matched resume preview (integration)", () => {
     expect(matchedCard.nextElementSibling).toBe(previewBlock);
   }, 10000);
 
-  it("still shows the preview under the matched card after expanding View all resumes", async () => {
+  it("swaps to the All Resumes view via the header toggle and previews an all-resumes card", async () => {
     const sr = shadowRoot();
     const similarList = sr.getElementById("apted-similar-list")!;
     await waitFor(
@@ -172,48 +172,20 @@ describe("matched resume preview (integration)", () => {
       1500,
     );
 
-    // Expand the All Resumes browser (loads + renders the version library).
-    const viewAll = sr.getElementById("apted-view-all-resumes") as HTMLButtonElement;
-    await waitFor(() => !viewAll.hidden, 1500);
-    viewAll.dispatchEvent(new Event("click", { bubbles: true }));
-    // Wait for the past-resumes list to populate (v3 only; v1 is excluded as a match).
-    const allList = sr.getElementById("apted-all-resumes-list")!;
-    await waitFor(
-      () => !!allList.querySelector('.apted-similar-item[data-version-id="v3"]'),
-      1500,
-    );
+    // The header toggle becomes visible once the library has loaded and has
+    // past resumes. Click it to swap to the All Resumes view.
+    const toggle = sr.getElementById("apted-section-view-toggle") as HTMLButtonElement;
+    await waitFor(() => !toggle.hidden, 1500);
+    toggle.dispatchEvent(new Event("click", { bubbles: true }));
 
-    // Click the OTHER matched resume (v2) so it isn't already selected from
-    // a prior test (drawer state persists across tests in this module).
-    const matchedCard = similarList.querySelector(
-      '.apted-similar-item[data-version-id="v2"]',
-    ) as HTMLElement;
-    matchedCard.dispatchEvent(new Event("click", { bubbles: true }));
+    // View swapped: matching view hidden, all-resumes view shown, title + icon flipped.
+    const matchingView = sr.getElementById("apted-matching-view") as HTMLElement;
+    const allResumesView = sr.getElementById("apted-all-resumes-view") as HTMLElement;
+    await waitFor(() => !allResumesView.hidden, 1500);
+    expect(matchingView.hidden).toBe(true);
+    expect(sr.getElementById("apted-section-title-text")!.textContent).toBe("All Resumes");
 
-    // Wait for the clicked card's preview-open class (the preview block may
-    // already be visible under a previously-selected card, so visibility alone
-    // isn't a reliable signal here).
-    await waitFor(
-      () => matchedCard.classList.contains("apted-similar-item--preview-open"),
-      1500,
-    );
-    const previewBlock = sr.getElementById("apted-preview-block")!;
-    expect(previewBlock.hidden).toBe(false);
-    expect(matchedCard.classList.contains("apted-similar-item--preview-open")).toBe(true);
-    expect(matchedCard.nextElementSibling).toBe(previewBlock);
-  }, 10000);
-
-  it("shows the preview under a clicked All-Resumes card", async () => {
-    const sr = shadowRoot();
-    const similarList = sr.getElementById("apted-similar-list")!;
-    await waitFor(
-      () => !!similarList.querySelector('.apted-similar-item[data-version-id="v1"]'),
-      1500,
-    );
-
-    const viewAll = sr.getElementById("apted-view-all-resumes") as HTMLButtonElement;
-    await waitFor(() => !viewAll.hidden, 1500);
-    viewAll.dispatchEvent(new Event("click", { bubbles: true }));
+    // Past-resumes list populates (v3 only; v1 is excluded as a match).
     const allList = sr.getElementById("apted-all-resumes-list")!;
     await waitFor(
       () => !!allList.querySelector('.apted-similar-item[data-version-id="v3"]'),
@@ -231,7 +203,38 @@ describe("matched resume preview (integration)", () => {
     );
     const previewBlock = sr.getElementById("apted-preview-block")!;
     expect(previewBlock.hidden).toBe(false);
-    expect(allCard.classList.contains("apted-similar-item--preview-open")).toBe(true);
     expect(allCard.nextElementSibling).toBe(previewBlock);
+  }, 10000);
+
+  it("toggle swaps views both ways and back", async () => {
+    const sr = shadowRoot();
+    const similarList = sr.getElementById("apted-similar-list")!;
+    await waitFor(
+      () => !!similarList.querySelector('.apted-similar-item[data-version-id="v1"]'),
+      1500,
+    );
+
+    const toggle = sr.getElementById("apted-section-view-toggle") as HTMLButtonElement;
+    await waitFor(() => !toggle.hidden, 1500);
+    const title = () => sr.getElementById("apted-section-title-text")!.textContent;
+
+    // Record the starting view (tests share module state, so it may be either).
+    const startTitle = title();
+    const otherTitle = startTitle === "All Resumes" ? "Matching Resumes" : "All Resumes";
+
+    // Click 1: swap to the other view.
+    toggle.dispatchEvent(new Event("click", { bubbles: true }));
+    await waitFor(() => title() === otherTitle, 1500);
+    if (otherTitle === "All Resumes") {
+      expect(sr.getElementById("apted-matching-view")!.hidden).toBe(true);
+      expect(sr.getElementById("apted-all-resumes-view")!.hidden).toBe(false);
+    } else {
+      expect(sr.getElementById("apted-matching-view")!.hidden).toBe(false);
+      expect(sr.getElementById("apted-all-resumes-view")!.hidden).toBe(true);
+    }
+
+    // Click 2: back to the starting view.
+    toggle.dispatchEvent(new Event("click", { bubbles: true }));
+    await waitFor(() => title() === startTitle, 1500);
   }, 10000);
 });
