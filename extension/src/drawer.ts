@@ -1749,9 +1749,12 @@ export function createInitialState(): DrawerState {
     const hasContent =
       !!state.similarResumes.length || !!state.draft || !!state.allResumes.length;
     els.similarSection.hidden = !hasContent;
-    // The "View all resumes" toggle only makes sense once we know there are
-    // past resumes to show. Hidden until the library has loaded.
-    els.viewAllResumes.hidden = !state.allResumes.length;
+    // Show the "View all resumes" toggle as soon as the section is visible;
+    // only hide it once a load has confirmed there are no past resumes. This
+    // avoids a chicken-and-egg where the toggle (which triggers the load) is
+    // hidden until the data it fetches is present.
+    els.viewAllResumes.hidden =
+      els.similarSection.hidden || (state.allResumesLoaded && state.allResumes.length === 0);
   }
 
   function renderSimilarResumes(similar: SimilarResume[]): void {
@@ -2076,6 +2079,10 @@ export function createInitialState(): DrawerState {
     }
     showUnreadDot(false);
     void chrome.storage.local.set({ [`aptedDrawerOpen:${location.hostname}`]: true });
+    // Load the version library on open so past resumes populate the section
+    // (and the "View all resumes" toggle) on every page, including ones with
+    // no JD matches. Idempotent â skips the round-trip if already loaded.
+    void loadAllResumes();
   }
 
   function closeDrawer(): void {
