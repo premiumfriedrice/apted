@@ -279,6 +279,14 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("similar-section");
   });
 
+  it("includes All Resumes browser section with search and list", () => {
+    const html = createDrawerHTML();
+    expect(html).toContain("apted-all-resumes-section");
+    expect(html).toContain("apted-all-resumes-search");
+    expect(html).toContain("apted-all-resumes-list");
+    expect(html).toContain("apted-all-resumes-refresh");
+  });
+
   it("preview body is natively resizable like the textarea", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-preview-body");
@@ -365,10 +373,20 @@ describe("DrawerState", () => {
       "open",
       "company",
       "role",
+      "allResumes",
+      "allResumesLoaded",
+      "allResumesLoading",
     ];
     for (const key of requiredKeys) {
       expect(key in state).toBe(true);
     }
+  });
+
+  it("all-resumes browser state starts empty and unloaded", () => {
+    const state = createInitialState();
+    expect(state.allResumes).toEqual([]);
+    expect(state.allResumesLoaded).toBe(false);
+    expect(state.allResumesLoading).toBe(false);
   });
 });
 
@@ -447,6 +465,25 @@ describe("message sending format", () => {
   it("open-drawer message has correct shape", () => {
     const msg = { type: "open-drawer" as const };
     expect(msg.type).toBe("open-drawer");
+  });
+
+  it("list-versions message has correct shape", () => {
+    const msg = { type: "list-versions" as const };
+    expect(msg.type).toBe("list-versions");
+  });
+
+  it("auto-save-application message has correct shape", () => {
+    const msg = {
+      type: "auto-save-application" as const,
+      company: "Acme",
+      role: "Engineer",
+      jobDescription: "JD text",
+      portalUrl: "https://careers.acme.com/jobs/123",
+      tailoredContent: { contact: { name: "Test" }, sections: [] },
+    };
+    expect(msg.type).toBe("auto-save-application");
+    expect(msg.portalUrl).toBe("https://careers.acme.com/jobs/123");
+    expect(msg.tailoredContent).toEqual({ contact: { name: "Test" }, sections: [] });
   });
 });
 

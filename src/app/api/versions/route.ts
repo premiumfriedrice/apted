@@ -95,6 +95,7 @@ export async function POST(req: Request) {
       role?: string;
       jobDescription?: string;
       outcome?: string;
+      portalUrl?: string;
       interviewRound?: unknown;
       rejectedAfterRound?: unknown;
     };
@@ -150,9 +151,13 @@ export async function POST(req: Request) {
   const versionRow = version.rows[0];
 
   if (application?.company && application?.role) {
+    const portalUrl =
+      typeof application.portalUrl === "string" && application.portalUrl.trim()
+        ? application.portalUrl.trim()
+        : null;
     await pool.query(
-      `INSERT INTO applications (version_id, company, role, job_description, outcome, interview_round, rejected_after_round)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO applications (version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         versionRow.id,
         application.company,
@@ -161,6 +166,7 @@ export async function POST(req: Request) {
         oc,
         oc === "interviewing" ? interviewRound : null,
         oc === "rejected" ? rejectedAfterRound : null,
+        portalUrl,
       ],
     );
   }

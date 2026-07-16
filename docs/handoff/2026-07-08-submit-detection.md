@@ -5,6 +5,57 @@
 **Linear**: PRE-83
 **Date**: 2026-07-08
 
+## Status
+
+All three features implemented and tests green (2026-07-15). Needs live
+manual QA against real job sites before merge.
+
+- **Auto-detect submission** â done. Drawer listens for host-page form `submit`
+  events, submit-button clicks, and confirmation-page navigations
+  (`pushState`/`replaceState`/`popstate` patched). On detection, if a draft
+  exists, sends `auto-save-application` â `POST /api/versions` with an embedded
+  `application` (outcome `applied`, `portalUrl = location.href`). De-duped per
+  draft via `chrome.storage.session` (`aptedSavedDrafts`, 10-min TTL) so the
+  submitâconfirmation navigation never creates two records.
+- **Session persistence** â done. `newTailor()` in both drawer and sidepanel no
+  longer calls `clearSession()`; it keeps JD/company/role (and similar matches
+  in the drawer) and rewrites the session with `draftId: null`.
+- **Browse all resumes** â done. New `list-versions` message â `GET
+  /api/versions`, mapped via `mapVersionList` (in `extension/src/version-list.ts`).
+  Drawer renders an "All Resumes" section (searchable) below Matching Resumes,
+  lazy-loaded on first drawer open, with a refresh button. Selecting a card
+  loads it as the current draft (reuses `get-version`) and shares the single
+  preview block with the matching list via shadow-root-scoped card lookup.
+
+Bug fixed along the way: the extension's `save-version` background handler was
+sending company/role/outcome at the top level, which `POST /api/versions`
+ignores (it reads them from an `application` sub-object) â so manual saves
+never created an `applications` row. Now wrapped in `application: { â¦ }`.
+
+`POST /api/versions` and `POST /api/versions/[id]/applications` now accept
+`portalUrl` (PRE-85's `portal_url` column).
+
+### Verification
+
+```
+Web:  npx vitest run            â 14 files, 167 passed (1 skipped)
+Ext:  cd extension && npx vitest run â 6 files, 131 passed
+Web:  npx tsc --noEmit          â clean
+Ext:  cd extension && npm run build â clean
+Ext:  cd extension && npx tsc --noEmit â 1 pre-existing error in
+      src/__tests__/background.test.ts(27,22) (identical on main; unrelated
+      to this work â the extension tsc gate isn't part of the run command)
+```
+
+### Remaining (manual QA)
+
+- Submit a real application on Greenhouse / Lever / Workday / Ashby / LinkedIn
+  with a tailored draft in the drawer and confirm exactly one
+  `applications` row (outcome `applied`, correct `portal_url`) is created.
+- Open the drawer on the same job URL, tailor, click âTailor new draftâ
+  path / clear, and confirm JD + matches persist.
+- Open the All Resumes browser, search, click a version, confirm it loads.
+
 ## What to Build
 
 Three features for the Chrome extension drawer:

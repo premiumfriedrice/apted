@@ -5,7 +5,8 @@ import { getSettings } from "./storage";
 import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, prefetchVersionPdf, suggestPdfFilename } from "./pdf";
 import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
 import type { Msg, Reply } from "./messages";
-import type { Draft, Outcome, ScrapedJob, SimilarResume, Version } from "./types";
+import type { Draft, Outcome, ScrapedJob, SimilarResume, Version, VersionListItem } from "./types";
+import { isConfirmationUrl, isSubmitButtonLabel } from "./submit-detection";
 
 export const DRAWSER_WIDTH = 384;
 export const HANDLE_SIZE = 48;
@@ -862,6 +863,51 @@ export function createDrawerStyles(): string {
       color: var(--apted-on-surface);
     }
 
+    /* ── All Resumes browser ───────────────────────────────────────────── */
+    .apted-all-resumes-search {
+      font-size: 12px;
+      padding: 6px 10px;
+      margin: 0;
+    }
+
+    .apted-all-resumes-list {
+      max-height: 240px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .apted-all-resumes-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .apted-all-resumes-list::-webkit-scrollbar-thumb {
+      background: var(--apted-outline-variant);
+      border-radius: 2px;
+    }
+    .apted-all-resumes-empty {
+      font-size: 12px;
+      color: var(--apted-on-surface-variant);
+      padding: 4px 2px;
+    }
+    .apted-outcome-badge {
+      flex-shrink: 0;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      line-height: 1.3;
+      background: var(--apted-surface-container-high);
+      color: var(--apted-on-surface-variant);
+    }
+    .apted-outcome-badge--applied { background: #e6f0ff; color: #1a4fa0; }
+    .apted-outcome-badge--interviewing { background: #fff3e0; color: #9a5300; }
+    .apted-outcome-badge--offer { background: #e6f7ec; color: #15633c; }
+    .apted-outcome-badge--rejected { background: #fdecea; color: #b3261e; }
+    .apted-outcome-badge--ghosted { background: #f3f4f5; color: #434655; }
+    .apted-outcome-badge--declined { background: #f3f4f5; color: #434655; }
+    .apted-outcome-badge--draft { background: #f3f4f5; color: #434655; }
+
     /* ── Footer: Chat input ───────────────────────────────────────────── */
     .apted-drawer-footer {
       flex-shrink: 0;
@@ -1197,6 +1243,27 @@ export function createDrawerHTML(): string {
             </button>
           </section>
 
+          <section id="apted-all-resumes-section" class="apted-drawer-section" hidden>
+            <h2 class="apted-section-title">
+              <span class="apted-section-title-main">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                All Resumes
+              </span>
+              <div class="apted-spacer"></div>
+              <button id="apted-all-resumes-refresh" class="apted-btn apted-btn--sm" type="button" title="Refresh">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+              </button>
+            </h2>
+            <input id="apted-all-resumes-search" class="apted-input apted-all-resumes-search" type="search" placeholder="Search company or role…" autocomplete="off" />
+            <div id="apted-all-resumes-list" class="apted-similar-list apted-all-resumes-list"></div>
+          </section>
+
           <div id="apted-preview-holder" hidden></div>
           <div id="apted-preview-block" hidden>
             <div class="apted-preview-actions">
@@ -1340,6 +1407,9 @@ export type DrawerState = {
   previewOpen: boolean;
   selectedVersionId: string | null;
   previewVersionId: string | null;
+  allResumes: VersionListItem[];
+  allResumesLoaded: boolean;
+  allResumesLoading: boolean;
 };
 
 export function createInitialState(): DrawerState {
@@ -1359,6 +1429,9 @@ export function createInitialState(): DrawerState {
     previewVersionId: null,
     tailoring: false,
     open: false,
+    allResumes: [],
+    allResumesLoaded: false,
+    allResumesLoading: false,
   };
 }
 
@@ -1462,6 +1535,10 @@ export function createInitialState(): DrawerState {
 
     similarSection: $<HTMLElement>("apted-similar-section"),
     similarList: $<HTMLElement>("apted-similar-list"),
+    allResumesSection: $<HTMLElement>("apted-all-resumes-section"),
+    allResumesList: $<HTMLElement>("apted-all-resumes-list"),
+    allResumesSearch: $<HTMLInputElement>("apted-all-resumes-search"),
+    allResumesRefresh: $<HTMLButtonElement>("apted-all-resumes-refresh"),
     currentDraftCard: $<HTMLElement>("apted-current-draft-card"),
     currentDraftCompany: $<HTMLElement>("apted-current-draft-company"),
     currentDraftRole: $<HTMLElement>("apted-current-draft-role"),
@@ -1584,14 +1661,15 @@ export function createInitialState(): DrawerState {
   }
 
   function setActiveCard(): void {
-    els.similarList.querySelectorAll(".apted-similar-item--active").forEach((el) => el.classList.remove("apted-similar-item--active"));
-    els.similarList.querySelectorAll(".apted-similar-item--preview-open").forEach((el) => el.classList.remove("apted-similar-item--preview-open"));
+    // Clear active/preview-open across BOTH the matching list and the
+    // All-Resumes list, since a version card can live in either.
+    shadow.querySelectorAll(".apted-similar-item--active").forEach((el) => el.classList.remove("apted-similar-item--active"));
+    shadow.querySelectorAll(".apted-similar-item--preview-open").forEach((el) => el.classList.remove("apted-similar-item--preview-open"));
     els.currentDraftCard.classList.remove("apted-current-draft-card--active", "apted-current-draft-card--preview-open");
     if (state.selectedVersionId) {
-      const card = els.similarList.querySelector(
+      shadow.querySelector(
         `.apted-similar-item[data-version-id="${CSS.escape(state.selectedVersionId)}"]`,
-      );
-      card?.classList.add("apted-similar-item--active");
+      )?.classList.add("apted-similar-item--active");
     } else if (state.draft) {
       els.currentDraftCard.classList.add("apted-current-draft-card--active");
     }
@@ -1607,7 +1685,7 @@ export function createInitialState(): DrawerState {
     }
     let card: HTMLElement | null = null;
     if (state.selectedVersionId) {
-      card = els.similarList.querySelector(
+      card = shadow.querySelector(
         `.apted-similar-item[data-version-id="${CSS.escape(state.selectedVersionId)}"]`,
       );
     }
@@ -1667,7 +1745,73 @@ export function createInitialState(): DrawerState {
       })
       .join("");
     placePreview();
-  }  function withPdfToolbarSuppressed(url: string): string {
+  }
+
+  // ── All Resumes browser ────────────────────────────────────────────────────
+  // Renders the full version library, filtered by the search input. Items
+  // reuse the .apted-similar-item card style so setActiveCard/placePreview
+  // (which query the shadow root) also handle selections made from here.
+  function renderAllResumes(): void {
+    const q = els.allResumesSearch.value.trim().toLowerCase();
+    const items = state.allResumes.filter((v) => {
+      if (!q) return true;
+      const hay = `${v.company ?? ""} ${v.role ?? ""} ${v.name ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+
+    if (!state.allResumes.length) {
+      els.allResumesSection.hidden = true;
+      els.allResumesList.innerHTML = "";
+      return;
+    }
+    els.allResumesSection.hidden = false;
+    els.previewHolder.appendChild(els.previewBlock);
+
+    if (!items.length) {
+      els.allResumesList.innerHTML = `<div class="apted-all-resumes-empty">No matches.</div>`;
+      placePreview();
+      return;
+    }
+
+    els.allResumesList.innerHTML = items
+      .map((v) => {
+        const role = v.role?.trim() || v.name?.trim() || "Untitled role";
+        const company = v.company?.trim() || "No company";
+        const activeClass = state.selectedVersionId === v.id ? " apted-similar-item--active" : "";
+        const outcome = v.outcome ?? "draft";
+        return `
+        <div class="apted-similar-item${activeClass}" data-version-id="${escHtml(v.id)}">
+          <div class="apted-similar-main">
+            <span class="apted-similar-role">${escHtml(role)}</span>
+            <span class="apted-similar-org">${escHtml(company)}</span>
+            <span class="apted-similar-when">${escHtml(relativeTime(v.createdAt))}</span>
+          </div>
+          <span class="apted-outcome-badge apted-outcome-badge--${escHtml(outcome)}">${escHtml(outcome)}</span>
+        </div>`;
+      })
+      .join("");
+    placePreview();
+  }
+
+  async function loadAllResumes(force = false): Promise<void> {
+    if (state.allResumesLoading) return;
+    if (!force && state.allResumesLoaded) {
+      renderAllResumes();
+      return;
+    }
+    state.allResumesLoading = true;
+    try {
+      const list = (await send({ type: "list-versions" })) as VersionListItem[];
+      state.allResumes = list;
+      state.allResumesLoaded = true;
+      renderAllResumes();
+    } catch (e) {
+      setStatus("Couldn't load resumes: " + errMsg(e), "error");
+    } finally {
+      state.allResumesLoading = false;
+    }
+  }
+  function withPdfToolbarSuppressed(url: string): string {
     if (!url) return url;
     const sep = url.includes("#") ? "&" : "#";
     return url + sep + "toolbar=0&navpanes=0";
@@ -1705,6 +1849,72 @@ export function createInitialState(): DrawerState {
 
   function errMsg(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
+  }
+
+  // ── Submit detection (PRE-83) ─────────────────────────────────────────────
+  // When the user submits a job application on the host page, save the current
+  // draft as a version + an "applied" application stamped with the portal URL.
+  // De-duped per draft across the submit→confirmation-page navigation via
+  // chrome.storage.session so a single submission never creates two records.
+  const SAVED_DRAFTS_KEY = "aptedSavedDrafts";
+  const SAVED_DRAFT_TTL_MS = 10 * 60 * 1000;
+  let saveInProgress = false;
+
+  // isConfirmationUrl / isSubmitButtonLabel imported from ./submit-detection
+  // so the heuristics can be unit-tested independently of the drawer.
+
+  async function isDraftSaved(draftId: string): Promise<boolean> {
+    try {
+      const data = await chrome.storage.session.get(SAVED_DRAFTS_KEY);
+      const map = (data[SAVED_DRAFTS_KEY] ?? {}) as Record<string, number>;
+      const ts = map[draftId];
+      return typeof ts === "number" && Date.now() - ts < SAVED_DRAFT_TTL_MS;
+    } catch {
+      return false;
+    }
+  }
+
+  async function markDraftSaved(draftId: string): Promise<void> {
+    try {
+      const data = await chrome.storage.session.get(SAVED_DRAFTS_KEY);
+      const map = (data[SAVED_DRAFTS_KEY] ?? {}) as Record<string, number>;
+      map[draftId] = Date.now();
+      await chrome.storage.session.set({ [SAVED_DRAFTS_KEY]: map });
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  async function autoSaveApplication(): Promise<void> {
+    if (saveInProgress) return;
+    const draft = state.draft;
+    if (!draft) return; // user isn't using apted for this application
+    if (await isDraftSaved(draft.id)) return; // already saved this submission
+    saveInProgress = true;
+    setStatus("Saving application…");
+    try {
+      await send({
+        type: "auto-save-application",
+        company: els.jdCompany.value.trim() || "Unknown company",
+        role: els.jdRole.value.trim() || "Unknown role",
+        jobDescription: draft.jobDescription || els.jdText.value,
+        portalUrl: location.href,
+        tailoredContent: draft.content,
+      });
+      await markDraftSaved(draft.id);
+      setStatus("Application saved ✓", "ok");
+      // The new version should appear in the All Resumes browser.
+      state.allResumesLoaded = false;
+      void loadAllResumes(true);
+    } catch (e) {
+      setStatus("Couldn't save application: " + errMsg(e), "error");
+    } finally {
+      saveInProgress = false;
+    }
+  }
+
+  function maybeAutoSaveFromNavigation(): void {
+    if (isConfirmationUrl(location.href)) void autoSaveApplication();
   }
 
   function setDraft(draft: Draft | null): void {
@@ -1785,6 +1995,9 @@ export function createInitialState(): DrawerState {
     }
     showUnreadDot(false);
     void chrome.storage.local.set({ [`aptedDrawerOpen:${location.hostname}`]: true });
+    // Lazy-load the version library on first open so the All Resumes browser
+    // is populated without paying the round-trip on every page load.
+    void loadAllResumes();
   }
 
   function closeDrawer(): void {
@@ -2058,27 +2271,34 @@ export function createInitialState(): DrawerState {
     }
   }
 
+  // Start a fresh tailor for the SAME job page. Unlike the old behavior, we
+  // keep the JD/company/role and similar-resume matches so the user can
+  // re-tailor without re-scraping. Only the tailored draft + chat are cleared,
+  // and the session is rewritten (not wiped) so it survives reloads on the
+  // same URL.
   async function newTailor(): Promise<void> {
-    if (state.draft || state.chat.length > 0 || els.jdText.value) {
-      if (!window.confirm("Discard the current draft and start a new tailor?")) return;
-    }
     state.restoring = true;
     try {
-      els.jdText.value = "";
-      els.jdCompany.value = "";
-      els.jdRole.value = "";
-      state.jobDescription = "";
-      state.company = "";
-      state.role = "";
       state.chat = [];
-      state.similarResumes = [];
+      state.selectedVersionId = null;
+      state.previewOpen = false;
       setDraft(null);
       invalidatePdf();
       els.previewEmbed.src = "";
       showPreviewState("empty");
-      els.similarSection.hidden = true;
-      await clearSession();
-      setStatus("New tailor.", "ok");
+      // Re-show the similar section against the preserved matches so the
+      // user can immediately pick up where they left off.
+      renderSimilarResumes(state.similarResumes);
+      await writeSession({
+        url: location.href,
+        jd: els.jdText.value,
+        company: els.jdCompany.value,
+        role: els.jdRole.value,
+        draftId: null,
+        chat: state.chat,
+        similarResumes: state.similarResumes,
+      });
+      setStatus("Cleared draft. JD kept — click Tailor to start again.", "ok");
     } finally {
       state.restoring = false;
     }
@@ -2248,13 +2468,10 @@ export function createInitialState(): DrawerState {
     showSaveDialog();
   });
   // Click a similar resume card to load it as the current draft and expand its preview.
-  els.similarList.addEventListener("click", async (e) => {
-    const target = e.target as HTMLElement;
-    const item = target.closest(".apted-similar-item") as HTMLElement | null;
-    if (!item) return;
-    const versionId = item.dataset.versionId;
-    if (!versionId) return;
-
+  // Shared click handler for a version card. Used by both the Matching
+  // Resumes list and the All Resumes browser so the selection/preview
+  // behaviour stays identical across the two surfaces.
+  async function handleVersionCardClick(versionId: string): Promise<void> {
     // Click card body: select it and open preview; click again to collapse while staying selected.
     if (state.selectedVersionId === versionId) {
       state.previewOpen = !state.previewOpen;
@@ -2274,7 +2491,26 @@ export function createInitialState(): DrawerState {
     } catch (err) {
       setStatus(errMsg(err), "error");
     }
+  }
+
+  els.similarList.addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    const item = target.closest(".apted-similar-item") as HTMLElement | null;
+    if (!item) return;
+    const versionId = item.dataset.versionId;
+    if (!versionId) return;
+    await handleVersionCardClick(versionId);
   });
+  els.allResumesList.addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    const item = target.closest(".apted-similar-item") as HTMLElement | null;
+    if (!item) return;
+    const versionId = item.dataset.versionId;
+    if (!versionId) return;
+    await handleVersionCardClick(versionId);
+  });
+  els.allResumesSearch.addEventListener("input", () => renderAllResumes());
+  els.allResumesRefresh.addEventListener("click", () => void loadAllResumes(true));
   // Prevent wheel events from the preview iframe from bubbling to the main page
   els.preview.addEventListener("wheel", (e) => {
     e.stopPropagation();
@@ -2329,6 +2565,65 @@ export function createInitialState(): DrawerState {
     });
   } catch {
     // chrome.runtime not available (main world injection) — DOM event above handles it.
+  }
+
+  // ── Submit detection listeners (PRE-83) ─────────────────────────────────
+  // Listen on the HOST page (capture phase, document-level). Events from the
+  // drawer's own shadow-DOM forms are retargeted to `host` at document level,
+  // so we skip anything that originates inside the apted host to avoid
+  // self-triggering on our own chat/save forms.
+  document.addEventListener(
+    "submit",
+    (e) => {
+      if (host.contains(e.target as Node)) return;
+      void autoSaveApplication();
+    },
+    { capture: true },
+  );
+  // Fallback for JS-driven submissions that don't fire a real submit event:
+  // clicks on submit-type buttons or buttons whose label says "submit".
+  document.addEventListener(
+    "click",
+    (e) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || host.contains(t)) return;
+      const btn = t.closest("button, input[type='submit'], [role='button']") as
+        | HTMLButtonElement
+        | HTMLInputElement
+        | HTMLElement
+        | null;
+      if (!btn) return;
+      const typeAttr = (btn as HTMLButtonElement).type;
+      const label = (btn.textContent || "").trim().toLowerCase();
+      if (typeAttr === "submit" || isSubmitButtonLabel(label)) {
+        void autoSaveApplication();
+      }
+    },
+    { capture: true },
+  );
+  // Confirmation-page detection covers SPA navigations and popstate. The
+  // MutationObserver catches history.pushState-driven URL changes that don't
+  // fire popstate.
+  let lastObservedUrl = location.href;
+  const checkUrlChange = () => {
+    if (location.href !== lastObservedUrl) {
+      lastObservedUrl = location.href;
+      maybeAutoSaveFromNavigation();
+    }
+  };
+  window.addEventListener("popstate", checkUrlChange);
+  window.addEventListener("hashchange", checkUrlChange);
+  // Patch history methods so SPA pushState/replaceState also trigger a check.
+  for (const method of ["pushState", "replaceState"] as const) {
+    const original = history[method] as (...args: unknown[]) => void;
+    try {
+      history[method] = function (this: History, ...args: unknown[]): void {
+        original.apply(this, args);
+        checkUrlChange();
+      };
+    } catch {
+      /* history not patchable */
+    }
   }
 
   const attach = () => {
