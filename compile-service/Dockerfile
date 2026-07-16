@@ -2,14 +2,14 @@
 # binary release. We use Debian slim so Tectonic's expected glibc/openssl are
 # present and the resulting image still runs fine on Fargate, ECS, plain
 # Docker, or as a Lambda container image (paired with aws-lambda-web-adapter).
-FROM node:20-bookworm-slim
+FROM node:22-trixie-slim
 
 ARG TECTONIC_VERSION=0.16.9
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates curl xz-utils libfontconfig1 libgraphite2-3 libharfbuzz0b libicu72 libssl3 \
+      ca-certificates curl xz-utils libfontconfig1 libgraphite2-3 libharfbuzz0b libssl3 \
  && rm -rf /var/lib/apt/lists/*
 
 # Pull the prebuilt Tectonic release. Tectonic fetches the rest of the TeXLive
