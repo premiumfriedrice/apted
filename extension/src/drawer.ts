@@ -241,6 +241,7 @@ export function createDrawerStyles(): string {
 
     /* ── Scrollable body / card shell (matches master contact card) ───── */
     .apted-drawer-body {
+      position: relative;
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
@@ -1118,6 +1119,86 @@ export function createDrawerStyles(): string {
       display: none;
     }
 
+    /* ── Auto-save toast (overlays the drawer body top) ──────────────── */
+    .apted-save-toast {
+      position: sticky;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      margin: -16px -16px 12px;
+      background: var(--apted-success);
+      color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+    .apted-save-toast[hidden] {
+      display: none;
+    }
+    .apted-save-toast--visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .apted-save-toast--error {
+      background: var(--apted-error);
+      cursor: default;
+    }
+    .apted-save-toast--error .apted-save-toast-view {
+      display: none;
+    }
+    .apted-save-toast-icon {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      color: #fff;
+    }
+    .apted-save-toast-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      gap: 2px;
+    }
+    .apted-save-toast-headline {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .apted-save-toast-sub {
+      font-size: 11px;
+      line-height: 1.2;
+      opacity: 0.85;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .apted-save-toast .apted-save-toast-view {
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      border-color: transparent;
+      padding: 4px 10px;
+    }
+    .apted-save-toast .apted-save-toast-view:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
     /* ── Fullscreen overlay ───────────────────────────────────────────── */
     .apted-fullscreen-overlay {
       position: fixed;
@@ -1200,6 +1281,19 @@ export function createDrawerHTML(): string {
       </div>
 
       <div id="apted-drawer-body" class="apted-drawer-body">
+        <div id="apted-save-toast" class="apted-save-toast" hidden role="status" aria-live="polite">
+          <div class="apted-save-toast-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <div class="apted-save-toast-main">
+            <span id="apted-save-toast-headline" class="apted-save-toast-headline">Application saved</span>
+            <span id="apted-save-toast-sub" class="apted-save-toast-sub"></span>
+          </div>
+          <button id="apted-save-toast-view" class="apted-btn apted-btn--sm" type="button">View</button>
+        </div>
         <section class="apted-drawer-section">
             <h2 class="apted-section-title">
               <span class="apted-section-title-main">
@@ -1557,6 +1651,10 @@ export function createInitialState(): DrawerState {
     fullscreenOverlay: $<HTMLElement>("apted-fullscreen-overlay"),
     fullscreenEmbed: $<HTMLIFrameElement>("apted-fullscreen-embed"),
     drawerBody: $<HTMLElement>("apted-drawer-body"),
+    saveToast: $<HTMLElement>("apted-save-toast"),
+    saveToastHeadline: $<HTMLElement>("apted-save-toast-headline"),
+    saveToastSub: $<HTMLElement>("apted-save-toast-sub"),
+    saveToastView: $<HTMLButtonElement>("apted-save-toast-view"),
     previewBlock: $<HTMLElement>("apted-preview-block"),
     previewHolder: $<HTMLElement>("apted-preview-holder"),
     preview: $<HTMLElement>("apted-preview"),
@@ -1998,6 +2096,47 @@ export function createInitialState(): DrawerState {
     }
   }
 
+  // Auto-save success/failure toast. Auto-opens the drawer (if closed), shows
+  // a toast at the top of the drawer body, auto-dismisses after 4s. Clicking
+  // it (or its View button) jumps to the All Resumes view.
+  let saveToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function hideSaveToast(): void {
+    if (saveToastTimer !== null) {
+      clearTimeout(saveToastTimer);
+      saveToastTimer = null;
+    }
+    els.saveToast.classList.remove("apted-save-toast--visible", "apted-save-toast--error");
+    els.saveToast.hidden = true;
+  }
+
+  function showSaveToast(opts: { ok: true; company: string; role: string } | { ok: false; error: string }): void {
+    if (saveToastTimer !== null) clearTimeout(saveToastTimer);
+    // Open the drawer so the toast is visible even if the user closed it.
+    if (!state.open) openDrawer();
+    if (opts.ok) {
+      els.saveToast.classList.remove("apted-save-toast--error");
+      els.saveToastHeadline.textContent = "Application saved ✓";
+      // Show company Â· role, truncated by CSS if long.
+      const sub = [opts.company, opts.role].filter(Boolean).join(" Â· ");
+      els.saveToastSub.textContent = sub;
+      els.saveToastView.hidden = false;
+    } else {
+      els.saveToast.classList.add("apted-save-toast--error");
+      els.saveToastHeadline.textContent = "Couldn't save application";
+      els.saveToastSub.textContent = opts.error;
+      els.saveToastView.hidden = true;
+    }
+    // Show + animate in next tick so the transition fires.
+    els.saveToast.hidden = false;
+    requestAnimationFrame(() => {
+      els.saveToast.classList.add("apted-save-toast--visible");
+    });
+    saveToastTimer = setTimeout(() => {
+      hideSaveToast();
+    }, 4000);
+  }
+
   async function autoSaveApplication(): Promise<void> {
     if (saveInProgress) return;
     const draft = state.draft;
@@ -2005,22 +2144,27 @@ export function createInitialState(): DrawerState {
     if (await isDraftSaved(draft.id)) return; // already saved this submission
     saveInProgress = true;
     setStatus("Saving application…");
+    const company = els.jdCompany.value.trim() || "Unknown company";
+    const role = els.jdRole.value.trim() || "Unknown role";
     try {
       await send({
         type: "auto-save-application",
-        company: els.jdCompany.value.trim() || "Unknown company",
-        role: els.jdRole.value.trim() || "Unknown role",
+        company,
+        role,
         jobDescription: draft.jobDescription || els.jdText.value,
         portalUrl: location.href,
         tailoredContent: draft.content,
       });
       await markDraftSaved(draft.id);
       setStatus("Application saved ✓", "ok");
+      showSaveToast({ ok: true, company, role });
       // The new version should appear in the All Resumes browser.
       state.allResumesLoaded = false;
       void loadAllResumes(true);
     } catch (e) {
-      setStatus("Couldn't save application: " + errMsg(e), "error");
+      const msg = errMsg(e);
+      setStatus("Couldn't save application: " + msg, "error");
+      showSaveToast({ ok: false, error: msg });
     } finally {
       saveInProgress = false;
     }
@@ -2626,6 +2770,13 @@ export function createInitialState(): DrawerState {
   els.allResumesSearch.addEventListener("input", () => renderAllResumes());
   els.allResumesRefresh.addEventListener("click", () => void loadAllResumes(true));
   els.sectionViewToggle.addEventListener("click", () => void toggleResumesView());
+  // Toast: clicking anywhere on it (or its View button) opens the All Resumes
+  // view so the user sees the freshly-saved application, then dismisses.
+  els.saveToast.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setResumesView("all");
+    hideSaveToast();
+  });
   // Prevent wheel events from the preview iframe from bubbling to the main page
   els.preview.addEventListener("wheel", (e) => {
     e.stopPropagation();

@@ -495,6 +495,17 @@ describe("message sending format", () => {
     expect(msg.portalUrl).toBe("https://careers.acme.com/jobs/123");
     expect(msg.tailoredContent).toEqual({ contact: { name: "Test" }, sections: [] });
   });
+
+  it("includes the auto-save toast element with expected parts", () => {
+    const html = createDrawerHTML();
+    expect(html).toContain("id=\"apted-save-toast\"");
+    expect(html).toContain("id=\"apted-save-toast-headline\"");
+    expect(html).toContain("id=\"apted-save-toast-sub\"");
+    expect(html).toContain("id=\"apted-save-toast-view\"");
+    const css = createDrawerStyles();
+    expect(css).toContain("apted-save-toast--visible");
+    expect(css).toContain("apted-save-toast--error");
+  });
 });
 
 // ── Handle show/hide/pulse logic (PRE-68) ───────────────────────────────────

@@ -29,14 +29,35 @@ describe("isSubmitButtonLabel", () => {
     expect(isSubmitButtonLabel("  submit application  ")).toBe(true);
   });
 
-  it("does not match bare apply labels to avoid false positives", () => {
-    expect(isSubmitButtonLabel("Easy Apply")).toBe(false);
-    expect(isSubmitButtonLabel("Apply Now")).toBe(false);
-    expect(isSubmitButtonLabel("Apply")).toBe(false);
+  it("matches bare apply/apply now (Easy Apply tradeoff accepted)", () => {
+    expect(isSubmitButtonLabel("Apply")).toBe(true);
+    expect(isSubmitButtonLabel("Apply Now")).toBe(true);
+    expect(isSubmitButtonLabel("Easy Apply")).toBe(true);
+  });
+
+  it("matches send-application labels", () => {
+    expect(isSubmitButtonLabel("Send Application")).toBe(true);
+    expect(isSubmitButtonLabel("Send application")).toBe(true);
+    expect(isSubmitButtonLabel("Send")).toBe(true);
+  });
+
+  it("does not match confirm-style mid-funnel buttons", () => {
+    expect(isSubmitButtonLabel("Confirm review")).toBe(false);
+    expect(isSubmitButtonLabel("Confirm")).toBe(false);
+    expect(isSubmitButtonLabel("Continue")).toBe(false);
+    expect(isSubmitButtonLabel("Next")).toBe(false);
+    expect(isSubmitButtonLabel("Review")).toBe(false);
   });
 
   it("is case-insensitive", () => {
     expect(isSubmitButtonLabel("SUBMIT")).toBe(true);
+    expect(isSubmitButtonLabel("Apply")).toBe(true);
+    expect(isSubmitButtonLabel("SEND APPLICATION")).toBe(true);
     expect(isSubmitButtonLabel("Submit application")).toBe(true);
+  });
+
+  it("ignores empty/whitespace labels", () => {
+    expect(isSubmitButtonLabel("")).toBe(false);
+    expect(isSubmitButtonLabel("   ")).toBe(false);
   });
 });
