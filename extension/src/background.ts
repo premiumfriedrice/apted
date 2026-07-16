@@ -378,6 +378,17 @@ async function handle(msg: Msg): Promise<unknown> {
       return mapVersionList(data);
     }
 
+    case "get-version": {
+      // Load a saved version as the current draft. The /use endpoint creates a
+      // fresh draft row from the version's tailoredContent + JD each call, so
+      // the drawer gets a canonical Draft it can edit / fetch a PDF for.
+      const data = await apiFetch<Draft>(
+        `/api/versions/${encodeURIComponent(msg.versionId)}/use`,
+        { method: "POST" },
+      );
+      return data;
+    }
+
     case "fill-nearest-input":
       // The drawer/sidepanel can't fill file inputs directly. We inject a small
       // script into the active tab that creates a File from the base64 PDF
