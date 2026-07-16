@@ -1762,8 +1762,12 @@ export function createInitialState(): DrawerState {
     updateSectionVisibility();
     if (els.similarSection.hidden) return;
     renderCurrentDraftCard();
-    // Park the preview block so re-rendering the list doesn't destroy it.
-    els.previewHolder.appendChild(els.previewBlock);
+    // Park the preview block ONLY if it's inside the similar list (which
+    // is about to be wiped). If it's elsewhere (under an all-resumes card,
+    // in the holder), leave it — moving an iframe forces it to reload.
+    if (els.similarList.contains(els.previewBlock)) {
+      els.previewHolder.appendChild(els.previewBlock);
+    }
     if (!similar?.length) {
       els.similarList.innerHTML = "";
       placePreview();
@@ -1826,8 +1830,13 @@ export function createInitialState(): DrawerState {
       return hay.includes(q);
     });
 
-    // Park the preview block so re-rendering the list doesn't destroy it.
-    els.previewHolder.appendChild(els.previewBlock);
+    // Park the preview block ONLY if it's currently inside the all-resumes
+    // list (which is about to be wiped by innerHTML). If it's elsewhere
+    // (under a matched card, in the holder), leave it alone — moving an
+    // iframe in the DOM forces it to reload and kills the PDF preview.
+    if (els.allResumesList.contains(els.previewBlock)) {
+      els.previewHolder.appendChild(els.previewBlock);
+    }
 
     if (!items.length) {
       els.allResumesList.innerHTML = `<div class="apted-all-resumes-empty">No matches.</div>`;
