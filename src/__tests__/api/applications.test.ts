@@ -92,6 +92,29 @@ describe("POST /api/versions/[id]/applications", () => {
     const res = await POST(req, { params: Promise.resolve({ id: "v1" }) });
     expect(res.status).toBe(400);
   });
+
+  it("persists portalUrl when provided", async () => {
+    const row = { ...fakeApplication, portal_url: "https://careers.acme.com/123" };
+    mockQuery.mockResolvedValueOnce({ rows: [row] });
+
+    const req = new Request("http://localhost/api/versions/v1/applications", {
+      method: "POST",
+      body: JSON.stringify({
+        company: "Acme",
+        role: "Engineer",
+        jobDescription: "Build things",
+        outcome: "applied",
+        portalUrl: "https://careers.acme.com/123",
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "v1" }) });
+    expect(res.status).toBe(200);
+
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("portal_url");
+    expect(params).toContain("https://careers.acme.com/123");
+  });
 });
 
 describe("GET /api/applications/[id]", () => {

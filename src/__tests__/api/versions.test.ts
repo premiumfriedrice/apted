@@ -199,6 +199,64 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
 
     expect(body.applications[0].outcome).toBe("draft");
   });
+
+  it("stores portalUrl on the application when provided", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow({ applications: [] })] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
+
+    const { POST } = await loadVersionsRoute();
+    const req = new Request("http://localhost/api/versions", {
+      method: "POST",
+      body: JSON.stringify({
+        tailoredContent: { contact: { name: "Alice" }, sections: [] },
+        application: {
+          company: "Acme Corp",
+          role: "Staff Engineer",
+          jobDescription: "Build things",
+          outcome: "applied",
+          portalUrl: "https://careers.acme.com/jobs/123",
+        },
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    // The application INSERT (3rd query) should include the portal_url column
+    // and pass the trimmed URL as the final parameter.
+    const appInsertCall = mockQuery.mock.calls[2];
+    expect(appInsertCall[0]).toContain("portal_url");
+    expect(appInsertCall[1]).toContain("https://careers.acme.com/jobs/123");
+  });
+
+  it("stores null portalUrl when the application omits it", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow({ applications: [] })] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
+
+    const { POST } = await loadVersionsRoute();
+    const req = new Request("http://localhost/api/versions", {
+      method: "POST",
+      body: JSON.stringify({
+        tailoredContent: { contact: { name: "Alice" }, sections: [] },
+        application: {
+          company: "Acme Corp",
+          role: "Staff Engineer",
+          jobDescription: "Build things",
+          outcome: "applied",
+        },
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    const appInsertCall = mockQuery.mock.calls[2];
+    expect(appInsertCall[0]).toContain("portal_url");
+    // final param is null when portalUrl omitted
+    expect(appInsertCall[1][appInsertCall[1].length - 1]).toBeNull();
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

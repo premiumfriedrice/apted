@@ -521,16 +521,12 @@ async function restoreFromSession(): Promise<boolean> {
   }
 }
 
+// Start a fresh tailor for the SAME job. Keep the JD/company/role so the
+// user can re-tailor without re-scraping; clear only the draft + chat. The
+// session is rewritten (not wiped) so it survives reloads on the same URL.
 async function newTailor(): Promise<void> {
-  if (state.draft || state.chat.length > 0 || els.jdText.value) {
-    if (!window.confirm("Discard the current draft and start a new tailor?")) return;
-  }
   state.restoring = true;
   try {
-    els.jdText.value = "";
-    els.jdCompany.value = "";
-    els.jdRole.value = "";
-    state.jobDescription = "";
     state.chat = [];
     els.chatLog.innerHTML = "";
     setDraft(null);
@@ -538,8 +534,15 @@ async function newTailor(): Promise<void> {
     els.previewEmbed.src = "";
     showPreviewState("empty");
     els.similarSection.hidden = true;
-    await clearSession();
-    setStatus("New tailor.", "ok");
+    await writeSession({
+      url: location.href,
+      jd: els.jdText.value,
+      company: els.jdCompany.value,
+      role: els.jdRole.value,
+      draftId: null,
+      chat: state.chat,
+    });
+    setStatus("Cleared draft. JD kept — click Tailor to start again.", "ok");
   } finally {
     state.restoring = false;
   }

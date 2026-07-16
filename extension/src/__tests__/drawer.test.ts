@@ -279,6 +279,22 @@ describe("createDrawerHTML", () => {
     expect(html).toContain("similar-section");
   });
 
+  it("swaps Matching/All Resumes via a right-side 'View more' toggle in one section", () => {
+    const html = createDrawerHTML();
+    expect(html).toContain("apted-section-view-toggle");
+    expect(html).toContain("apted-section-view-toggle-label");
+    expect(html).toContain("apted-section-title-text");
+    expect(html).toContain("apted-matching-view");
+    expect(html).toContain("apted-all-resumes-view");
+    expect(html).toContain("apted-all-resumes-search");
+    expect(html).toContain("apted-all-resumes-list");
+    expect(html).toContain("apted-all-resumes-refresh");
+    // The leading icon toggle + standalone section are gone.
+    expect(html).not.toContain("apted-section-toggle-icon");
+    expect(html).not.toContain("apted-view-all-resumes");
+    expect(html).not.toContain("apted-all-resumes-section");
+  });
+
   it("preview body is natively resizable like the textarea", () => {
     const css = createDrawerStyles();
     expect(css).toContain(".apted-preview-body");
@@ -365,10 +381,22 @@ describe("DrawerState", () => {
       "open",
       "company",
       "role",
+      "allResumes",
+      "allResumesLoaded",
+      "allResumesLoading",
+      "allResumesView",
     ];
     for (const key of requiredKeys) {
       expect(key in state).toBe(true);
     }
+  });
+
+  it("all-resumes browser state starts in the matching view and unloaded", () => {
+    const state = createInitialState();
+    expect(state.allResumes).toEqual([]);
+    expect(state.allResumesLoaded).toBe(false);
+    expect(state.allResumesLoading).toBe(false);
+    expect(state.allResumesView).toBe(false);
   });
 });
 
@@ -447,6 +475,36 @@ describe("message sending format", () => {
   it("open-drawer message has correct shape", () => {
     const msg = { type: "open-drawer" as const };
     expect(msg.type).toBe("open-drawer");
+  });
+
+  it("list-versions message has correct shape", () => {
+    const msg = { type: "list-versions" as const };
+    expect(msg.type).toBe("list-versions");
+  });
+
+  it("auto-save-application message has correct shape", () => {
+    const msg = {
+      type: "auto-save-application" as const,
+      company: "Acme",
+      role: "Engineer",
+      jobDescription: "JD text",
+      portalUrl: "https://careers.acme.com/jobs/123",
+      tailoredContent: { contact: { name: "Test" }, sections: [] },
+    };
+    expect(msg.type).toBe("auto-save-application");
+    expect(msg.portalUrl).toBe("https://careers.acme.com/jobs/123");
+    expect(msg.tailoredContent).toEqual({ contact: { name: "Test" }, sections: [] });
+  });
+
+  it("includes the auto-save toast element with expected parts", () => {
+    const html = createDrawerHTML();
+    expect(html).toContain("id=\"apted-save-toast\"");
+    expect(html).toContain("id=\"apted-save-toast-headline\"");
+    expect(html).toContain("id=\"apted-save-toast-sub\"");
+    expect(html).toContain("id=\"apted-save-toast-view\"");
+    const css = createDrawerStyles();
+    expect(css).toContain("apted-save-toast--visible");
+    expect(css).toContain("apted-save-toast--error");
   });
 });
 
