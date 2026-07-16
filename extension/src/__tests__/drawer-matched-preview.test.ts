@@ -204,9 +204,8 @@ describe("matched resume preview (integration)", () => {
     const previewBlock = sr.getElementById("apted-preview-block")!;
     expect(previewBlock.hidden).toBe(false);
     expect(allCard.classList.contains("apted-similar-item--preview-open")).toBe(true);
-    // The preview is placed AFTER the all-resumes list (outside the 240px
-    // scroll container) so it isn't clipped.
-    expect(allList.nextElementSibling).toBe(previewBlock);
+    // The preview drops down directly under its clicked card (inline).
+    expect(allCard.nextElementSibling).toBe(previewBlock);
   }, 10000);
 
   it("toggle swaps views both ways and back", async () => {

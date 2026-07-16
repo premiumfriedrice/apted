@@ -914,18 +914,8 @@ export function createDrawerStyles(): string {
       margin: 0;
     }
 
-    .apted-all-resumes-list {
-      max-height: 240px;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-    .apted-all-resumes-list::-webkit-scrollbar {
-      width: 4px;
-    }
-    .apted-all-resumes-list::-webkit-scrollbar-thumb {
-      background: var(--apted-outline-variant);
-      border-radius: 2px;
-    }
+    // The All Resumes list grows inline so previews can drop down from each
+    // card (same as the matching list); the drawer body handles scrolling.
     .apted-all-resumes-empty {
       font-size: 12px;
       color: var(--apted-on-surface-variant);
@@ -1750,15 +1740,9 @@ export function createInitialState(): DrawerState {
       els.previewBlock.hidden = true;
       return;
     }
-    // If the card lives inside the All Resumes list, place the preview block
-    // as a sibling AFTER that list (not inside it). The all-resumes list has
-    // max-height:240px + overflow-y:auto, so a preview inserted inside it
-    // would be clipped. Placing after the list renders the full-size preview
-    // below the scrollable list while the clicked card keeps its active state.
-    const clippedList = card === els.currentDraftCard ? null : card.closest(".apted-all-resumes-list");
-    const anchor: HTMLElement = clippedList ? (clippedList as HTMLElement) : card;
-    if (els.previewBlock.parentElement !== anchor.parentElement || els.previewBlock.previousElementSibling !== anchor) {
-      anchor.insertAdjacentElement("afterend", els.previewBlock);
+    // Avoid reparenting (and reloading the iframe) if already in place.
+    if (els.previewBlock.parentElement !== card.parentElement || els.previewBlock.previousElementSibling !== card) {
+      card.insertAdjacentElement("afterend", els.previewBlock);
     }
     els.previewBlock.hidden = false;
     card.classList.add(state.selectedVersionId ? "apted-similar-item--preview-open" : "apted-current-draft-card--preview-open");
