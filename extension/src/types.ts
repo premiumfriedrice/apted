@@ -89,6 +89,18 @@ export type Version = {
   createdAt: string;
 };
 
+// Lightweight row used by the drawer's "All Resumes" browser. company/role/
+// outcome are derived from the version's most recent application (if any);
+// name is the version's human-readable label as a fallback.
+export type VersionListItem = {
+  id: string;
+  name: string | null;
+  company: string | null;
+  role: string | null;
+  outcome: Outcome | null;
+  createdAt: string;
+};
+
 export type ScrapedJob = {
   url: string;
   title: string;

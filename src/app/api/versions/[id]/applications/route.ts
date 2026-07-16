@@ -34,11 +34,12 @@ export async function GET(_req: Request, { params }: Ctx) {
 export async function POST(req: Request, { params }: Ctx) {
   const { id } = await params;
   const body = await req.json();
-  const { company, role, jobDescription, outcome, interviewRound, rejectedAfterRound } = body as {
+  const { company, role, jobDescription, outcome, portalUrl, interviewRound, rejectedAfterRound } = body as {
     company?: string;
     role?: string;
     jobDescription?: string;
     outcome?: string;
+    portalUrl?: string;
     interviewRound?: unknown;
     rejectedAfterRound?: unknown;
   };
@@ -53,10 +54,12 @@ export async function POST(req: Request, { params }: Ctx) {
   const oc = outcome && isOutcome(outcome) ? outcome : "draft";
   const round = parseInterviewRound(interviewRound);
   const rejectedRound = parseRejectedAfterRound(rejectedAfterRound);
+  const cleanPortalUrl =
+    typeof portalUrl === "string" && portalUrl.trim() ? portalUrl.trim() : null;
 
   const r = await pool.query(
-    `INSERT INTO applications (version_id, company, role, job_description, outcome, interview_round, rejected_after_round)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO applications (version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at`,
     [
       id,
@@ -66,6 +69,7 @@ export async function POST(req: Request, { params }: Ctx) {
       oc,
       oc === "interviewing" ? round : null,
       oc === "rejected" ? rejectedRound : null,
+      cleanPortalUrl,
     ],
   );
   return NextResponse.json(rowToJson(r.rows[0]));

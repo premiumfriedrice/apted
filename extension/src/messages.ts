@@ -1,4 +1,4 @@
-import type { Draft, Outcome, Resume, ScrapedJob, SimilarResume, Version } from "./types";
+import type { Draft, Outcome, Resume, ScrapedJob, SimilarResume, Version, VersionListItem } from "./types";
 
 export type ExtractedFields = {
   title: string;
@@ -22,6 +22,14 @@ export type Msg =
       tailoredContent: Resume;
       outcome: Outcome;
     }
+  | {
+      type: "auto-save-application";
+      company: string;
+      role: string;
+      jobDescription: string;
+      portalUrl: string;
+      tailoredContent: Resume;
+    }
   | { type: "open-window" }
   | { type: "fetch-pdf"; draftId: string; ifNoneMatch?: string }
   | { type: "get-draft"; draftId: string }
@@ -29,6 +37,7 @@ export type Msg =
   | { type: "find-similar"; jobDescription: string }
   | { type: "fetch-version-pdf"; versionId: string }
   | { type: "get-version"; versionId: string }
+  | { type: "list-versions" }
   | { type: "open-drawer" }
   | { type: "open-options" };
 
@@ -54,6 +63,8 @@ export type MsgResultMap = {
   "find-similar": { similar: SimilarResume[] };
   "fetch-version-pdf": { base64: string | null; mime: "application/pdf" };
   "get-version": Draft;
+  "list-versions": VersionListItem[];
+  "auto-save-application": Version;
   "open-drawer": { ok: true };
 };
 

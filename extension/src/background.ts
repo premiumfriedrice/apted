@@ -2,6 +2,7 @@ import { scrapeJob } from "./scrapers";
 import { getSettings } from "./storage";
 import type { FetchPdfResult, Msg } from "./messages";
 import type { Draft, ScrapedJob, SimilarResume, Version } from "./types";
+import { mapVersionList, type ApiVersionRow } from "./version-list";
 
 // Toolbar action UX is configurable from the options page:
 //   - "popup":  anchored toolbar popover (manifest default_popup). Works in
@@ -316,11 +317,31 @@ async function handle(msg: Msg): Promise<unknown> {
       return apiFetch<Version>("/api/versions", {
         method: "POST",
         json: {
-          company: msg.company,
-          role: msg.role,
-          jobDescription: msg.jobDescription,
           tailoredContent: msg.tailoredContent,
-          outcome: msg.outcome,
+          application: {
+            company: msg.company,
+            role: msg.role,
+            jobDescription: msg.jobDescription,
+            outcome: msg.outcome,
+          },
+        },
+      });
+
+    case "auto-save-application":
+      // Save the current draft as a new version AND create an application for
+      // it in one atomic POST, marking the outcome as "applied" and stamping
+      // the portal URL the user submitted from.
+      return apiFetch<Version>("/api/versions", {
+        method: "POST",
+        json: {
+          tailoredContent: msg.tailoredContent,
+          application: {
+            company: msg.company,
+            role: msg.role,
+            jobDescription: msg.jobDescription,
+            outcome: "applied",
+            portalUrl: msg.portalUrl,
+          },
         },
       });
 
@@ -349,7 +370,18 @@ async function handle(msg: Msg): Promise<unknown> {
       return { base64: data.pdfBase64, mime: "application/pdf" };
     }
 
+    case "list-versions": {
+      // GET /api/versions returns each version with its aggregated applications
+      // (most recent first). Flatten to a browse row: company/role/outcome come
+      // from the latest application, falling back to the version's generated name.
+      const data = await apiFetch<ApiVersionRow[]>("/api/versions", { method: "GET" });
+      return mapVersionList(data);
+    }
+
     case "get-version": {
+      // Load a saved version as the current draft. The /use endpoint creates a
+      // fresh draft row from the version's tailoredContent + JD each call, so
+      // the drawer gets a canonical Draft it can edit / fetch a PDF for.
       const data = await apiFetch<Draft>(
         `/api/versions/${encodeURIComponent(msg.versionId)}/use`,
         { method: "POST" },
