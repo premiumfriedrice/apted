@@ -865,7 +865,7 @@ export function createDrawerStyles(): string {
 
     /* ── Resumes section view-swap (Matching Ã¢Â· All) ──────────────────── */
     // Right-side toggle button in the section title. "View more" in the
-    // matching view (chevron down), "Back" in the all view (chevron flips up).
+    // matching view (arrow points right âº), "Back" in the all view (arrow flips left â¹).
     .apted-section-view-toggle {
       display: inline-flex;
       align-items: center;
@@ -873,7 +873,7 @@ export function createDrawerStyles(): string {
       flex-shrink: 0;
     }
     .apted-section-view-toggle svg {
-      transition: transform 0.15s ease;
+      transition: transform 0.2s ease;
     }
     .apted-section-view-toggle--open svg {
       transform: rotate(180deg);
@@ -1248,7 +1248,7 @@ export function createDrawerHTML(): string {
               <button id="apted-section-view-toggle" class="apted-btn apted-btn--sm apted-section-view-toggle" type="button" title="View all past resumes" hidden>
                 <span class="apted-section-view-toggle-label">View more</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
+                  <polyline points="9 6 15 12 9 18"></polyline>
                 </svg>
               </button>
             </h2>
