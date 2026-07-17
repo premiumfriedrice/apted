@@ -6,17 +6,20 @@ import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
 import { injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const [r, settings, pm] = await Promise.all([
-    pool.query("SELECT content, updated_at FROM drafts WHERE id = $1", [id]),
-    getUserSettings(),
-    pool.query("SELECT map FROM master_pii_map WHERE id = 1"),
+    pool.query("SELECT content, updated_at FROM drafts WHERE id = $1 AND user_id = $2", [id, userId]),
+    getUserSettings(userId),
+    pool.query("SELECT map FROM master_pii_map WHERE user_id = $1", [userId]),
   ]);
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
 

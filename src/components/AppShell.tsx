@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "@/lib/auth-client";
+import { isAuthConfigured } from "@/lib/auth-config";
 
 const SidebarCollapsedContext = createContext(false);
 export function useSidebarCollapsed() {
@@ -42,6 +44,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!mounted) return;
     try { localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0"); } catch { /* ignore */ }
   }, [collapsed, mounted]);
+
+  // Bare chrome on the auth pages so login/signup render edge-to-edge
+  // with no sidebar (AuthForm already centers its own layout).
+  const pathnameForShell = usePathname();
+  if (pathnameForShell === "/login" || pathnameForShell === "/signup") {
+    return <>{children}</>;
+  }
 
   const sidebarWidth = collapsed ? "w-12" : "w-64";
   const mainLeft = collapsed ? "ml-12" : "ml-64";
@@ -110,6 +119,25 @@ function SidebarInner({
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
 }) {
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+  const authed = !!isAuthConfigured();
+  const user = session?.user;
+  const initials = user?.name
+    ? user.name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase()
+    : user?.email
+      ? user.email[0].toUpperCase()
+      : "AU";
+  // Local mode (no BETTER_AUTH_SECRET): show "Apted User" / "Local mode" like before.
+  const displayName = authed ? (user?.name ?? user?.email ?? "—") : "Apted User";
+  const displayTier = authed ? (user?.email ?? "") : "Local mode";
+
+  async function logout() {
+    await signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <>
       {/* Brand — aligned with the collapsed 'a' square (h-12) */}
@@ -173,24 +201,54 @@ function SidebarInner({
             >
               <MaterialIcon name={SETTINGS_NAV.icon} className="text-[22px]" />
             </Link>
-            <Link
-              href={SETTINGS_NAV.href}
-              title="Profile"
-              onClick={(e) => e.stopPropagation()}
-              className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
-            >
-              <span className="text-label-sm font-bold">AU</span>
-            </Link>
+            {authed && !isPending && !user ? (
+              <button
+                title="Sign in"
+                onClick={() => router.push("/login")}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-surface-variant hover:bg-on-surface"
+              >
+                <MaterialIcon name="login" className="text-[20px]" />
+              </button>
+            ) : (
+              <Link
+                href={SETTINGS_NAV.href}
+                title="Profile"
+                onClick={(e) => e.stopPropagation()}
+                className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
+              >
+                <span className="text-label-sm font-bold">{initials}</span>
+              </Link>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-sm border-t border-outline-variant px-sm pt-sm">
             <div className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
-              <span className="text-label-sm font-bold text-secondary">AU</span>
+              <span className="text-label-sm font-bold text-secondary">{initials}</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-label-md text-label-md truncate leading-tight">Apted User</p>
-              <p className="text-label-sm text-on-surface-variant truncate leading-tight">Free Tier</p>
-            </div>
+            {authed && !isPending && !user ? (
+              <div className="min-w-0 flex-1">
+                <button
+                  onClick={() => router.push("/login")}
+                  className="font-label-md text-label-md text-primary font-semibold underline"
+                >
+                  Sign in
+                </button>
+              </div>
+            ) : (
+              <div className="min-w-0 flex-1">
+                <p className="font-label-md text-label-md truncate leading-tight">{displayName}</p>
+                <p className="text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</p>
+              </div>
+            )}
+            {authed && user && (
+              <button
+                onClick={logout}
+                title="Sign out"
+                className="rounded p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+              >
+                <MaterialIcon name="logout" className="text-[20px]" />
+              </button>
+            )}
             <Link
               href={SETTINGS_NAV.href}
               title={SETTINGS_NAV.label}

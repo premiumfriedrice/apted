@@ -7,6 +7,7 @@ import { generateResume } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
 import { editUserPrompt } from "@/lib/prompts/user";
 import { redactResume } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ const EditRequest = z.object({
 });
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let parsed: z.infer<typeof EditRequest>;
   try {
     parsed = EditRequest.parse(await req.json());
@@ -34,13 +38,13 @@ export async function POST(req: Request) {
   try {
     return await withDb(async (client) => {
       const dr = await client.query(
-        "SELECT id, job_description, content, history FROM drafts WHERE id = $1",
-        [parsed.draftId],
+        "SELECT id, job_description, content, history FROM drafts WHERE id = $1 AND user_id = $2",
+        [parsed.draftId, userId],
       );
       if (!dr.rows[0]) return NextResponse.json({ error: "draft not found" }, { status: 404 });
       const current = Resume.parse(dr.rows[0].content);
 
-      const mr = await client.query("SELECT content FROM master_resume WHERE id = 1");
+      const mr = await client.query("SELECT content FROM master_resume WHERE user_id = $1", [userId]);
       if (!mr.rows[0]) return NextResponse.json({ error: "master_resume missing" }, { status: 400 });
       const master = Resume.parse(mr.rows[0].content);
 
@@ -51,7 +55,7 @@ export async function POST(req: Request) {
 
       const next = await generateResume(
         editUserPrompt({ master: redactedMaster, current: redactedCurrent, instruction: parsed.instruction }),
-        getProviderForFlow("edit"),
+        getProviderForFlow(userId, "edit"),
       );
 
       const prevHistory: unknown[] = Array.isArray(dr.rows[0].history) ? dr.rows[0].history : [];

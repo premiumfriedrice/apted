@@ -7,6 +7,7 @@
 import { createPool } from "../src/lib/db";
 import { Resume } from "../src/lib/resume";
 import { generateVersionName } from "../src/lib/version-names";
+import { LOCAL_USER_ID } from "../src/lib/auth";
 
 const pool = createPool();
 
@@ -38,7 +39,7 @@ async function main() {
     const id = row.id;
     try {
       const resume = Resume.parse(row.tailored_content);
-      const name = await generateVersionName(resume, row.job_description, row.role);
+      const name = await generateVersionName(resume, row.job_description, row.role, LOCAL_USER_ID);
       await pool.query("UPDATE resume_versions SET name = $1 WHERE id = $2", [name, id]);
       ok++;
       console.log(`  ✓ ${id.slice(0, 8)}... → "${name}"`);

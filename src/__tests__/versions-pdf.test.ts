@@ -145,8 +145,8 @@ describe("GET /api/versions", () => {
     expect(res.status).toBe(200);
     // Verify the filter was passed to the DB via HAVING on applications.
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("HAVING bool_or(a.outcome = $1)"),
-      ["applied"],
+      expect.stringContaining("HAVING bool_or(a.outcome = $2)"),
+      ["local", "applied"],
     );
   });
 
@@ -199,6 +199,7 @@ describe("POST /api/versions", () => {
     expect(versionInsert).toMatch(/INSERT INTO resume_versions/);
     expect(versionInsert).toMatch(/name/);
     expect(versionInsert).toMatch(/pdf/);
+    // INSERT params: (user_id, name, tailored_content, pdf)
     expect(mockQuery.mock.calls[1]?.[1]).toContain("Test Version");
     expect(mockQuery.mock.calls[1]?.[1]).toContain(fakePdf);
 
@@ -226,7 +227,8 @@ describe("POST /api/versions", () => {
 
     // Verify the version INSERT wrote null for pdf.
     const params = mockQuery.mock.calls[1]?.[1] as unknown[];
-    expect(params[2]).toBeNull();
+    // INSERT params: (user_id, name, tailored_content, pdf) — pdf is the 4th param.
+    expect(params[3]).toBeNull();
   });
 
   it("rejects request when tailoredContent is missing", async () => {

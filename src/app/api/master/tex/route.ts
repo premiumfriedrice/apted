@@ -5,14 +5,18 @@ import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
 import { injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const [r, settings, pm] = await Promise.all([
-    pool.query("SELECT content FROM master_resume WHERE id = 1"),
-    getUserSettings(),
-    pool.query("SELECT map FROM master_pii_map WHERE id = 1"),
+    pool.query("SELECT content FROM master_resume WHERE user_id = $1", [userId]),
+    getUserSettings(userId),
+    pool.query("SELECT map FROM master_pii_map WHERE user_id = $1", [userId]),
   ]);
   if (!r.rows[0]) return NextResponse.json({ error: "not seeded" }, { status: 404 });
 

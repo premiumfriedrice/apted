@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const r = await pool.query(
-    "SELECT id, job_description, content, history, created_at, updated_at FROM drafts WHERE id = $1",
-    [id],
+    "SELECT id, job_description, content, history, created_at, updated_at FROM drafts WHERE id = $1 AND user_id = $2",
+    [id, userId],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   const row = r.rows[0];
@@ -28,14 +31,16 @@ export async function GET(_req: Request, { params }: Ctx) {
 //   { op: "undo" }                      -> pop the history stack into content
 //   { op: "replace", content: Resume }  -> replace content and push old into history
 export async function PATCH(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = (await req.json()) as
     | { op: "undo" }
     | { op: "replace"; content: unknown };
 
   const dr = await pool.query(
-    "SELECT content, history FROM drafts WHERE id = $1",
-    [id],
+    "SELECT content, history FROM drafts WHERE id = $1 AND user_id = $2",
+    [id, userId],
   );
   if (!dr.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   const current = Resume.parse(dr.rows[0].content);
@@ -47,8 +52,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const newHistory = history.slice(0, -1);
     const upd = await pool.query(
       `UPDATE drafts SET content = $1::jsonb, history = $2::jsonb, updated_at = now()
-       WHERE id = $3 RETURNING id, job_description, content, history, created_at, updated_at`,
-      [JSON.stringify(prev), JSON.stringify(newHistory), id],
+       WHERE id = $3 AND user_id = $4 RETURNING id, job_description, content, history, created_at, updated_at`,
+      [JSON.stringify(prev), JSON.stringify(newHistory), id, userId],
     );
     const row = upd.rows[0];
     return NextResponse.json({
@@ -66,8 +71,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const newHistory = [...history, current].slice(-20);
     const upd = await pool.query(
       `UPDATE drafts SET content = $1::jsonb, history = $2::jsonb, updated_at = now()
-       WHERE id = $3 RETURNING id, job_description, content, history, created_at, updated_at`,
-      [JSON.stringify(next), JSON.stringify(newHistory), id],
+       WHERE id = $3 AND user_id = $4 RETURNING id, job_description, content, history, created_at, updated_at`,
+      [JSON.stringify(next), JSON.stringify(newHistory), id, userId],
     );
     const row = upd.rows[0];
     return NextResponse.json({

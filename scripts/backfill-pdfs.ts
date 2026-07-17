@@ -7,6 +7,7 @@ import { Resume } from "../src/lib/resume";
 import { renderResume } from "../src/lib/render";
 import { getUserSettings } from "../src/lib/settings";
 import { compileTexToPdf } from "../src/lib/compile";
+import { LOCAL_USER_ID } from "../src/lib/auth";
 
 const pool = createPool();
 
@@ -22,7 +23,7 @@ async function main() {
     return;
   }
 
-  const settings = await getUserSettings();
+  const settings = await getUserSettings(LOCAL_USER_ID);
   let ok = 0;
   let fail = 0;
 

@@ -31,12 +31,13 @@ const JUNK_PATTERNS = [
 
 export async function generateVersionName(
   resume: Resume,
-  jobDescription?: string,
-  role?: string,
+  jobDescription: string | undefined,
+  role: string | undefined,
+  userId: string,
 ): Promise<string> {
   const cleanedJD = cleanJobDescription(jobDescription);
 
-  const provider = getProvider();
+  const provider = getProvider(userId);
   const userPrompt = JSON.stringify(
     {
       role: role?.trim() || null,

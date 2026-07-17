@@ -8,10 +8,14 @@ import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { redactResume, injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const { sectionId, itemId, bulletText } = (await req.json()) as {
     sectionId?: string;
     itemId?: string;
@@ -22,8 +26,8 @@ export async function POST(req: Request) {
   }
 
   const [mr, pm] = await Promise.all([
-    pool.query("SELECT content FROM master_resume WHERE id = 1"),
-    pool.query("SELECT map FROM master_pii_map WHERE id = 1"),
+    pool.query("SELECT content FROM master_resume WHERE user_id = $1", [userId]),
+    pool.query("SELECT map FROM master_pii_map WHERE user_id = $1", [userId]),
   ]);
   if (!mr.rows[0]) return NextResponse.json({ error: "master missing" }, { status: 400 });
 
@@ -45,14 +49,14 @@ export async function POST(req: Request) {
   const { redacted, map: newMap } = redactResume(master);
   await Promise.all([
     pool.query(
-      "UPDATE master_resume SET content = $1::jsonb, updated_at = now() WHERE id = 1",
-      [JSON.stringify(redacted)],
+      "UPDATE master_resume SET content = $1::jsonb, updated_at = now() WHERE user_id = $2",
+      [JSON.stringify(redacted), userId],
     ),
     pool.query(
-      `INSERT INTO master_pii_map (id, map, updated_at)
-       VALUES (1, $1::jsonb, now())
-       ON CONFLICT (id) DO UPDATE SET map = EXCLUDED.map, updated_at = now()`,
-      [JSON.stringify(newMap)],
+      `INSERT INTO master_pii_map (user_id, map, updated_at)
+       VALUES ($1, $2::jsonb, now())
+       ON CONFLICT (user_id) DO UPDATE SET map = EXCLUDED.map, updated_at = now()`,
+      [userId, JSON.stringify(newMap)],
     ),
   ]);
   return NextResponse.json({ ok: true, master: redacted, piiMap: newMap });

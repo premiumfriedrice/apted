@@ -6,6 +6,7 @@ import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
 import { injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -64,17 +65,21 @@ function rowToJson(row: Record<string, unknown>) {
   };
 }
 
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const r = await pool.query(
-    `${SELECT} WHERE v.id = $1 GROUP BY v.id`,
-    [id],
+    `${SELECT} WHERE v.id = $1 AND v.user_id = $2 GROUP BY v.id`,
+    [id, userId],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(rowToJson(r.rows[0]));
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = await req.json();
   const fields: string[] = [];
@@ -98,9 +103,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (body.tailoredContent !== undefined) {
     try {
       const parsed = Resume.parse(body.tailoredContent);
-      const settings = await getUserSettings();
+      const settings = await getUserSettings(userId);
       // Inject PII back before rendering (PRE-53).
-      const pm = await pool.query("SELECT map FROM master_pii_map WHERE id = 1");
+      const pm = await pool.query("SELECT map FROM master_pii_map WHERE user_id = $1", [userId]);
       const piiMap = pm.rows[0]?.map as RedactionMap | null;
       let renderContent = parsed;
       if (piiMap) renderContent = injectResume(parsed, piiMap);
@@ -113,22 +118,24 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
   }
 
-  vals.push(id);
+  vals.push(id, userId);
   await pool.query(
-    `UPDATE resume_versions SET ${fields.join(", ")} WHERE id = $${i}`,
+    `UPDATE resume_versions SET ${fields.join(", ")} WHERE id = $${i} AND user_id = $${i + 1}`,
     vals,
   );
 
   const r = await pool.query(
-    `${SELECT} WHERE v.id = $1 GROUP BY v.id`,
-    [id],
+    `${SELECT} WHERE v.id = $1 AND v.user_id = $2 GROUP BY v.id`,
+    [id, userId],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(rowToJson(r.rows[0]));
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
-  await pool.query("DELETE FROM resume_versions WHERE id = $1", [id]);
+  await pool.query("DELETE FROM resume_versions WHERE id = $1 AND user_id = $2", [id, userId]);
   return NextResponse.json({ ok: true });
 }

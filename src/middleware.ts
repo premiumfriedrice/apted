@@ -5,6 +5,13 @@ import { NextResponse, type NextRequest } from "next/server";
 //      fetches from chrome-extension://<id> pass.
 //   2. Require Authorization: Bearer <APTED_AUTH_TOKEN> when that env var is
 //      set. The check is skipped when unset so local dev stays frictionless.
+//
+// Note (PRE-86): Better Auth session validation is NOT done here. Next.js
+// middleware runs in the edge runtime, which can't reach Postgres via pg, so
+// each /api/* route resolves the user id via requireUserId() instead. The
+// legacy APTED_AUTH_TOKEN gate is kept as an optional deployment-side fence
+// and is bypassed for /api/auth/* so sign-up/sign-in aren't blocked before a
+// session exists.
 
 // Comma-separated list of allowed origins. Defaults to "*" when unset (local
 // dev). In production, set to the Chrome extension origin(s) + Vercel domain:
@@ -51,7 +58,10 @@ export function middleware(req: NextRequest) {
   }
 
   const expected = process.env.APTED_AUTH_TOKEN;
-  if (expected) {
+  // Better Auth's own endpoints (sign-in, sign-up, callback, get-session) must
+  // be reachable before a session exists, so skip the bearer gate for them.
+  const isAuthEndpoint = req.nextUrl.pathname.startsWith("/api/auth/");
+  if (expected && !isAuthEndpoint) {
     const auth = req.headers.get("authorization") ?? "";
     const m = auth.match(/^Bearer\s+(.+)$/i);
     if (!m || m[1] !== expected) {

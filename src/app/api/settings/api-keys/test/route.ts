@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { isKeyedProvider, resolveApiKey } from "@/lib/api-keys";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,9 @@ const PROBE_MODEL: Record<"opencode" | "anthropic" | "openai" | "deepseek", stri
 };
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const key = resolveApiKey(provider);
+  const key = resolveApiKey(userId, provider);
   if (!key) {
     return NextResponse.json({ ok: false, error: "No API key configured for this provider." });
   }

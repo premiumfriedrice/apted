@@ -6,10 +6,13 @@ export type UserSettings = {
 };
 
 // Read the user's current settings. Falls back to defaults if the row is
-// missing for any reason (e.g. migration hasn't been run yet on a stale env).
-export async function getUserSettings(): Promise<UserSettings> {
+// missing for any reason (e.g. the user has never saved a setting).
+export async function getUserSettings(userId: string): Promise<UserSettings> {
   try {
-    const r = await pool.query("SELECT template FROM user_settings WHERE id = 1");
+    const r = await pool.query(
+      "SELECT template FROM user_settings WHERE user_id = $1",
+      [userId],
+    );
     const raw = r.rows[0]?.template;
     return { template: typeof raw === "string" && isTemplate(raw) ? raw : DEFAULT_TEMPLATE };
   } catch {
@@ -17,13 +20,16 @@ export async function getUserSettings(): Promise<UserSettings> {
   }
 }
 
-export async function setUserSettings(s: UserSettings): Promise<UserSettings> {
+export async function setUserSettings(
+  userId: string,
+  s: UserSettings,
+): Promise<UserSettings> {
   const r = await pool.query(
-    `INSERT INTO user_settings (id, template, updated_at)
-     VALUES (1, $1, now())
-     ON CONFLICT (id) DO UPDATE SET template = EXCLUDED.template, updated_at = now()
+    `INSERT INTO user_settings (user_id, template, updated_at)
+     VALUES ($1, $2, now())
+     ON CONFLICT (user_id) DO UPDATE SET template = EXCLUDED.template, updated_at = now()
      RETURNING template`,
-    [s.template],
+    [userId, s.template],
   );
   return { template: r.rows[0].template as TemplateName };
 }
