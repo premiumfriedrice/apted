@@ -79,8 +79,12 @@ Minimal Node.js HTTP server running Tectonic (LaTeX → PDF) as a subprocess.
 | `ANTHROPIC_API_KEY` | fallback | Used when OpenCode is not configured. |
 | `DEEPSEEK_API_KEY` | fallback | Used for structure selection when OpenCode is not configured. |
 | `COMPILE_SERVICE_URL` | yes for PDF | Base URL of the Tectonic compile service. Dev: `http://localhost:8080`. |
-| `APTED_AUTH_TOKEN` | no | Bearer token gating `/api/*`. Skipped when unset (local dev). |
-| `ALLOWED_ORIGINS` | no | Comma-separated CORS origins. Defaults to `*`. |
+| `BETTER_AUTH_SECRET` | no (auth) | Set to enable multi-tenant auth. Unset → single-user "local" mode. `openssl rand -base64 32`. |
+| `BETTER_AUTH_URL` | no (auth) | Canonical deploy URL (`http://localhost:3000` in dev, `https://apted.vercel.app` in prod). Used for OAuth callbacks + cookie scoping. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | no (auth) | Enable Google sign-in. Leave blank to disable. |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | no (auth) | Enable GitHub sign-in. Leave blank to disable. |
+| `APTED_AUTH_TOKEN` | no | LEGACY bearer gate. **Unset when `BETTER_AUTH_SECRET` is set** (the extension sends a Better Auth token that this gate would reject). |
+| `ALLOWED_ORIGINS` | no | Comma-separated CORS origins. Defaults to `*`. In prod: the Chrome extension origin + Vercel domain. |
 | `TAILOR_RELEVANT_VERSIONS` | no | How many prior versions to send as framing hints (default 5). |
 | `TAILOR_RANKER` | no | `overlap` (default) or `embeddings` (requires OpenAI key). |
 
@@ -126,6 +130,48 @@ cd extension && npm run build
 ```
 
 Load in Chrome: `chrome://extensions` → Developer mode → Load unpacked → select `extension/dist/`.
+
+## Deploying auth (production)
+
+Auth is optional: with `BETTER_AUTH_SECRET` unset the app runs in single-user "local" mode (`user_id = 'local'`) — no auth tables or sessions needed. The steps below turn on real multi-tenant auth on the existing Supabase + Vercel + Fly.io stack.
+
+> ⚠️ The `0008_auth.sql` migration adds `user_id` to every table **and drops the vestigial `id=1` primary key** on the four single-row tables. While the migration is applied but the new code is not yet live, the *old* app will error. Expect ~1–3 min of downtime during a maintenance window — fine for a single-user deploy. Apply the migration immediately before the new code goes live, not ahead of time.
+
+### One-time prod setup
+
+1. **Apply the migration** to your prod Supabase DB (run **only** `0008`; the older migrations are not re-runnable, so don't run the full `db:migrate` against an existing DB):
+   ```bash
+   DATABASE_URL=<prod-supabase-url> npx tsx scripts/migrate-one.ts migrations/0008_auth.sql
+   ```
+   This creates the Better Auth tables, adds/backfills `user_id = 'local'` on every table so existing data stays visible, and re-keys `master_resume` / `master_pii_map` / `user_settings` / `api_keys` on `user_id`.
+
+2. **Set Vercel env vars** (Production + Preview as needed). In the Vercel dashboard → Project → Settings → Environment Variables, or via CLI:
+   - `BETTER_AUTH_SECRET` — generate once: `openssl rand -base64 32`. Never rotate lightly (it invalidates all sessions).
+   - `BETTER_AUTH_URL` — your prod URL, e.g. `https://apted.vercel.app`.
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — optional. Register OAuth creds with callback `https://<prod>/api/auth/callback/google`.
+   - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` — optional. Same for `/api/auth/callback/github`.
+   - `ALLOWED_ORIGINS` — `chrome-extension://<extension-id>,https://apted.vercel.app` (so the extension's cross-origin requests + credentialed web requests both pass).
+   - **Remove** `APTED_AUTH_TOKEN` (the legacy static gate would 401 the extension's Better Auth bearer token). If you previously had it set in Vercel, delete that env var.
+
+3. **Deploy the new code** by merging `feature/auth` → `main` (Vercel auto-builds + deploys). `next build` is green with the auth code.
+
+4. **Sign up** as the first user at `https://<prod>/signup`.
+
+5. **Reassign existing data** to your new user (it's still on `user_id = 'local'`):
+   ```bash
+   DATABASE_URL=<prod-supabase-url> npx tsx --env-file=.env.local scripts/migrate-to-multi-user.ts --email you@your-email.com
+   ```
+   Your master resume, drafts, versions, applications, settings, and BYOK keys reappear scoped to your account. Idempotent — safe to re-run.
+
+6. **Extension access**: in the web app → Settings → Extension access → Generate token → copy. Paste into the extension's options page Auth token field (its existing `Authorization: Bearer <token>` flow now carries a Better Auth session token validated by the bearer plugin). No extension code changes needed.
+
+### Local prod-DB migration (if `.env.local` already points at prod)
+
+If your `.env.local` `DATABASE_URL` is the prod Supabase URL, steps 1 and 5 simplify to:
+```bash
+npm run db:migrate-one -- migrations/0008_auth.sql
+npm run -s -- tsx --env-file=.env.local scripts/migrate-to-multi-user.ts --email you@your-email.com
+```
 
 ## API
 

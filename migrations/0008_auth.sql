@@ -101,15 +101,33 @@ ALTER TABLE master_pii_map  DROP COLUMN IF EXISTS id;
 ALTER TABLE user_settings   DROP COLUMN IF EXISTS id;
 ALTER TABLE api_keys        DROP COLUMN IF EXISTS id;
 
-ALTER TABLE master_resume   ADD CONSTRAINT master_resume_user_id_key  UNIQUE (user_id);
-ALTER TABLE master_pii_map  ADD CONSTRAINT master_pii_map_user_id_key  UNIQUE (user_id);
-ALTER TABLE user_settings   ADD CONSTRAINT user_settings_user_id_key  UNIQUE (user_id);
-ALTER TABLE api_keys        ADD CONSTRAINT api_keys_user_id_key        UNIQUE (user_id);
-
-ALTER TABLE master_resume   ADD PRIMARY KEY (user_id);
-ALTER TABLE master_pii_map  ADD PRIMARY KEY (user_id);
-ALTER TABLE user_settings   ADD PRIMARY KEY (user_id);
-ALTER TABLE api_keys        ADD PRIMARY KEY (user_id);
+-- Re-key each single-row table on user_id (PRIMARY KEY implies uniqueness, so
+-- we don't add a separate UNIQUE constraint). Guarded with DO blocks so the
+-- migration is safe to re-run against an already-migrated database.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'master_resume_pkey'
+                 AND conrelid = 'master_resume'::regclass) THEN
+    ALTER TABLE master_resume ADD PRIMARY KEY (user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'master_pii_map_pkey'
+                 AND conrelid = 'master_pii_map'::regclass) THEN
+    ALTER TABLE master_pii_map ADD PRIMARY KEY (user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_settings_pkey'
+                 AND conrelid = 'user_settings'::regclass) THEN
+    ALTER TABLE user_settings ADD PRIMARY KEY (user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'api_keys_pkey'
+                 AND conrelid = 'api_keys'::regclass) THEN
+    ALTER TABLE api_keys ADD PRIMARY KEY (user_id);
+  END IF;
+END $$;
 
 -- ── Index the user_id column on the multi-row tables ───────────────────────
 
