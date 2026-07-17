@@ -119,9 +119,14 @@ function SidebarInner({
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
 }) {
-  const { data: session, isPending } = useSession();
-  const router = useRouter();
   const authed = !!isAuthConfigured();
+  // Only subscribe to the session store when auth is actually enabled. In
+  // local mode (server has no BETTER_AUTH_SECRET) there are no sessions and
+  // the Better Auth client's initial fetch can throw on hydration; skip it
+  // entirely so the sidebar renders deterministically.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { data: session, isPending } = authed ? useSession() : { data: null, isPending: false };
+  const router = useRouter();
   const user = session?.user;
   const initials = user?.name
     ? user.name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase()
