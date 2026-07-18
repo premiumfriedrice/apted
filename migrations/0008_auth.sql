@@ -1,9 +1,13 @@
 -- PRE-86: Multi-tenant auth with Better Auth.
 --
 -- 1. Create Better Auth's own tables (user, session, account, verification).
---    Better Auth 1.6.x's Kysely adapter queries camelCase column names by
---    default (fieldName defaults are camelCase), so we create them with
---    camelCase columns. "user" is a reserved word in Postgres and is quoted.
+--    Better Auth 1.6.x's Kysely adapter queries QUOTED camelCase column
+--    identifiers (`"userId"`, `"expiresAt"`, `"emailVerified"`, ...). Postgres
+--    folds UNQUOTED identifiers to lowercase, so every camelCase column name
+--    in these CREATE TABLE statements MUST be double-quoted to preserve case.
+--    (A first draft forgot the quotes → lowercase columns → "column
+--    \"expiresAt\" ... does not exist" at every BA insert. 0009 fixed it on
+--    existing DBs; this migration is correct from scratch.)
 --
 -- 2. Add a `user_id text` column to every existing single-user table, backfill
 --    existing rows with the sentinel "local" user id (so local-dev data stays
@@ -14,52 +18,52 @@
 -- ── Better Auth tables ─────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS "user" (
-  id            text PRIMARY KEY,
-  name          text NOT NULL,
-  email         text NOT NULL UNIQUE,
-  emailVerified boolean NOT NULL DEFAULT false,
-  image         text,
-  createdAt     timestamptz NOT NULL DEFAULT now(),
-  updatedAt     timestamptz NOT NULL DEFAULT now()
+  id              text PRIMARY KEY,
+  name            text NOT NULL,
+  email           text NOT NULL UNIQUE,
+  "emailVerified" boolean NOT NULL DEFAULT false,
+  image           text,
+  "createdAt"     timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"     timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS "session" (
   id          text PRIMARY KEY,
   token       text NOT NULL UNIQUE,
-  userId      text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-  expiresAt   timestamptz NOT NULL,
-  ipAddress   text,
-  userAgent   text,
-  createdAt   timestamptz NOT NULL DEFAULT now(),
-  updatedAt   timestamptz NOT NULL DEFAULT now()
+  "userId"    text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  "expiresAt" timestamptz NOT NULL,
+  "ipAddress" text,
+  "userAgent" text,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS session_userId_idx ON "session"(userId);
+CREATE INDEX IF NOT EXISTS "session_userId_idx" ON "session"("userId");
 
 CREATE TABLE IF NOT EXISTS account (
-  id                    text PRIMARY KEY,
-  accountId             text NOT NULL,
-  providerId            text NOT NULL,
-  userId                text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-  accessToken           text,
-  refreshToken          text,
-  idToken               text,
-  accessTokenExpiresAt  timestamptz,
-  refreshTokenExpiresAt timestamptz,
-  scope                 text,
-  password              text,
-  createdAt             timestamptz NOT NULL DEFAULT now(),
-  updatedAt             timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (providerId, accountId)
+  id                      text PRIMARY KEY,
+  "accountId"             text NOT NULL,
+  "providerId"            text NOT NULL,
+  "userId"                text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  "accessToken"           text,
+  "refreshToken"          text,
+  "idToken"               text,
+  "accessTokenExpiresAt"  timestamptz,
+  "refreshTokenExpiresAt" timestamptz,
+  scope                   text,
+  password                text,
+  "createdAt"             timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"             timestamptz NOT NULL DEFAULT now(),
+  UNIQUE ("providerId", "accountId")
 );
-CREATE INDEX IF NOT EXISTS account_userId_idx ON account(userId);
+CREATE INDEX IF NOT EXISTS "account_userId_idx" ON account("userId");
 
 CREATE TABLE IF NOT EXISTS verification (
   id          text PRIMARY KEY,
   identifier  text NOT NULL,
   value       text NOT NULL,
-  expiresAt   timestamptz NOT NULL,
-  createdAt   timestamptz NOT NULL DEFAULT now(),
-  updatedAt   timestamptz NOT NULL DEFAULT now()
+  "expiresAt" timestamptz NOT NULL,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification(identifier);
 
