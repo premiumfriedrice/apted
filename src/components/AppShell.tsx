@@ -120,10 +120,11 @@ function SidebarInner({
   setCollapsed: (v: boolean) => void;
 }) {
   const authed = !!isAuthConfigured();
-  // Only subscribe to the session store when auth is actually enabled. In
-  // local mode (server has no BETTER_AUTH_SECRET) there are no sessions and
-  // the Better Auth client's initial fetch can throw on hydration; skip it
-  // entirely so the sidebar renders deterministically.
+  // Subscribe to the session store only when auth is enabled. In local mode
+  // there are no sessions, and the Better Auth client's initial fetch is
+  // unnecessary work (and historically threw on hydration). Because
+  // `authed` is computed from NEXT_PUBLIC_AUTH_ENABLED it's the same value on
+  // server and client, so the conditional doesn't cause a hydration mismatch.
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const { data: session, isPending } = authed ? useSession() : { data: null, isPending: false };
   const router = useRouter();
