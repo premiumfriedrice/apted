@@ -8,6 +8,7 @@ import { injectResume } from "@/lib/redact";
 import { isOutcome, parseInterviewRound, parseRejectedAfterRound } from "@/lib/applications";
 import { generateVersionName } from "@/lib/version-names";
 import type { RedactionMap } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -65,6 +66,9 @@ function rowToJson(row: Record<string, unknown>) {
 }
 
 export async function GET(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const url = new URL(req.url);
   const outcome = url.searchParams.get("outcome");
   if (outcome && !isOutcome(outcome)) {
@@ -74,16 +78,23 @@ export async function GET(req: Request) {
   const r = outcome
     ? await pool.query(
         `${SELECT}
+         WHERE v.user_id = $1
          GROUP BY v.id
-         HAVING bool_or(a.outcome = $1)
+         HAVING bool_or(a.outcome = $2)
          ORDER BY v.created_at DESC`,
-        [outcome],
+        [userId, outcome],
       )
-    : await pool.query(`${SELECT} GROUP BY v.id ORDER BY v.created_at DESC`);
+    : await pool.query(
+        `${SELECT} WHERE v.user_id = $1 GROUP BY v.id ORDER BY v.created_at DESC`,
+        [userId],
+      );
   return NextResponse.json(r.rows.map(rowToJson));
 }
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const {
     tailoredContent,
@@ -120,7 +131,7 @@ export async function POST(req: Request) {
   const role = application?.role?.trim();
   let name: string | null = null;
   try {
-    name = await generateVersionName(content, jobDescription, role);
+    name = await generateVersionName(content, jobDescription, role, userId);
   } catch {
     console.warn("Version name generation failed");
   }
@@ -130,9 +141,9 @@ export async function POST(req: Request) {
   // will be null. The library UI handles the missing-PDF case.
   let pdf: Buffer | null = null;
   try {
-    const settings = await getUserSettings();
+    const settings = await getUserSettings(userId);
     // Inject PII back before rendering (PRE-53).
-    const pm = await pool.query("SELECT map FROM master_pii_map WHERE id = 1");
+    const pm = await pool.query("SELECT map FROM master_pii_map WHERE user_id = $1", [userId]);
     const piiMap = pm.rows[0]?.map as RedactionMap | null;
     let renderContent = content;
     if (piiMap) renderContent = injectResume(content, piiMap);
@@ -143,10 +154,10 @@ export async function POST(req: Request) {
   }
 
   const version = await pool.query(
-    `INSERT INTO resume_versions (name, tailored_content, pdf)
-     VALUES ($1, $2::jsonb, $3)
+    `INSERT INTO resume_versions (user_id, name, tailored_content, pdf)
+     VALUES ($1, $2, $3::jsonb, $4)
      RETURNING id, name, tailored_content, created_at, pdf`,
-    [name, JSON.stringify(content), pdf],
+    [userId, name, JSON.stringify(content), pdf],
   );
   const versionRow = version.rows[0];
 
@@ -156,9 +167,10 @@ export async function POST(req: Request) {
         ? application.portalUrl.trim()
         : null;
     await pool.query(
-      `INSERT INTO applications (version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO applications (user_id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
+        userId,
         versionRow.id,
         application.company,
         application.role,

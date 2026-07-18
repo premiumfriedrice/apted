@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProviderForFlow } from "@/lib/providers";
+import { requireUserId } from "@/lib/auth";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -32,6 +33,9 @@ function extractJson(text: string): string {
 }
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const { title: domTitle, company: domCompany, jobDescription, url, source } = body as {
     url?: string;
@@ -62,7 +66,7 @@ export async function POST(req: Request) {
     : snippet;
 
   try {
-    const provider = getProviderForFlow("edit");
+    const provider = getProviderForFlow(userId, "edit");
     const raw = await provider.complete({
       system: SYSTEM_PROMPT,
       user: userPrompt,

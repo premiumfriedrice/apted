@@ -6,7 +6,7 @@
 // All three share a single retry-with-backoff call + "repair on bad JSON" loop,
 // and run against whichever provider is configured (Claude / OpenAI / Gemini).
 import { z } from "zod";
-import { getProvider, type Provider } from "./providers";
+import type { Provider } from "./providers";
 import {
   EducationItem,
   ExperienceItem,
@@ -127,7 +127,7 @@ export async function callAndParse<T>(
 // /api/tailor and /api/edit go through here.
 export async function generateResume(
   userPrompt: string,
-  provider: Provider = getProvider(),
+  provider: Provider,
 ): Promise<Resume> {
   return callAndParse(provider, buildSystemPrompt(), userPrompt, (raw) =>
     Resume.parse(normalizeResumeShape(raw)),
@@ -139,7 +139,7 @@ export async function generateResume(
 // prompt tells the model to be faithful to the source rather than curate.
 export async function generateResumeFromText(
   userPrompt: string,
-  provider: Provider = getProvider(),
+  provider: Provider,
 ): Promise<Resume> {
   return callAndParse(
     provider,
@@ -166,7 +166,7 @@ type ItemForKind = {
 export async function generateItemsFromProse<K extends ParseProseKind>(
   kind: K,
   userPrompt: string,
-  provider: Provider = getProvider(),
+  provider: Provider,
 ): Promise<ItemForKind[K][]> {
   // Pick the kind-specific item schema and wrap it in the `{ items: [...] }`
   // envelope the prompt asks the model to return.
@@ -207,8 +207,9 @@ import {
 export async function selectStructure(
   jobDescription: string,
   master: Resume,
+  userId: string,
 ): Promise<FilterSpec> {
-  const provider = getStructureProvider();
+  const provider = getStructureProvider(userId);
   const system = buildStructureSystemPrompt();
   const user = buildStructureUserPrompt({
     jobDescription,

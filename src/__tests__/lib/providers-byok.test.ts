@@ -42,62 +42,64 @@ beforeEach(async () => {
   factory = await import("@/lib/providers/index");
 });
 
+const UID = "test-user";
+
 describe("provider factory uses DB-resolved keys", () => {
   it("hands the resolved Anthropic key to the Anthropic SDK", () => {
-    resolveApiKey.mockImplementation((p: string) => (p === "anthropic" ? "db-anthropic" : undefined));
-    factory.getProvider("anthropic");
+    resolveApiKey.mockImplementation((_u: string, p: string) => (p === "anthropic" ? "db-anthropic" : undefined));
+    factory.getProvider(UID, "anthropic");
     expect(anthropicCtor).toHaveBeenCalledWith("db-anthropic");
   });
 
   it("falls back to undefined (env path) when DB key is absent", () => {
-    factory.getProvider("anthropic");
+    factory.getProvider(UID, "anthropic");
     expect(anthropicCtor).toHaveBeenCalledWith(undefined);
   });
 
   it("hands the resolved OpenAI key to the OpenAI SDK", () => {
-    resolveApiKey.mockImplementation((p: string) => (p === "openai" ? "db-openai" : undefined));
-    factory.getProvider("openai");
+    resolveApiKey.mockImplementation((_u: string, p: string) => (p === "openai" ? "db-openai" : undefined));
+    factory.getProvider(UID, "openai");
     expect(openaiCtor).toHaveBeenCalledWith("db-openai", undefined);
   });
 
   it("hands the resolved DeepSeek key with its base URL", () => {
-    resolveApiKey.mockImplementation((p: string) => (p === "deepseek" ? "db-ds" : undefined));
-    factory.getProvider("deepseek");
+    resolveApiKey.mockImplementation((_u: string, p: string) => (p === "deepseek" ? "db-ds" : undefined));
+    factory.getProvider(UID, "deepseek");
     expect(openaiCtor).toHaveBeenCalledWith("db-ds", "https://api.deepseek.com/v1");
   });
 
   it("opencode provider and tailor both use the resolved opencode key", () => {
-    resolveApiKey.mockImplementation((p: string) => (p === "opencode" ? "db-oc" : undefined));
-    factory.getProvider("opencode");
-    factory.getTailorProvider();
+    resolveApiKey.mockImplementation((_u: string, p: string) => (p === "opencode" ? "db-oc" : undefined));
+    factory.getProvider(UID, "opencode");
+    factory.getTailorProvider(UID);
     // Two OpenAI clients are built (one per build call) — both with db-oc.
     expect(openaiCtor).toHaveBeenCalledWith("db-oc", "https://opencode.ai/zen/v1");
     expect(openaiCtor).toHaveBeenLastCalledWith("db-oc", "https://opencode.ai/zen/v1");
   });
 
   it("getStructureProvider prefers DeepSeek direct when OpenCode key is absent", () => {
-    resolveApiKey.mockImplementation((p: string) => (p === "deepseek" ? "db-ds" : undefined));
-    factory.getStructureProvider();
+    resolveApiKey.mockImplementation((_u: string, p: string) => (p === "deepseek" ? "db-ds" : undefined));
+    factory.getStructureProvider(UID);
     expect(openaiCtor).toHaveBeenCalledWith("db-ds", "https://api.deepseek.com/v1");
   });
 
   it("getProviderForFlow routes to OpenCode when an opencode key is present", () => {
-    resolveApiKey.mockImplementation((p: string) => (p === "opencode" ? "db-oc" : undefined));
-    factory.getProviderForFlow("tailor");
+    resolveApiKey.mockImplementation((_u: string, p: string) => (p === "opencode" ? "db-oc" : undefined));
+    factory.getProviderForFlow(UID, "tailor");
     expect(openaiCtor).toHaveBeenCalledWith("db-oc", "https://opencode.ai/zen/v1");
   });
 
   it("resetProviderCache() rebuilds with the newly-saved key instead of the stale cached one", () => {
     // First call: no DB key -> provider builds on the env/default (undefined).
     resolveApiKey.mockImplementation(() => undefined);
-    factory.getProvider("anthropic");
+    factory.getProvider(UID, "anthropic");
     expect(anthropicCtor).toHaveBeenLastCalledWith(undefined);
 
     // User saves an Anthropic key via Settings: resolveApiKey now returns it.
-    resolveApiKey.mockImplementation((p: string) => (p === "anthropic" ? "db-anthropic" : undefined));
+    resolveApiKey.mockImplementation((_u: string, p: string) => (p === "anthropic" ? "db-anthropic" : undefined));
     // Without a reset, the cached provider would be reused and no new client built.
     factory.resetProviderCache();
-    factory.getProvider("anthropic");
+    factory.getProvider(UID, "anthropic");
     expect(anthropicCtor).toHaveBeenLastCalledWith("db-anthropic");
     // Exactly two SDK constructions happened across the test.
     expect(anthropicCtor).toHaveBeenCalledTimes(2);

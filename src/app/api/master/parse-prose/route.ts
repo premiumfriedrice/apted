@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { generateItemsFromProse, type ParseProseKind } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
 import { parseProseUserPrompt } from "@/lib/prompts/user";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,9 @@ function isKind(s: string): s is ParseProseKind {
 }
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -44,7 +48,7 @@ export async function POST(req: Request) {
     const items = await generateItemsFromProse(
       kind,
       parseProseUserPrompt({ kind, prose }),
-      getProviderForFlow("parse-prose"),
+      getProviderForFlow(userId, "parse-prose"),
     );
     return NextResponse.json({ items });
   } catch (e: unknown) {

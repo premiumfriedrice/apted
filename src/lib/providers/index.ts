@@ -1,6 +1,7 @@
 // Provider factory. Resolves which model backend to use from env and caches one
-// instance per provider. Generators in llm.ts call getProvider() (honoring
-// LLM_PROVIDER); the benchmark passes an explicit name to compare all three.
+// instance per (userId, provider) so multi-tenant BYOK keys don't bleed.
+// Generators in llm.ts call getProvider() (honoring LLM_PROVIDER); the
+// benchmark passes an explicit name to compare all three.
 //
 // Never import this from a client component — it constructs API clients holding
 // server-only keys.
@@ -48,16 +49,16 @@ function defaultModel(name: ProviderName): string {
 // Build a provider, preferring a user-stored API key (DB) over the env var.
 // Keys configured via the settings page win; env vars are the fallback so the
 // app keeps working for users who never touch that UI.
-function build(name: ProviderName): Provider {
+function build(userId: string, name: ProviderName): Provider {
   switch (name) {
     case "anthropic":
       return new AnthropicProvider(
-        new Anthropic({ apiKey: resolveApiKey("anthropic") }),
+        new Anthropic({ apiKey: resolveApiKey(userId, "anthropic") }),
         defaultModel("anthropic"),
       );
     case "openai":
       return new OpenAICompatibleProvider(
-        new OpenAI({ apiKey: resolveApiKey("openai") }),
+        new OpenAI({ apiKey: resolveApiKey(userId, "openai") }),
         defaultModel("openai"),
         "openai",
       );
@@ -69,41 +70,53 @@ function build(name: ProviderName): Provider {
       );
     case "deepseek":
       return new OpenAICompatibleProvider(
-        new OpenAI({ apiKey: resolveApiKey("deepseek"), baseURL: DEEPSEEK_BASE_URL }),
+        new OpenAI({ apiKey: resolveApiKey(userId, "deepseek"), baseURL: DEEPSEEK_BASE_URL }),
         defaultModel("deepseek"),
         "deepseek",
       );
     case "opencode":
       return new OpenAICompatibleProvider(
-        new OpenAI({ apiKey: resolveApiKey("opencode"), baseURL: OPENCODE_BASE_URL }),
+        new OpenAI({ apiKey: resolveApiKey(userId, "opencode"), baseURL: OPENCODE_BASE_URL }),
         defaultModel("opencode"),
         "opencode",
       );
   }
 }
 
-const cache = new Map<ProviderName, Provider>();
+// Per-user, per-provider cache so each user's BYOK keys resolve to their own
+// SDK client.
+const cache = new Map<string, Provider>();
 
-// Drop every cached SDK client. Call this after api-keys PUT/DELETE so the
-// next build() rebuilds providers with the now-current key instead of reusing
-// a client frozen on the old (env) key. Without this, a newly-saved BYOK key
-// wouldn't take effect until a server restart.
-export function resetProviderCache(): void {
-  cache.clear();
+function cacheKey(userId: string, name: ProviderName): string {
+  return `${userId}:${name}`;
 }
 
-export function getProvider(name?: string): Provider {
-  const fallback = hasOpenCodeKey() ? "opencode" : "anthropic";
+// Drop cached SDK clients. Pass a userId to clear just that user's providers;
+// omit it to clear the whole table (used after api-keys PUT/DELETE and in
+// tests). Call this after api-keys mutations so the next build() rebuilds
+// providers with the now-current key instead of reusing a client frozen on
+// the old (env) key.
+export function resetProviderCache(userId?: string): void {
+  if (!userId) {
+    cache.clear();
+    return;
+  }
+  for (const name of PROVIDER_NAMES) cache.delete(cacheKey(userId, name));
+}
+
+export function getProvider(userId: string, name?: string): Provider {
+  const fallback = hasOpenCodeKey(userId) ? "opencode" : "anthropic";
   const resolved = (name ?? process.env.LLM_PROVIDER ?? fallback) as ProviderName;
   if (!PROVIDER_NAMES.includes(resolved)) {
     throw new Error(
       `Unknown LLM provider "${resolved}". Expected one of: ${PROVIDER_NAMES.join(", ")}`,
     );
   }
-  let provider = cache.get(resolved);
+  const key = cacheKey(userId, resolved);
+  let provider = cache.get(key);
   if (!provider) {
-    provider = build(resolved);
-    cache.set(resolved, provider);
+    provider = build(userId, resolved);
+    cache.set(key, provider);
   }
   return provider;
 }
@@ -111,15 +124,15 @@ export function getProvider(name?: string): Provider {
 // Whether OpenCode is usable: a key is present either in the DB or the env.
 // Replaces the bare process.env.OPENCODE_API_KEY checks in flow routing so the
 // OpenCode path activates once the user enters an OpenCode key via settings.
-function hasOpenCodeKey(): boolean {
-  return resolveApiKey("opencode") != null;
+function hasOpenCodeKey(userId: string): boolean {
+  return resolveApiKey(userId, "opencode") != null;
 }
 
 // Build an OpenCode provider with a specific model. Used by getTailorProvider
 // and getStructureProvider to route different models through the same proxy.
-function buildOpenCodeProvider(model: string): Provider {
+function buildOpenCodeProvider(userId: string, model: string): Provider {
   return new OpenAICompatibleProvider(
-    new OpenAI({ apiKey: resolveApiKey("opencode"), baseURL: OPENCODE_BASE_URL }),
+    new OpenAI({ apiKey: resolveApiKey(userId, "opencode"), baseURL: OPENCODE_BASE_URL }),
     model,
     "opencode",
   );
@@ -136,39 +149,39 @@ const FLOW_ENV: Record<Flow, string> = {
   "parse-prose": "LLM_PROVIDER_PARSE_PROSE",
 };
 
-export function getProviderForFlow(flow: Flow): Provider {
+export function getProviderForFlow(userId: string, flow: Flow): Provider {
   const override = process.env[FLOW_ENV[flow]];
-  if (override) return getProvider(override);
+  if (override) return getProvider(userId, override);
 
   // When OpenCode is configured, route all quality-sensitive flows through it.
   // Tailor: Sonnet via OpenCode for bullet rewording.
   // Edit/import/parse-prose: also Sonnet for quality.
-  if (hasOpenCodeKey()) {
-    if (flow === "tailor" || flow === "edit") return getTailorProvider();
+  if (hasOpenCodeKey(userId)) {
+    if (flow === "tailor" || flow === "edit") return getTailorProvider(userId);
     // Lighter flows can use a cheaper model if desired; for now, same.
-    return getTailorProvider();
+    return getTailorProvider(userId);
   }
 
   // Fallback: Anthropic for quality flows, whatever LLM_PROVIDER is for others.
-  if (flow === "tailor" || flow === "edit") return getProvider("anthropic");
-  return getProvider();
+  if (flow === "tailor" || flow === "edit") return getProvider(userId, "anthropic");
+  return getProvider(userId);
 }
 
 // getTailorProvider returns an OpenCode provider configured with the tailor model
 // (Sonnet via OpenCode). Used for the main tailoring/editing pipeline.
-export function getTailorProvider(): Provider {
+export function getTailorProvider(userId: string): Provider {
   const model = process.env.OPENCODE_TAILOR_MODEL ?? "claude-sonnet-4-5";
-  return buildOpenCodeProvider(model);
+  return buildOpenCodeProvider(userId, model);
 }
 
 // getStructureProvider returns the provider used for the two-phase tailor's
 // structure-selection step. Uses DeepSeek v4 flash via OpenCode when configured;
 // falls back to DeepSeek direct, then Anthropic.
-export function getStructureProvider(): Provider {
-  if (hasOpenCodeKey()) {
+export function getStructureProvider(userId: string): Provider {
+  if (hasOpenCodeKey(userId)) {
     const model = process.env.OPENCODE_STRUCTURE_MODEL ?? "deepseek-v4-flash";
-    return buildOpenCodeProvider(model);
+    return buildOpenCodeProvider(userId, model);
   }
-  if (resolveApiKey("deepseek") != null) return getProvider("deepseek");
-  return getProvider("anthropic");
+  if (resolveApiKey(userId, "deepseek") != null) return getProvider(userId, "deepseek");
+  return getProvider(userId, "anthropic");
 }

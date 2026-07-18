@@ -1,4 +1,5 @@
-// Tests for the bring-your-own api key storage (PRE-84).
+// Tests for the bring-your-own api key storage (PRE-84), updated for the
+// multi-tenant (PRE-86) signatures — every function now takes a user id.
 //
 // Covers:
 //   - loadApiKeys() maps DB columns to providers (null when blank/missing)
@@ -25,6 +26,8 @@ import {
   getApiKey,
   isKeyedProvider,
 } from "../api-keys";
+
+const UID = "test-user";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -55,7 +58,7 @@ describe("loadApiKeys", () => {
     mockQuery.mockResolvedValueOnce({
       rows: [
         {
-          id: 1,
+          user_id: UID,
           opencode_key: "oc-123",
           anthropic_key: null,
           openai_key: "",
@@ -63,7 +66,7 @@ describe("loadApiKeys", () => {
         },
       ],
     });
-    const m = await loadApiKeys();
+    const m = await loadApiKeys(UID);
     expect(m.opencode).toBe("oc-123");
     expect(m.anthropic).toBeNull();
     // Empty string is treated as unset so env fallback still applies.
@@ -73,13 +76,13 @@ describe("loadApiKeys", () => {
 
   it("returns all-null when row is absent", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    const m = await loadApiKeys();
+    const m = await loadApiKeys(UID);
     expect(m).toEqual({ opencode: null, anthropic: null, openai: null, deepseek: null });
   });
 
   it("returns all-null when the table is missing", async () => {
     mockQuery.mockRejectedValueOnce(new Error("relation api_keys does not exist"));
-    const m = await loadApiKeys();
+    const m = await loadApiKeys(UID);
     expect(m.opencode).toBeNull();
     expect(m.deepseek).toBeNull();
   });
@@ -91,46 +94,47 @@ describe("resolveApiKey precedence", () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ anthropic_key: "db-key", opencode_key: null, openai_key: null, deepseek_key: null }],
     });
-    await loadApiKeys();
-    expect(resolveApiKey("anthropic")).toBe("db-key");
+    await loadApiKeys(UID);
+    expect(resolveApiKey(UID, "anthropic")).toBe("db-key");
   });
 
   it("falls back to the env var when the DB key is unset", async () => {
     process.env.ANTHROPIC_API_KEY = "env-fallback";
     mockQuery.mockResolvedValueOnce({ rows: [{ anthropic_key: null }] });
-    await loadApiKeys();
-    expect(resolveApiKey("anthropic")).toBe("env-fallback");
+    await loadApiKeys(UID);
+    expect(resolveApiKey(UID, "anthropic")).toBe("env-fallback");
   });
 
   it("returns undefined when neither DB nor env has a key", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ anthropic_key: null }] });
-    await loadApiKeys();
-    expect(resolveApiKey("anthropic")).toBeUndefined();
+    await loadApiKeys(UID);
+    expect(resolveApiKey(UID, "anthropic")).toBeUndefined();
   });
 });
 
 describe("setApiKey / clearApiKey", () => {
   it("writes the provider column on upsert and trims whitespace", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ opencode_key: "  oc-1  " }] }); // refresh load
-    await setApiKey("opencode", "  oc-1  ");
+    await setApiKey(UID, "opencode", "  oc-1  ");
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain("INSERT INTO api_keys");
     expect(sql).toContain("opencode_key");
-    expect(sql).toContain("ON CONFLICT (id) DO UPDATE SET opencode_key");
-    expect(params).toEqual(["oc-1"]);
+    expect(sql).toContain("ON CONFLICT (user_id) DO UPDATE SET opencode_key");
+    expect(params).toEqual([UID, "oc-1"]);
   });
 
   it("treating an empty/whitespace key as a clear (NULL)", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ opencode_key: null }] });
-    await setApiKey("opencode", "   ");
-    expect(mockQuery.mock.calls[0][1]).toEqual([null]);
+    await setApiKey(UID, "opencode", "   ");
+    expect(mockQuery.mock.calls[0][1]).toEqual([UID, null]);
   });
 
   it("clearApiKey nulls the column", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ opencode_key: null }] });
-    await clearApiKey("opencode");
-    const [sql] = mockQuery.mock.calls[0];
+    await clearApiKey(UID, "opencode");
+    const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain("UPDATE api_keys SET opencode_key = NULL");
+    expect(params).toEqual([UID]);
   });
 });
 
@@ -139,8 +143,8 @@ describe("getKeyStatus never leaks values", () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ opencode_key: "secret-oc", anthropic_key: null, openai_key: "x", deepseek_key: "y" }],
     });
-    await loadApiKeys();
-    const status = getKeyStatus();
+    await loadApiKeys(UID);
+    const status = getKeyStatus(UID);
     expect(status).toEqual({
       opencode: true,
       anthropic: false,
@@ -157,8 +161,8 @@ describe("getKeyStatus never leaks values", () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ opencode_key: "secret-oc", anthropic_key: null, openai_key: null, deepseek_key: null }],
     });
-    await loadApiKeys();
-    expect(getApiKey("opencode")).toBe("secret-oc");
+    await loadApiKeys(UID);
+    expect(getApiKey(UID, "opencode")).toBe("secret-oc");
   });
 });
 

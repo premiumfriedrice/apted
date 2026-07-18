@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "@/lib/auth-client";
+import { isAuthConfigured } from "@/lib/auth-config";
 import ApiKeysSection from "./api-keys-section";
 
 type Option = { name: string; label: string };
@@ -87,6 +89,87 @@ export default function SettingsPage() {
       </section>
 
       <ApiKeysSection />
+
+      {isAuthConfigured() && <ExtensionAccessSection />}
     </div>
+  );
+}
+
+function ExtensionAccessSection() {
+  const { data: session } = useSession();
+  const [token, setToken] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function mintToken() {
+    setLoading(true);
+    setError(null);
+    setCopied(false);
+    try {
+      const res = await fetch("/api/auth/extension-token", { method: "POST" });
+      if (!res.ok) throw new Error(`Token request failed (HTTP ${res.status})`);
+      const data = (await res.json()) as { token?: string; expiresAt?: string };
+      setToken(data.token ?? null);
+      setExpiresAt(data.expiresAt ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mint token.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copy() {
+    if (!token) return;
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+ /* clipboard unavailable */ }
+  }
+
+  const expiry = expiresAt ? new Date(expiresAt).toLocaleDateString() : null;
+
+  return (
+    <section className="border border-border-subtle bg-surface-white p-md">
+      <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
+        Extension access
+      </h3>
+      <p className="mt-1 text-body-sm text-on-surface-variant">
+        Generate a token to authenticate the apted Chrome extension. Sign out of the web app any time without affecting it.
+      </p>
+
+      {!session && (
+        <p className="mt-4 text-body-sm text-red-700">Sign in to generate an extension token.</p>
+      )}
+
+      {session && (
+        <div className="mt-4 space-y-3">
+          <button onClick={mintToken} disabled={loading} className={primaryBtnCls}>
+            {loading ? "Generating…" : token ? "Regenerate token" : "Generate token"}
+          </button>
+          {error && <p className="text-body-sm text-red-700">{error}</p>}
+          {token && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <code className="block flex-1 truncate rounded-md border border-outline-variant bg-surface-container-low px-3 py-2 text-body-sm">
+                  {token}
+                </code>
+                <button onClick={copy} className={primaryBtnCls} title="Copy token">
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              {expiry && (
+                <p className="text-label-sm text-on-surface-variant">
+                  Token expires on {expiry}. Paste it into the extension options page under Auth token.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { isOutcome, parseInterviewRound, parseRejectedAfterRound } from "@/lib/applications";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -22,17 +23,24 @@ function rowToJson(row: Record<string, unknown>) {
   };
 }
 
-export async function GET(_req: Request, { params }: Ctx) {
+const COLS =
+  "id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at";
+
+export async function GET(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const r = await pool.query(
-    "SELECT id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at FROM applications WHERE id = $1",
-    [id],
+    `SELECT ${COLS} FROM applications WHERE id = $1 AND user_id = $2`,
+    [id, userId],
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(rowToJson(r.rows[0]));
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = await req.json();
   const fields: string[] = [];
@@ -106,17 +114,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: "no fields" }, { status: 400 });
   }
 
-  vals.push(id);
+  vals.push(id, userId);
   const r = await pool.query(
-    `UPDATE applications SET ${fields.join(", ")} WHERE id = $${i} RETURNING id, version_id, company, role, job_description, outcome, interview_round, rejected_after_round, portal_url, notes, created_at`,
+    `UPDATE applications SET ${fields.join(", ")} WHERE id = $${i} AND user_id = $${i + 1} RETURNING ${COLS}`,
     vals,
   );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(rowToJson(r.rows[0]));
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
-  await pool.query("DELETE FROM applications WHERE id = $1", [id]);
+  await pool.query("DELETE FROM applications WHERE id = $1 AND user_id = $2", [id, userId]);
   return NextResponse.json({ ok: true });
 }

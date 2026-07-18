@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { generateResumeFromText } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
 import { importResumeUserPrompt } from "@/lib/prompts/user";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,9 @@ export const runtime = "nodejs";
 const MAX_TEXT_CHARS = 50_000;
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -34,7 +38,7 @@ export async function POST(req: Request) {
   try {
     const content = await generateResumeFromText(
       importResumeUserPrompt({ text }),
-      getProviderForFlow("import"),
+      getProviderForFlow(userId, "import"),
     );
     return NextResponse.json({ content });
   } catch (e: unknown) {

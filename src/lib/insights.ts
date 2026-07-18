@@ -57,8 +57,9 @@ function buildUserPrompt(resume: Resume, applications: Application[]): string {
 export async function generateInsights(
   resume: Resume,
   applications: Application[],
+  userId: string,
 ): Promise<ResumeInsights> {
-  const provider = getProvider();
+  const provider = getProvider(userId);
   const userPrompt = buildUserPrompt(resume, applications);
 
   try {

@@ -10,14 +10,20 @@ import {
   setApiKey,
 } from "@/lib/api-keys";
 import { resetProviderCache } from "@/lib/providers/index";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  return NextResponse.json(getKeyStatus());
+export async function GET(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  return NextResponse.json(getKeyStatus(userId));
 }
 
 export async function PUT(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -34,12 +40,15 @@ export async function PUT(req: Request) {
   if (typeof key !== "string") {
     return NextResponse.json({ error: "key must be a string" }, { status: 400 });
   }
-  await setApiKey(provider, key);
-  resetProviderCache();
-  return NextResponse.json(getKeyStatus());
+  await setApiKey(userId, provider, key);
+  resetProviderCache(userId);
+  return NextResponse.json(getKeyStatus(userId));
 }
 
 export async function DELETE(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const url = new URL(req.url);
   const provider = url.searchParams.get("provider");
   if (!provider || !isKeyedProvider(provider)) {
@@ -48,7 +57,7 @@ export async function DELETE(req: Request) {
       { status: 400 },
     );
   }
-  await clearApiKey(provider);
-  resetProviderCache();
-  return NextResponse.json(getKeyStatus());
+  await clearApiKey(userId, provider);
+  resetProviderCache(userId);
+  return NextResponse.json(getKeyStatus(userId));
 }

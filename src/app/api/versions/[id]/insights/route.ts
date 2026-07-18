@@ -3,6 +3,7 @@ import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateInsights } from "@/lib/insights";
 import type { Application } from "@/lib/applications";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -34,9 +35,14 @@ const SELECT = `
   GROUP BY v.id
 `;
 
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
-  const r = await pool.query(SELECT, [id]);
+  const r = await pool.query(
+    SELECT.replace("WHERE v.id = $1", "WHERE v.id = $1 AND v.user_id = $2"),
+    [id, userId],
+  );
   if (!r.rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const row = r.rows[0];
@@ -48,7 +54,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   }
 
   const applications = row.applications as Application[];
-  const insights = await generateInsights(resume, applications);
+  const insights = await generateInsights(resume, applications, userId);
 
   return NextResponse.json(insights);
 }

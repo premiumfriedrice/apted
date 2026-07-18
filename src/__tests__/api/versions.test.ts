@@ -126,8 +126,9 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
     expect(versionInsertCall[0]).toContain("INSERT INTO resume_versions");
     expect(versionInsertCall[0]).toContain("name");
     expect(versionInsertCall[0]).toContain("pdf");
-    expect(versionInsertCall[1][0]).toBe("Test Version");
-    expect(versionInsertCall[1][2]).toEqual(fakePdf);
+    // INSERT columns are (user_id, name, tailored_content, pdf) — so name is [1], pdf is [3].
+    expect(versionInsertCall[1][1]).toBe("Test Version");
+    expect(versionInsertCall[1][3]).toEqual(fakePdf);
 
     // INSERT into applications happened
     const appInsertCall = mockQuery.mock.calls[2];
@@ -170,7 +171,8 @@ describe("POST /api/versions — PDF compile + store round-trip", () => {
 
     // INSERT still happened, pdf param was null
     const versionInsertCall = mockQuery.mock.calls[1];
-    expect(versionInsertCall[1][2]).toBeNull();
+    // INSERT columns (user_id, name, tailored_content, pdf) — pdf is the 4th param.
+    expect(versionInsertCall[1][3]).toBeNull();
   });
 
   it("defaults outcome to 'draft' when omitted", async () => {
@@ -414,8 +416,10 @@ describe("GET /api/versions?outcome=X — outcome filter", () => {
 
     // SQL filters via HAVING on application outcomes.
     const [sql, params] = mockQuery.mock.calls[0];
-    expect(sql).toContain("HAVING bool_or(a.outcome = $1)");
-    expect(params[0]).toBe("interviewing");
+    // user_id is $1, outcome is $2 (route is now user-scoped).
+    expect(sql).toContain("HAVING bool_or(a.outcome = $2)");
+    expect(params[0]).toBe("local");
+    expect(params[1]).toBe("interviewing");
 
     expect(body).toHaveLength(1);
     expect(body[0].applications[0].outcome).toBe("interviewing");

@@ -91,8 +91,9 @@ export default function LibraryPage() {
 
   useEffect(() => {
     fetch("/api/versions")
-      .then((r) => r.json())
-      .then((data: Version[]) => setVersions(data));
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: Version[]) => setVersions(Array.isArray(data) ? data : []))
+      .catch(() => setVersions([]));
   }, []);
 
   useEffect(() => {

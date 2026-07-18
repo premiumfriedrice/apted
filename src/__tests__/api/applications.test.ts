@@ -45,6 +45,8 @@ function appJson(row: Record<string, unknown>) {
 
 describe("GET /api/versions/[id]/applications", () => {
   it("lists applications for a version", async () => {
+    // 1) ownership check (version belongs to user), 2) applications list.
+    mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] });
     mockQuery.mockResolvedValueOnce({ rows: [fakeApplication] });
 
     const req = new Request("http://localhost/api/versions/v1/applications");
@@ -58,6 +60,8 @@ describe("GET /api/versions/[id]/applications", () => {
 
 describe("POST /api/versions/[id]/applications", () => {
   it("creates a new application", async () => {
+    // 1) ownership check, 2) INSERT application.
+    mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] });
     mockQuery.mockResolvedValueOnce({ rows: [fakeApplication] });
 
     const req = new Request("http://localhost/api/versions/v1/applications", {
@@ -76,7 +80,8 @@ describe("POST /api/versions/[id]/applications", () => {
     const body = await res.json();
     expect(body).toEqual(appJson(fakeApplication));
 
-    const [sql, params] = mockQuery.mock.calls[0];
+    // The INSERT is the second pool.query call (after the ownership check).
+    const [sql, params] = mockQuery.mock.calls[1];
     expect(sql).toContain("INSERT INTO applications");
     expect(params).toContain("v1");
     expect(params).toContain("Acme");
@@ -95,6 +100,7 @@ describe("POST /api/versions/[id]/applications", () => {
 
   it("persists portalUrl when provided", async () => {
     const row = { ...fakeApplication, portal_url: "https://careers.acme.com/123" };
+    mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] });
     mockQuery.mockResolvedValueOnce({ rows: [row] });
 
     const req = new Request("http://localhost/api/versions/v1/applications", {
@@ -111,7 +117,7 @@ describe("POST /api/versions/[id]/applications", () => {
     const res = await POST(req, { params: Promise.resolve({ id: "v1" }) });
     expect(res.status).toBe(200);
 
-    const [sql, params] = mockQuery.mock.calls[0];
+    const [sql, params] = mockQuery.mock.calls[1];
     expect(sql).toContain("portal_url");
     expect(params).toContain("https://careers.acme.com/123");
   });

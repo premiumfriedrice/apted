@@ -9,6 +9,7 @@ import { getRanker } from "@/lib/relevance";
 import { tailorUserPrompt } from "@/lib/prompts/user";
 import { applyFilter } from "@/lib/structure";
 import { redactResume } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 import {
   createProgress,
   updateProgress,
@@ -27,6 +28,9 @@ const TailorRequest = z.object({
 });
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let parsed: z.infer<typeof TailorRequest>;
   try {
     parsed = TailorRequest.parse(await req.json());
@@ -46,14 +50,15 @@ export async function POST(req: Request) {
   try {
     return await withDb(async (client) => {
       updateProgress(jobId, { phase: "analyzing", percent: 10, message: "Loading master resume…" });
-      const mr = await client.query("SELECT content FROM master_resume WHERE id = 1");
+      const mr = await client.query("SELECT content FROM master_resume WHERE user_id = $1", [userId]);
       if (!mr.rows[0]) {
         return NextResponse.json({ error: "master_resume not seeded" }, { status: 400 });
       }
       const master = Resume.parse(mr.rows[0].content);
 
       const vr = await client.query(
-        "SELECT tailored_content FROM resume_versions ORDER BY created_at DESC LIMIT 20",
+        "SELECT tailored_content FROM resume_versions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20",
+        [userId],
       );
       const priorVersions = vr.rows.map((r) => ({
         company: r.company,
@@ -70,7 +75,7 @@ export async function POST(req: Request) {
       // are relevant to this JD. This shrinks the master before
       // Phase 2 so Claude's prompt is smaller and faster.
       updateProgress(jobId, { phase: "selecting", percent: 50, message: "Selecting relevant sections…" });
-      const filter = await selectStructure(parsed.jobDescription, master);
+      const filter = await selectStructure(parsed.jobDescription, master, userId);
       const filteredMaster = applyFilter(master, filter);
 
       // ── Phase 2: Tailoring (Claude) ───────────────────────────────
@@ -85,15 +90,15 @@ export async function POST(req: Request) {
 
       const draft = await generateResume(
         tailorUserPrompt({ master: redactedMaster, priorVersions: redactedPrior, jobDescription: parsed.jobDescription }),
-        getProviderForFlow("tailor"),
+        getProviderForFlow(userId, "tailor"),
       );
 
       updateProgress(jobId, { phase: "compiling", percent: 90, message: "Saving draft…" });
       const ins = await client.query(
-        `INSERT INTO drafts (job_description, content, history)
-         VALUES ($1, $2::jsonb, '[]'::jsonb)
+        `INSERT INTO drafts (user_id, job_description, content, history)
+         VALUES ($1, $2, $3::jsonb, '[]'::jsonb)
          RETURNING id, content, history, created_at, updated_at`,
-        [parsed.jobDescription, JSON.stringify(draft)],
+        [userId, parsed.jobDescription, JSON.stringify(draft)],
       );
       const row = ins.rows[0];
 

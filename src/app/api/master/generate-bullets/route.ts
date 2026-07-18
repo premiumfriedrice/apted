@@ -4,6 +4,7 @@ import { callAndParse } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
 import { generateBulletsUserPrompt } from "@/lib/prompts/user";
 import { Bullet } from "@/lib/resume";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,9 @@ Rules:
 Return ONLY a JSON object with shape { "bullets": [...] }.`;
 
 export async function POST(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -63,7 +67,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const provider = getProviderForFlow("edit");
+    const provider = getProviderForFlow(userId, "edit");
     const result = await callAndParse(
       provider,
       SYSTEM_PROMPT,

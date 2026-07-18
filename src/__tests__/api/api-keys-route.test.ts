@@ -48,7 +48,7 @@ const okStatus = {
 describe("GET /api/settings/api-keys", () => {
   it("returns boolean key status with no values", async () => {
     stubs.getKeyStatus.mockReturnValue(okStatus);
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/settings/api-keys"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual(okStatus);
@@ -68,7 +68,7 @@ describe("PUT /api/settings/api-keys", () => {
     });
     const res = await PUT(req);
     expect(res.status).toBe(200);
-    expect(stubs.setApiKey).toHaveBeenCalledWith("opencode", "sk-test-key-value");
+    expect(stubs.setApiKey).toHaveBeenCalledWith("local", "opencode", "sk-test-key-value");
     expect(stubs.resetProviderCache).toHaveBeenCalledTimes(1);
     expect(await res.json()).toEqual(okStatus);
   });
@@ -121,7 +121,7 @@ describe("DELETE /api/settings/api-keys", () => {
     );
     const res = await DELETE(req);
     expect(res.status).toBe(200);
-    expect(stubs.clearApiKey).toHaveBeenCalledWith("opencode");
+    expect(stubs.clearApiKey).toHaveBeenCalledWith("local", "opencode");
     expect(stubs.resetProviderCache).toHaveBeenCalledTimes(1);
   });
 

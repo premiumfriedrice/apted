@@ -3,13 +3,17 @@ import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { redactResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
+import { requireUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const [mr, pm] = await Promise.all([
-    pool.query("SELECT content, updated_at FROM master_resume WHERE id = 1"),
-    pool.query("SELECT map FROM master_pii_map WHERE id = 1"),
+    pool.query("SELECT content, updated_at FROM master_resume WHERE user_id = $1", [userId]),
+    pool.query("SELECT map FROM master_pii_map WHERE user_id = $1", [userId]),
   ]);
   if (!mr.rows[0]) return NextResponse.json({ error: "not seeded" }, { status: 404 });
   return NextResponse.json({
@@ -20,6 +24,9 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+  const userId = await requireUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const content = Resume.parse(body.content);
 
@@ -28,17 +35,17 @@ export async function PUT(req: Request) {
 
   const [r] = await Promise.all([
     pool.query(
-      `INSERT INTO master_resume (id, content, updated_at)
-       VALUES (1, $1::jsonb, now())
-       ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, updated_at = now()
+      `INSERT INTO master_resume (user_id, content, updated_at)
+       VALUES ($1, $2::jsonb, now())
+       ON CONFLICT (user_id) DO UPDATE SET content = EXCLUDED.content, updated_at = now()
        RETURNING content, updated_at`,
-      [JSON.stringify(redacted)],
+      [userId, JSON.stringify(redacted)],
     ),
     pool.query(
-      `INSERT INTO master_pii_map (id, map, updated_at)
-       VALUES (1, $1::jsonb, now())
-       ON CONFLICT (id) DO UPDATE SET map = EXCLUDED.map, updated_at = now()`,
-      [JSON.stringify(piiMap)],
+      `INSERT INTO master_pii_map (user_id, map, updated_at)
+       VALUES ($1, $2::jsonb, now())
+       ON CONFLICT (user_id) DO UPDATE SET map = EXCLUDED.map, updated_at = now()`,
+      [userId, JSON.stringify(piiMap)],
     ),
   ]);
 
