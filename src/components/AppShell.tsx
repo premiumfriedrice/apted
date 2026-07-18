@@ -4,6 +4,9 @@ import { createContext, useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
+// (useSession is called once at the AppShell top so we can gate the whole tree
+// on the resolved session before any page body mounts; SidebarInner receives
+// the result as a prop.)
 import { isAuthConfigured } from "@/lib/auth-config";
 
 const SidebarCollapsedContext = createContext(false);
@@ -29,8 +32,15 @@ const sideActiveBtnCls =
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const authed = !!isAuthConfigured();
+  // authed is a build-time constant (NEXT_PUBLIC_AUTH_ENABLED) so the value is
+  // identical on server and client — no hydration mismatch from branching on it.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { data: session, isPending } = authed ? useSession() : { data: null, isPending: false };
 
   useEffect(() => {
     setMounted(true);
@@ -45,11 +55,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0"); } catch { /* ignore */ }
   }, [collapsed, mounted]);
 
-  // Bare chrome on the auth pages so login/signup render edge-to-edge
-  // with no sidebar (AuthForm already centers its own layout).
-  const pathnameForShell = usePathname();
-  if (pathnameForShell === "/login" || pathnameForShell === "/signup") {
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
+
+  // When real auth is on and there's no session, bounce anonymous visitors to
+  // the auth pages instead of rendering page bodies that'll 401 on their API
+  // fetches (which throws during render). First-time visitors have no user →
+  // /signup; returning visitors whose session just expired → /login.
+  useEffect(() => {
+    if (authed && !isPending && !session && !isAuthPage) {
+      router.replace("/signup");
+    }
+  }, [authed, isPending, session, isAuthPage, router]);
+
+  // Auth pages render edge-to-edge with NO sidebar (AuthForm centers itself).
+  if (isAuthPage) {
     return <>{children}</>;
+  }
+
+  // Until the session resolves (or we redirect), render nothing. This BLOCKS
+  // children from mounting, so the dashboard's `/api/versions` fetch never
+  // fires and never throws `N is not iterable` on a 401.
+  if (authed && !session) {
+    return null;
   }
 
   const sidebarWidth = collapsed ? "w-12" : "w-64";
@@ -79,7 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             title={collapsed ? "Click to expand sidebar" : undefined}
             className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
           >
-            <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
+            <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} session={session} />
           </aside>
           <div className={`h-full transition-[margin] duration-200 ease-out ${mainLeft}`}>
             {children}
@@ -98,7 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           title={collapsed ? "Click to expand sidebar" : undefined}
           className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
         >
-          <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} />
+          <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} session={session} />
         </aside>
 
         {/* Main content */}
@@ -114,19 +141,14 @@ function SidebarInner({
   pathname,
   collapsed,
   setCollapsed,
+  session,
 }: {
   pathname: string;
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
+  session: { user?: { name?: string | null; email?: string | null } } | null;
 }) {
   const authed = !!isAuthConfigured();
-  // Subscribe to the session store only when auth is enabled. In local mode
-  // there are no sessions, and the Better Auth client's initial fetch is
-  // unnecessary work (and historically threw on hydration). Because
-  // `authed` is computed from NEXT_PUBLIC_AUTH_ENABLED it's the same value on
-  // server and client, so the conditional doesn't cause a hydration mismatch.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data: session, isPending } = authed ? useSession() : { data: null, isPending: false };
   const router = useRouter();
   const user = session?.user;
   const initials = user?.name
@@ -207,45 +229,24 @@ function SidebarInner({
             >
               <MaterialIcon name={SETTINGS_NAV.icon} className="text-[22px]" />
             </Link>
-            {authed && !isPending && !user ? (
-              <button
-                title="Sign in"
-                onClick={() => router.push("/login")}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-surface-variant hover:bg-on-surface"
-              >
-                <MaterialIcon name="login" className="text-[20px]" />
-              </button>
-            ) : (
-              <Link
-                href={SETTINGS_NAV.href}
-                title="Profile"
-                onClick={(e) => e.stopPropagation()}
-                className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
-              >
-                <span className="text-label-sm font-bold">{initials}</span>
-              </Link>
-            )}
+            <Link
+              href={SETTINGS_NAV.href}
+              title="Profile"
+              onClick={(e) => e.stopPropagation()}
+              className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
+            >
+              <span className="text-label-sm font-bold">{initials}</span>
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-sm border-t border-outline-variant px-sm pt-sm">
             <div className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
               <span className="text-label-sm font-bold text-secondary">{initials}</span>
             </div>
-            {authed && !isPending && !user ? (
-              <div className="min-w-0 flex-1">
-                <button
-                  onClick={() => router.push("/login")}
-                  className="font-label-md text-label-md text-primary font-semibold underline"
-                >
-                  Sign in
-                </button>
-              </div>
-            ) : (
-              <div className="min-w-0 flex-1">
-                <p className="font-label-md text-label-md truncate leading-tight">{displayName}</p>
-                <p className="text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</p>
-              </div>
-            )}
+            <div className="min-w-0 flex-1">
+              <p className="font-label-md text-label-md truncate leading-tight">{displayName}</p>
+              <p className="text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</p>
+            </div>
             {authed && user && (
               <button
                 onClick={logout}
