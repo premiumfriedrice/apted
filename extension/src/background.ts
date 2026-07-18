@@ -152,8 +152,8 @@ let tailorAbortController: AbortController | null = null;
 
 async function apiFetch<T>(path: string, init: RequestInit & { json?: unknown }): Promise<T> {
   const { apiBase, authToken } = await getSettings();
-  if (!apiBase) throw new Error("API_BASE not set — open the options page.");
-  const url = apiBase.replace(/\/+$/, "") + path;
+  const base = apiBase || "https://apted.vercel.app";
+  const url = base.replace(/\/+$/, "") + path;
 
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -198,10 +198,10 @@ async function apiFetchPdf(
   ifNoneMatch?: string,
 ): Promise<{ status: number; bytes: Uint8Array | null; etag: string }> {
   const { apiBase, authToken } = await getSettings();
-  if (!apiBase) throw new Error("API_BASE not set — open the options page.");
+  const base = apiBase || "https://apted.vercel.app";
   const sep = path.includes("?") ? "&" : "?";
   const buster = encodeURIComponent(ifNoneMatch ?? Date.now().toString());
-  const url = apiBase.replace(/\/+$/, "") + path + sep + "v=" + buster;
+  const url = base.replace(/\/+$/, "") + path + sep + "v=" + buster;
 
   const headers: Record<string, string> = {};
   if (authToken) headers["authorization"] = `Bearer ${authToken}`;

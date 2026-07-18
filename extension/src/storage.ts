@@ -1,11 +1,11 @@
 import type { Settings } from "./types";
 
-const DEFAULTS: Settings = { apiBase: "", authToken: "", openMode: "popup" };
+const DEFAULTS: Settings = { apiBase: "https://apted.vercel.app", authToken: "", openMode: "popup" };
 
 export async function getSettings(): Promise<Settings> {
   const raw = await chrome.storage.sync.get(DEFAULTS);
   return {
-    apiBase: raw.apiBase ?? "",
+    apiBase: raw.apiBase || "https://apted.vercel.app",
     authToken: raw.authToken ?? "",
     openMode: raw.openMode === "window" ? "window" : "popup",
   };
