@@ -59,11 +59,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // When real auth is on and there's no session, bounce anonymous visitors to
   // the auth pages instead of rendering page bodies that'll 401 on their API
-  // fetches (which throws during render). First-time visitors have no user →
-  // /signup; returning visitors whose session just expired → /login.
+  // fetches (which throws during render). The first user has signed up, so
+  // returnees land on /login (not /signup).
   useEffect(() => {
     if (authed && !isPending && !session && !isAuthPage) {
-      router.replace("/signup");
+      router.replace("/login");
     }
   }, [authed, isPending, session, isAuthPage, router]);
 
