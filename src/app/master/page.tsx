@@ -17,6 +17,7 @@ import type {
   Section,
   SkillGroup,
 } from "@/lib/resume";
+import { emptyMaster } from "@/lib/resume";
 import { injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
 
@@ -203,7 +204,17 @@ export default function MasterPage() {
   }
 
   useEffect(() => {
-    fetch("/api/master").then((r) => r.json()).then((d) => {
+    fetch("/api/master").then(async (r) => {
+      if (r.status === 404) {
+        // No master resume yet — start with an empty one.
+        const fresh = emptyMaster();
+        setResume(fresh);
+        setSavedResume(fresh);
+        setUpdatedAt(null);
+        setJsonText(JSON.stringify(fresh, null, 2));
+        return;
+      }
+      const d = await r.json();
       const stored = d.content as Resume;
       const map = d.piiMap as RedactionMap | null;
       setPiiMap(map);
