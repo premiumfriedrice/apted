@@ -28,7 +28,7 @@ parses your JSON and renders it to LaTeX; any deviation breaks the pipeline.
 
 Preserve every \`id\` field on sections, items, and bullets exactly as
 given. Mint new ids (short kebab-case) only for genuinely new content.
-Reuse existing bullet text verbatim when it already fits — rewrite only
+Reuse existing bullet text verbatim when it already fits - rewrite only
 when tailoring genuinely improves the match.
 
 NEVER use em dashes (U+2014) anywhere in any text you generate. Use regular
@@ -38,12 +38,12 @@ titles, notes, and every other string field.
 
 // EXTRACT_FRAME is the runtime CONTRACT for parse-prose + import (raw text in →
 // structured Resume / items out). It deliberately drops the tailoring/selection
-// guidance — extraction is about FAITHFULLY converting prose to JSON, not
+// guidance - extraction is about FAITHFULLY converting prose to JSON, not
 // curating it for a JD. Formatting rules from resume-rules.md still apply.
 const EXTRACT_FRAME = `
 You are the extraction engine inside apted. Your job is to turn raw resume
-content — free-form prose written by the user, or text pulled from an
-uploaded resume — into the structured JSON apted's renderer and tailoring
+content - free-form prose written by the user, or text pulled from an
+uploaded resume - into the structured JSON apted's renderer and tailoring
 engine need downstream.
 
 Follow the schema and formatting rules below exactly. They are the single

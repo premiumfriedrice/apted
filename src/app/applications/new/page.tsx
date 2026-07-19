@@ -38,7 +38,7 @@ function formatDate(iso: string) {
 }
 
 function versionLabel(v: Version) {
-  return v.name || `Untitled — ${formatDate(v.createdAt)}`;
+  return v.name || `Untitled ${formatDate(v.createdAt)}`;
 }
 
 export default function NewApplicationPage() {

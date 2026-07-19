@@ -542,7 +542,7 @@ async function newTailor(): Promise<void> {
       draftId: null,
       chat: state.chat,
     });
-    setStatus("Cleared draft. JD kept — click Tailor to start again.", "ok");
+    setStatus("Cleared draft. JD kept. Click Tailor to start again.", "ok");
   } finally {
     state.restoring = false;
   }

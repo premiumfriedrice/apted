@@ -2556,7 +2556,7 @@ export function createInitialState(): DrawerState {
         chat: state.chat,
         similarResumes: state.similarResumes,
       });
-      setStatus("Cleared draft. JD kept — click Tailor to start again.", "ok");
+      setStatus("Cleared draft. JD kept. Click Tailor to start again.", "ok");
     } finally {
       state.restoring = false;
     }

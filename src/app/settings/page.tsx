@@ -46,7 +46,7 @@ export default function SettingsPage() {
         <p className="mt-1 text-secondary">Configure your resume template and bring your own API keys.</p>
       </div>
 
-      <section className="border border-border-subtle bg-surface-white p-md">
+      <section className="mt-8 border border-border-subtle bg-surface-white p-md">
         <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
           Resume template
         </h3>
@@ -142,7 +142,7 @@ function ExtensionAccessSection() {
   const expiry = expiresAt ? new Date(expiresAt).toLocaleDateString() : null;
 
   return (
-    <section className="border border-border-subtle bg-surface-white p-md">
+    <section className="mt-8 border border-border-subtle bg-surface-white p-md">
       <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
         Extension access
       </h3>
@@ -208,7 +208,7 @@ function ExtensionDownloadSection() {
   }
 
   return (
-    <section className="border border-border-subtle bg-surface-white p-md">
+    <section className="mt-8 border border-border-subtle bg-surface-white p-md">
       <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
         Install extension
       </h3>

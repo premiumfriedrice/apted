@@ -157,7 +157,7 @@ function SidebarInner({
       ? user.email[0].toUpperCase()
       : "AU";
   // Local mode (no BETTER_AUTH_SECRET): show "Apted User" / "Local mode" like before.
-  const displayName = authed ? (user?.name ?? user?.email ?? "—") : "Apted User";
+  const displayName = authed ? (user?.name ?? user?.email ?? "-") : "Apted User";
   const displayTier = authed ? (user?.email ?? "") : "Local mode";
 
   async function logout() {

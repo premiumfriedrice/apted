@@ -26,8 +26,8 @@ Extract every distinct ${args.kind} entry the prose describes and return them as
 Rules:
 - One object per distinct entry. If the prose describes three separate roles, return three items.
 - Mint fresh short kebab-case ids for every item and every bullet.
-- Bullets: extract the achievements / responsibilities the user described. Phrase them as concise, action-led one-liners — no em-dashes, no inline bold. Do NOT invent bullets that aren't in the prose.
-- Notes: if the user provides detail beyond what fits in a one-line bullet — metrics, scope, team size, tech stack, outcomes, impact — dump it all into the notes field. Think of notes as the raw material the tailor will draw from. More detail is always better than less. Example: if the user writes "I built a notification system that handles 10k events/sec and reduced latency from 5s to 300ms, adopted by 3 teams", the bullet can be a concise one-liner but notes should capture all of that detail.
+- Bullets: extract the achievements / responsibilities the user described. Phrase them as concise, action-led one-liners - no em-dashes, no inline bold. Do NOT invent bullets that aren't in the prose.
+- Notes: if the user provides detail beyond what fits in a one-line bullet - metrics, scope, team size, tech stack, outcomes, impact - dump it all into the notes field. Think of notes as the raw material the tailor will draw from. More detail is always better than less. Example: if the user writes "I built a notification system that handles 10k events/sec and reduced latency from 5s to 300ms, adopted by 3 teams", the bullet can be a concise one-liner but notes should capture all of that detail.
 - Missing fields → empty string. Don't fabricate dates, locations, or org names.
 - Default \`tags\` to \`[]\` unless the user explicitly tagged the entry.`;
 }
@@ -45,7 +45,7 @@ ${args.prose}
 TASK
 Merge the existing bullets with the new prose detail. Keep bullets that are still accurate, add bullets for achievements/scope mentioned in the prose but not covered, and drop bullets contradicted by the prose. Never fabricate.
 
-Generate as many bullets as the prose supports: one bullet per distinct achievement, responsibility, scope item, metric, technology, or outcome. Do not collapse multiple facts into a single bullet. Each bullet follows XYZ format when facts support it — otherwise keep it factual and concise.
+Generate as many bullets as the prose supports: one bullet per distinct achievement, responsibility, scope item, metric, technology, or outcome. Do not collapse multiple facts into a single bullet. Each bullet follows XYZ format when facts support it - otherwise keep it factual and concise.
 
 Return ONLY a JSON object with this exact shape:
 {
@@ -56,7 +56,7 @@ Preserve existing bullet ids where possible. Mint fresh short kebab-case ids onl
 }
 
 export function importResumeUserPrompt(args: { text: string }) {
-  return `INPUT (raw resume text — could be pasted, PDF-extracted, or otherwise messy):
+  return `INPUT (raw resume text - could be pasted, PDF-extracted, or otherwise messy):
 ${args.text}
 
 TASK
@@ -65,10 +65,10 @@ Reconstruct this resume as a single Resume JSON object matching the schema in th
 Rules:
 - Be faithful. Every fact in your JSON must be present in the input.
 - Mint fresh short kebab-case ids for every section, item, and bullet.
-- Map naturally to the schema's section kinds (experience / projects / education / skills). If the input has a "Leadership" or "Activities" section, model it as a \`projects\`-kind section with that title — the renderer treats them the same.
+- Map naturally to the schema's section kinds (experience / projects / education / skills). If the input has a "Leadership" or "Activities" section, model it as a \`projects\`-kind section with that title - the renderer treats them the same.
 - "Achievements" / "Awards" sections that don't have bullet lists can also be modeled as a \`projects\` section with one-liner items, or omitted if the content doesn't fit.
 - Bullets are concise, action-led, no em-dashes, no inline bold.
-- Notes: always fill notes on experience and project items with every detail the prose provides — metrics, scope, team size, tech, outcomes, impact. More is better. The notes are source material for the tailor; they never appear on the rendered resume.
+- Notes: always fill notes on experience and project items with every detail the prose provides - metrics, scope, team size, tech, outcomes, impact. More is better. The notes are source material for the tailor; they never appear on the rendered resume.
 - Missing fields → empty string. Don't invent.`;
 }
 
@@ -90,7 +90,7 @@ TASK
 Produce a first-pass tailored draft as a single JSON Resume object. Make TWO levels of decisions:
 1. Which sections to include (drop entire sections from the master that the JD doesn't call for).
 2. Within kept sections, which items and bullets best match the JD.
-Respect every rule from the system prompt — especially the section-level inclusion guidance and the worked examples.`;
+Respect every rule from the system prompt - especially the section-level inclusion guidance and the worked examples.`;
 }
 
 export function editUserPrompt(args: {

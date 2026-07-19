@@ -193,7 +193,7 @@ function pickProfile(host: string): SiteProfile {
     }
     const filename = suggestPdfFilename({ id: d.id, company: d.company, role: d.role });
     chipLabel.textContent = filename;
-    chip.title = profile.label + (profile.hint ? " — " + profile.hint : "");
+    chip.title = profile.label + (profile.hint ? ": " + profile.hint : "");
     chip.hidden = false;
   }
 
@@ -212,7 +212,7 @@ function pickProfile(host: string): SiteProfile {
         await navigator.clipboard.write([
           new ClipboardItem({ "application/pdf": blob }),
         ]);
-        copy.textContent = "Copied — paste with Cmd/Ctrl+V";
+        copy.textContent = "Copied. Paste with Cmd/Ctrl+V";
       } catch (e) {
         copy.textContent = "Copy failed: " + (e instanceof Error ? e.message : "?");
       }

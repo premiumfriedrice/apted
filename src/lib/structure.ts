@@ -1,7 +1,7 @@
 // Two-phase tailor: structure selection.
 //
 // Phase 1 (cheap model, DeepSeek): takes JD + master resume skeleton and
-// returns a filter spec — which sections/items are relevant. This shrinks the
+// returns a filter spec - which sections/items are relevant. This shrinks the
 // master before Phase 2 so Claude sees only relevant content.
 //
 // Phase 2 (Claude): tailors the filtered master against the JD, producing the
@@ -30,7 +30,7 @@ export const FilterSpec = z.object({
 
 export type FilterSpec = z.infer<typeof FilterSpec>;
 
-// --- Skeleton (what we send to the cheap model — no bullet text) ----------
+// --- Skeleton (what we send to the cheap model - no bullet text) ----------
 
 export interface SectionSkeleton {
   id: string;
@@ -45,7 +45,7 @@ export interface SectionSkeleton {
     // achievements: text
     label: string;
     tags: string[];
-    notes: string;  // raw detail — tells structure model what's available
+    notes: string;  // raw detail - tells structure model what's available
   }>;
 }
 
@@ -67,7 +67,7 @@ export function toSkeleton(resume: Resume): SectionSkeleton[] {
           if (it.stack) label += ` [${it.stack}]`;
           break;
         case "education":
-          label = `${it.school ?? ""} — ${it.degree ?? ""}`.trim();
+          label = `${it.school ?? ""} - ${it.degree ?? ""}`.trim();
           break;
         case "skills":
           label = (it.category as string) ?? "";
@@ -142,7 +142,7 @@ Rules:
   are relevant. For example, if the JD asks for React experience, keep
   items tagged "react" or with "React" in the label. Drop items that are
   completely unrelated.
-- Be inclusive when in doubt — it is better to keep a borderline item
+- Be inclusive when in doubt - it is better to keep a borderline item
   than to drop something Claude might have used. Notes provide extra context;
   if an item has notes that mention relevant skills or impact, keep it.
 - Skills sections: keep the whole section unless the JD is entirely
@@ -169,7 +169,7 @@ export function buildStructureUserPrompt(args: {
   return `JOB DESCRIPTION
 ${args.jobDescription}
 
-MASTER RESUME SKELETON (section/item labels + tags — no bullet text):
+MASTER RESUME SKELETON (section/item labels + tags - no bullet text):
 ${JSON.stringify(args.skeleton, null, 2)}
 
 TASK

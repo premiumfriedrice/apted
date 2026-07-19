@@ -267,13 +267,13 @@ export default function MasterPage() {
       });
       return { ...r, sections };
     });
-    setStatus({ kind: "ok", msg: `Added ${items.length} item${items.length === 1 ? "" : "s"} from prose — review and Save.` });
+    setStatus({ kind: "ok", msg: `Added ${items.length} item${items.length === 1 ? "" : "s"} from prose. Review and Save.` });
   }
 
   function applyImportedResume(next: Resume) {
     setResume(next);
     setJsonText(JSON.stringify(next, null, 2));
-    setStatus({ kind: "ok", msg: "Imported — review and Save to persist." });
+    setStatus({ kind: "ok", msg: "Imported. Review and Save to persist." });
   }
 
   async function save() {
@@ -331,7 +331,7 @@ export default function MasterPage() {
         setPiiMap(null);
         setShowField({});
       } catch {
-        setStatus({ kind: "err", msg: "JSON is invalid — fix or revert before switching back." });
+        setStatus({ kind: "err", msg: "JSON is invalid. Fix or revert before switching back." });
         return;
       }
     }
@@ -1708,7 +1708,7 @@ function AddFromProseModal({
         className="w-full resize-none rounded border border-outline-variant bg-surface p-3 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none"
       />
       <p className="mt-2 text-body-sm text-on-surface-variant">
-        Tip: include dates and your role/title explicitly so Claude doesn&apos;t have to guess. Bullets and metrics come straight from what you write — anything not in the prose stays empty.
+        Tip: include dates and your role/title explicitly so Claude doesn&apos;t have to guess. Bullets and metrics come straight from what you write. Anything not in the prose stays empty.
       </p>
     </ModalShell>
   );
@@ -1756,7 +1756,7 @@ function ImportResumeModal({
     setPdfStatus(`Extracting "${file.name}"…`);
     try {
       const extracted = await extractPdfText(file);
-      if (!extracted) throw new Error("No text found in the PDF — is it a scanned image rather than a text PDF?");
+      if (!extracted) throw new Error("No text found in the PDF. Is it a scanned image rather than a text PDF?");
       setText(extracted);
       setPdfStatus(`Extracted ${extracted.length.toLocaleString()} chars from "${file.name}". Review below, then Import.`);
     } catch (e) {
@@ -1838,7 +1838,7 @@ function ImportResumeModal({
           </button>
           {pdfStatus && <div className="mt-2 text-body-sm text-on-surface-variant">{pdfStatus}</div>}
           <p className="mt-3 text-body-sm text-on-surface-variant">
-            Text PDFs only — scanned image PDFs won&apos;t produce extractable text.
+            Text PDFs only. Scanned image PDFs won&apos;t produce extractable text.
           </p>
         </div>
       )}
@@ -1848,14 +1848,14 @@ function ImportResumeModal({
         onChange={(e) => setText(e.target.value)}
         placeholder={
           mode === "paste"
-            ? "Paste the full text of your resume here — sections, dates, bullets, all of it. Whitespace doesn't have to be perfect."
+            ? "Paste the full text of your resume here: sections, dates, bullets, all of it. Whitespace doesn't have to be perfect."
             : "Extracted text will appear here. You can edit before importing."
         }
         rows={14}
         className="w-full resize-none rounded border border-outline-variant bg-surface p-3 font-mono text-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
       />
       <p className="mt-2 text-body-sm text-on-surface-variant">
-        Claude is told to be faithful to your input — it won&apos;t invent dates or metrics. You can still edit everything after import.
+        Claude is told to be faithful to your input. It won&apos;t invent dates or metrics. You can still edit everything after import.
       </p>
     </ModalShell>
   );
