@@ -155,15 +155,15 @@ function NewApplicationForm() {
           <h1 className="font-headline-lg text-headline-lg text-primary">New application</h1>
         </div>
         <div className="rounded-lg border border-outline-variant bg-surface-white p-lg text-center">
-          <p className="text-body-md text-on-surface">You need a resume version first.</p>
+          <p className="text-body-md text-on-surface">You need a tailored resume version first.</p>
           <p className="mt-xs text-body-sm text-on-surface-variant">
-            Create one in the Master Resume editor, then come back to track an application.
+            Go to the Builder, paste a job description, tailor your master resume, and save it as a version. Then come back to track an application.
           </p>
           <Link
-            href="/master"
+            href="/builder"
             className="mt-md inline-block rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary hover:opacity-90"
           >
-            Open Master Resume
+            Go to Builder
           </Link>
         </div>
       </div>

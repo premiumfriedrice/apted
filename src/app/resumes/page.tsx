@@ -141,7 +141,16 @@ export default function ResumesPage() {
       {/* Resumes Grid */}
       {displayedVersions.length === 0 ? (
         <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center">
-          <p className="body-sm text-on-surface-variant">No resumes found.</p>
+          <p className="body-sm text-on-surface-variant">No tailored resumes yet.</p>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            Go to the Builder to tailor your master resume to a job description, then save it as a version.
+          </p>
+          <Link
+            href="/builder"
+            className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary hover:opacity-90"
+          >
+            Go to Builder
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
