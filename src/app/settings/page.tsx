@@ -90,8 +90,17 @@ export default function SettingsPage() {
 
       <ApiKeysSection />
 
-      {isAuthConfigured() && <ExtensionAccessSection />}
+      {isAuthConfigured() && <ExtensionSection />}
     </div>
+  );
+}
+
+function ExtensionSection() {
+  return (
+    <>
+      <ExtensionAccessSection />
+      <ExtensionDownloadSection />
+    </>
   );
 }
 
@@ -170,6 +179,55 @@ function ExtensionAccessSection() {
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+function ExtensionDownloadSection() {
+  const [downloading, setDownloading] = useState(false);
+
+  async function download() {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/extension/download");
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "apted-extension.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <section className="border border-border-subtle bg-surface-white p-md">
+      <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
+        Install extension
+      </h3>
+      <p className="mt-1 text-body-sm text-on-surface-variant">
+        Download the apted Chrome extension, unzip it, then load it as an unpacked extension in Chrome.
+      </p>
+      <ol className="mt-3 space-y-1 text-body-sm text-on-surface-variant">
+        <li>1. Click Download to get the extension files</li>
+        <li>2. Unzip the downloaded file</li>
+        <li>3. Open chrome://extensions in Chrome</li>
+        <li>4. Enable Developer mode (top right toggle)</li>
+        <li>5. Click "Load unpacked" and select the unzipped folder</li>
+        <li>6. Open the extension options and paste your auth token (from above)</li>
+      </ol>
+      <div className="mt-4">
+        <button onClick={download} disabled={downloading} className={primaryBtnCls}>
+          {downloading ? "Downloading…" : "Download extension"}
+        </button>
+      </div>
     </section>
   );
 }

@@ -13,7 +13,7 @@ const nextConfig = {
   // The runtime system prompt reads src/lib/resume-rules.md off disk at server
   // start. Tell Next to include it in the standalone build for prod.
   outputFileTracingIncludes: {
-    "/**/*": ["./src/lib/resume-rules.md"],
+    "/**/*": ["./src/lib/resume-rules.md", "./extension/dist/**/*"],
   },
 };
 
