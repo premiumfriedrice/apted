@@ -103,24 +103,37 @@ function NewApplicationForm() {
     };
   }, [presetVersionId]);
 
-  const canSubmit = company.trim() && role.trim() && versionId;
+  const canSubmit = company.trim() && role.trim();
 
   async function submit() {
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/versions/${versionId}/applications`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company: company.trim(),
-          role: role.trim(),
-          jobDescription,
-          outcome,
-          interviewRound,
-        }),
-      });
+      const payload = {
+        company: company.trim(),
+        role: role.trim(),
+        jobDescription,
+        outcome,
+        interviewRound,
+      };
+
+      let res: Response;
+      if (versionId) {
+        // Linked to a resume version.
+        res = await fetch(`/api/versions/${versionId}/applications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // Standalone application — no resume version.
+        res = await fetch(`/api/applications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.error || "Failed to create application");
@@ -137,35 +150,6 @@ function NewApplicationForm() {
     return (
       <div className="mx-auto max-w-3xl">
         <p className="text-on-surface-variant">Loading...</p>
-      </div>
-    );
-  }
-
-  // No resume versions at all — guide the user to create one first.
-  if (versions.length === 0) {
-    return (
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center gap-2">
-          <Link
-            href={presetVersionId ? `/resumes/${presetVersionId}` : "/applications"}
-            className="inline-flex items-center gap-1 rounded px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low hover:text-on-surface transition-colors duration-200"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          </Link>
-          <h1 className="font-headline-lg text-headline-lg text-primary">New application</h1>
-        </div>
-        <div className="rounded-lg border border-outline-variant bg-surface-white p-lg text-center">
-          <p className="text-body-md text-on-surface">You need a tailored resume version first.</p>
-          <p className="mt-xs text-body-sm text-on-surface-variant">
-            Go to the Builder, paste a job description, tailor your master resume, and save it as a version. Then come back to track an application.
-          </p>
-          <Link
-            href="/builder"
-            className="mt-md inline-block rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary hover:opacity-90"
-          >
-            Go to Builder
-          </Link>
-        </div>
       </div>
     );
   }
@@ -213,17 +197,18 @@ function NewApplicationForm() {
           />
         </div>
 
-        {/* Resume version */}
+        {/* Resume version (optional) */}
         {!versionLocked && (
           <div>
             <label className="mb-xs block font-label-md text-label-md text-on-surface-variant">
-              Resume version <span className="text-error">*</span>
+              Resume version <span className="text-on-surface-variant normal-case">(optional)</span>
             </label>
             <select
               value={versionId}
               onChange={(e) => setVersionId(e.target.value)}
               className="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             >
+              <option value="">None — tracking only</option>
               {versions.map((v) => (
                 <option key={v.id} value={v.id}>
                   {versionLabel(v)}

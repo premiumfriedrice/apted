@@ -103,11 +103,13 @@ export default function ApplicationDetailPage() {
         setApp(data);
         setPortalDraft(data.portalUrl ?? "");
         setNotesDraft(data.notes ?? "");
-        // Fetch the associated resume version for the PDF preview.
-        const vres = await fetch(`/api/versions/${data.versionId}`);
-        if (vres.ok) {
-          const vdata: Version = await vres.json();
-          if (!cancelled) setVersion(vdata);
+        // Fetch the associated resume version for the PDF preview (if linked).
+        if (data.versionId) {
+          const vres = await fetch(`/api/versions/${data.versionId}`);
+          if (vres.ok) {
+            const vdata: Version = await vres.json();
+            if (!cancelled) setVersion(vdata);
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -480,17 +482,26 @@ export default function ApplicationDetailPage() {
           <div className="h-8 w-[2px] bg-outline-variant group-hover:bg-on-surface-variant rounded-full" />
         </div>
 
-        {/* Right: resume PDF preview */}
-        <PdfPreviewPane
-          src={pdfBytes}
-          ready={!!pdfBytes}
-          width={previewWidth}
-          headerExtra={
-            <span className="truncate text-label-md font-label-md text-inverse-on-surface font-semibold">
-              {versionName}.pdf
-            </span>
-          }
-        />
+        {/* Right: resume PDF preview (or placeholder if no version linked) */}
+        {pdfBytes ? (
+          <PdfPreviewPane
+            src={pdfBytes}
+            ready={!!pdfBytes}
+            width={previewWidth}
+            headerExtra={
+              <span className="truncate text-label-md font-label-md text-inverse-on-surface font-semibold">
+                {versionName}.pdf
+              </span>
+            }
+          />
+        ) : (
+          <div className="flex flex-1 items-center justify-center bg-inverse-surface text-inverse-on-surface">
+            <div className="text-center">
+              <span className="material-symbols-outlined text-[48px] opacity-40">description</span>
+              <p className="mt-2 text-body-sm opacity-60">No resume linked to this application</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

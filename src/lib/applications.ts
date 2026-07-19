@@ -19,7 +19,7 @@ export const TERMINAL_OUTCOMES: Outcome[] = [
 
 export type Application = {
   id: string;
-  versionId: string;
+  versionId: string | null;
   company: string;
   role: string;
   jobDescription: string;
