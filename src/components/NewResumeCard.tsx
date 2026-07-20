@@ -11,27 +11,30 @@ function MaterialIcon({ name, className = "" }: { name: string; className?: stri
   );
 }
 
-// Dashed "New Resume" card. In the resumes grid it occupies a single cell as
-// the trailing "add" slot; when there are no versions yet (`prominent`) it
-// spans the full grid width with a larger icon and padding so it reads as the
-// primary call-to-action, not a shrunk placeholder.
-export function NewResumeCard({ href = "/master", prominent = false }: { href?: string; prominent?: boolean }) {
-  const iconWrapCls = prominent
-    ? "flex h-16 w-16 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary"
-    : "flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary";
-  const titleCls = prominent ? "font-headline-lg text-headline-lg text-primary" : "font-bold text-primary";
-  const subtitleCls = prominent ? "px-4 text-center text-body-sm text-secondary" : "px-4 text-center text-xs text-secondary";
-  const cardCls = prominent
-    ? "group col-span-full flex cursor-pointer flex-col items-center justify-center gap-3 border border-dashed border-border-subtle bg-surface-white p-xl py-xl transition-all hover:border-primary"
-    : "group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary";
-
+// Dashed "New Resume" card. Mirrors the size and structure of a tailored-
+// resume version card (preview-area aspect + footer) so both sit at the same
+// footprint in the grid. Used as the empty state when there are no versions
+// yet, and as the trailing "add" slot otherwise.
+export function NewResumeCard({ href = "/master" }: { href?: string }) {
   return (
-    <Link href={href} className={cardCls}>
-      <div className={iconWrapCls}>
-        <MaterialIcon name="add" className={prominent ? "text-[40px]" : "text-[32px]"} />
+    <Link
+      href={href}
+      className="group flex cursor-pointer flex-col gap-3 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
+    >
+      <div className="relative flex aspect-[1/1.4] items-center justify-center overflow-hidden border border-dashed border-border-subtle bg-surface-container-low resume-preview-mask">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-lowest text-secondary transition-colors group-hover:text-primary">
+          <MaterialIcon name="add" className="text-[32px]" />
+        </div>
       </div>
-      <p className={titleCls}>New Resume</p>
-      <p className={subtitleCls}>Start from a template or import a PDF</p>
+      <div>
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <h4 className="truncate pr-2 font-bold text-primary">New Resume</h4>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-secondary">
+          <MaterialIcon name="add" className="text-[14px]" />
+          <span>Start from a template or import a PDF</span>
+        </div>
+      </div>
     </Link>
   );
 }
