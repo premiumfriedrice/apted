@@ -13,6 +13,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { href: "/", label: "Library" },
   { href: "/master", label: "Master" },
+  { href: "/builder", label: "Builder", disabled: true, title: "Coming soon" },
 ];
 
 export function SiteHeader() {

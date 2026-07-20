@@ -143,19 +143,19 @@ export default function ResumesPage() {
         <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center">
           <p className="body-sm text-on-surface-variant">No tailored resumes yet.</p>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Tailor your master resume to a job description from the Chrome extension, then save it as a version.
+            Go to the Builder to tailor your master resume to a job description, then save it as a version.
           </p>
           <Link
-            href="/master"
+            href="/builder"
             className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary hover:opacity-90"
           >
-            Go to Master Resume
+            Go to Builder
           </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
           <Link
-            href="/master"
+            href="/builder"
             className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
