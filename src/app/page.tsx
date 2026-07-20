@@ -182,7 +182,7 @@ export default function LibraryPage() {
               );
             })}
             <Link
-              href="/builder"
+              href="/master"
               className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
@@ -245,7 +245,7 @@ export default function LibraryPage() {
                   <td className="py-3 px-4 text-body-md">{app.role}</td>
                   <td className="py-3 px-4">
                     <Link
-                      href={`/builder?version=${app.versionId}`}
+                      href={`/resumes/${app.versionId}`}
                       className="group/link flex cursor-pointer items-center gap-2 text-secondary transition-colors hover:text-primary"
                     >
                       <MaterialIcon name="description" className="text-[16px]" />
