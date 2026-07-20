@@ -183,7 +183,7 @@ export default function LibraryPage() {
             <MaterialIcon name="description" className="text-[20px]" />
             Recent Resumes
           </h3>
-          <Link href="/builder" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
+          <Link href="/resumes" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
             View all
           </Link>
         </div>
@@ -254,6 +254,9 @@ export default function LibraryPage() {
             Application Tracker
           </h3>
           <div className="flex gap-2">
+            <Link href="/applications" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
+              View all
+            </Link>
             <button className={smallBtnCls}>
               <MaterialIcon name="filter_list" className="text-[18px]" /> Filter
             </button>
