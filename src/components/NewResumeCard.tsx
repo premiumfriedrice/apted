@@ -11,30 +11,20 @@ function MaterialIcon({ name, className = "" }: { name: string; className?: stri
   );
 }
 
-// Dashed "New Resume" card. Mirrors the size and structure of a tailored-
-// resume version card (preview-area aspect + footer) so both sit at the same
-// footprint in the grid. Used as the empty state when there are no versions
-// yet, and as the trailing "add" slot otherwise.
+// Dashed "New Resume" card — matches the main-branch appearance: a centered
+// add icon + label + subtitle in a dashed-border card. Used as the empty
+// state when there are no versions yet and as the trailing grid slot.
 export function NewResumeCard({ href = "/master" }: { href?: string }) {
   return (
     <Link
       href={href}
-      className="group flex cursor-pointer flex-col gap-3 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
+      className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
     >
-      <div className="relative flex aspect-[1/1.4] items-center justify-center overflow-hidden border border-dashed border-border-subtle bg-surface-container-low resume-preview-mask">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-lowest text-secondary transition-colors group-hover:text-primary">
-          <MaterialIcon name="add" className="text-[32px]" />
-        </div>
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
+        <MaterialIcon name="add" className="text-[32px]" />
       </div>
-      <div>
-        <div className="mb-1 flex items-start justify-between gap-2">
-          <h4 className="truncate pr-2 font-bold text-primary">New Resume</h4>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-secondary">
-          <MaterialIcon name="add" className="text-[14px]" />
-          <span>Start from a template or import a PDF</span>
-        </div>
-      </div>
+      <p className="font-bold text-primary">New Resume</p>
+      <p className="px-4 text-center text-xs text-secondary">Start from a template or import a PDF</p>
     </Link>
   );
 }
