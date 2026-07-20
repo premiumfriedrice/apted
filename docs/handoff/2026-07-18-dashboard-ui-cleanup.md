@@ -1,4 +1,8 @@
-# Handoff: Dashboard UI Cleanup, Profile Modal, Policy Pages (PRE-87)
+# Handoff: Dashboard UI Cleanup, Profile Modal, Policy Pages (PRE-87) — COMPLETE
+
+**Status**: Implemented and merged-ready on `feature/dashboard-ui-cleanup`.
+Final commit: `a64604a`. tsc clean, 167 tests pass, `next build` succeeds.
+Next step: squash-merge to main and clean up the worktree (see WORKFLOW.md).
 
 **Branch**: `feature/dashboard-ui-cleanup`
 **Worktree**: `/Users/lloydalba/code/apted-dashboard-ui`
@@ -83,6 +87,26 @@ npx tsc --noEmit
 npm run build
 npm run dev  # visual check
 ```
+
+## What was done
+
+- **Dashboard spacing**: Fixed a JSX nesting bug (`src/app/page.tsx`) where the
+  Master Resume `<section>` was rendered *inside* the Application Tracker
+  section due to a missing closing tag. Sections are now siblings and every
+  section uses a consistent `mb-12` bottom margin.
+- **Profile footer modal**: `src/components/AppShell.tsx` now lifts
+  `profileOpen` state and `logout` into `AppShell`. The sidebar footer
+  (both collapsed avatar and expanded name row) opens a `ProfileMenu`
+  popover anchored to the bottom-left of the sidebar. It shows the user's
+  name/email, a Settings link, an "Upgrade plan" disabled placeholder
+  ("Soon" pill), a "Learn more" group linking to /privacy, /usage, /terms,
+  and a Sign out button. Closes on click-away or Escape, and re-anchors
+  when the sidebar collapses/expands. The standalone settings icon and
+  logout button were removed from the footer (now in the menu).
+- **Policy pages**: Created `src/app/privacy/page.tsx`,
+  `src/app/usage/page.tsx`, `src/app/terms/page.tsx` as static server
+  components rendered inside AppShell, using a `max-w-3xl` readable layout
+  and design-system typography tokens. Placeholder legal text only.
 
 ## Out of Scope
 
