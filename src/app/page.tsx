@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
@@ -28,19 +28,9 @@ type Version = {
   applications: Application[];
 };
 
-type Master = {
-  id: string;
-  resume: unknown;
-  updatedAt: string;
-};
-
-const TABS = ["All Resumes", "Active Applications", "Archived"] as const;
-
 // Button language shared with the master resume editor (PRE-82 design system).
 const smallBtnCls =
   "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
-const modeActiveBtnCls =
-  "bg-surface-container-high text-on-surface text-label-md font-label-md px-3 py-2 rounded font-semibold";
 const primaryBtnCls =
   "inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200";
 
@@ -84,25 +74,14 @@ function companyColor(company: string) {
 
 export default function LibraryPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All Resumes");
   const [search, setSearch] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
-  const [master, setMaster] = useState<Master | null>(null);
 
   useEffect(() => {
     fetch("/api/versions")
       .then((r) => (r.ok ? r.json() : []))
       .then((data: Version[]) => setVersions(Array.isArray(data) ? data : []))
       .catch(() => setVersions([]));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/master")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.id) setMaster(data);
-      })
-      .catch(() => setMaster(null));
   }, []);
 
   const recentVersions = useMemo(() => {
@@ -124,23 +103,6 @@ export default function LibraryPage() {
     return applications.filter((a) => ["applied", "interviewing", "ghosted"].includes(a.outcome));
   }, [applications]);
 
-  const displayedVersions = useMemo(() => {
-    if (activeTab === "Active Applications") {
-      return versions.filter((v) => v.applications.some((a) => ["applied", "interviewing", "ghosted"].includes(a.outcome)));
-    }
-    if (activeTab === "Archived") {
-      return versions.filter((v) => v.applications.every((a) => ["rejected", "offer", "declined"].includes(a.outcome)));
-    }
-    return versions;
-  }, [versions, activeTab]);
-
-  const deleteVersion = useCallback(async (id: string, name: string | null, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm(`Delete "${name || "Untitled version"}"?`)) return;
-    await fetch(`/api/versions/${id}`, { method: "DELETE" });
-    setVersions((prev) => prev.filter((v) => v.id !== id));
-  }, []);
-
   return (
     <div className="mx-auto max-w-[1440px]">
       {/* Header & Filters */}
@@ -148,7 +110,7 @@ export default function LibraryPage() {
         <div>
           <h2 className="font-headline-xl text-headline-xl text-primary">Dashboard</h2>
           <p className="mt-1 max-w-lg text-secondary">
-            An overview of your resumes, master document, and active job applications.
+            An overview of your resumes and active job applications.
           </p>
         </div>
         <div className="relative w-full max-w-xs">
@@ -163,19 +125,6 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex items-center gap-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={activeTab === tab ? modeActiveBtnCls : smallBtnCls}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
       {/* Recent Resumes Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
@@ -188,7 +137,7 @@ export default function LibraryPage() {
           </Link>
         </div>
 
-        {displayedVersions.length === 0 ? (
+        {recentVersions.length === 0 ? (
           <p className="text-secondary">No versions found.</p>
         ) : (
           <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
@@ -254,9 +203,6 @@ export default function LibraryPage() {
             Application Tracker
           </h3>
           <div className="flex gap-2">
-            <Link href="/applications" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
-              View all
-            </Link>
             <button className={smallBtnCls}>
               <MaterialIcon name="filter_list" className="text-[18px]" /> Filter
             </button>
@@ -334,49 +280,6 @@ export default function LibraryPage() {
           )}
         </div>
       </section>
-
-      {/* Master Resume Section */}
-      <section className="mb-12">
-        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
-          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="verified" className="text-[20px]" />
-            Master Resume
-          </h3>
-          <span className="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">Source of Truth</span>
-        </div>
-        <div className="flex flex-col items-center gap-8 border border-border-subtle bg-surface-white p-6 md:flex-row">
-          <div className="relative aspect-[1/1.4] w-full shrink-0 overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask md:w-48">
-            <ResumePreview pdfBase64={null} />
-          </div>
-          <div className="flex-1 space-y-4">
-            <div>
-              <h4 className="text-headline-lg font-bold text-primary">Global Master Document</h4>
-              <p className="mt-2 text-secondary">
-                This is your primary resume containing all experience, skills, and achievements. Use this as the base for all tailored applications.
-              </p>
-            </div>
-            <div className="flex items-center gap-6 text-sm text-secondary">
-              <div className="flex items-center gap-2">
-                <MaterialIcon name="history" className="text-[18px]" />
-                <span>Last synced {master?.updatedAt ? timeAgo(master.updatedAt) : "never"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MaterialIcon name="article" className="text-[18px]" />
-                <span>{countSections(master?.resume)} Sections</span>
-              </div>
-            </div>
-            <div className="pt-2">
-              <Link
-                href="/master"
-                className={primaryBtnCls + " px-6 py-3"}
-              >
-                <MaterialIcon name="edit_note" className="text-[18px]" />
-                Go to Editor
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
@@ -401,12 +304,6 @@ function MatchBadge({ version }: { version: Version }) {
       {score}% Match
     </span>
   );
-}
-
-function countSections(resume: unknown): number {
-  if (!resume || typeof resume !== "object") return 0;
-  const r = resume as { sections?: unknown[] };
-  return Array.isArray(r.sections) ? r.sections.length : 0;
 }
 
 async function updateOutcome(appId: string, current: Outcome, setVersions: React.Dispatch<React.SetStateAction<Version[]>>) {
