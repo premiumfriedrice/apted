@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
+import { NewResumeCard } from "@/components/NewResumeCard";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -138,7 +139,9 @@ export default function LibraryPage() {
         </div>
 
         {recentVersions.length === 0 ? (
-          <p className="text-secondary">No versions found.</p>
+          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+            <NewResumeCard />
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
             {recentVersions.map((v) => {
@@ -181,16 +184,7 @@ export default function LibraryPage() {
                 </div>
               );
             })}
-            <Link
-              href="/master"
-              className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
-                <MaterialIcon name="add" className="text-[32px]" />
-              </div>
-              <p className="font-bold text-primary">New Resume</p>
-              <p className="px-4 text-center text-xs text-secondary">Start from a template or import a PDF</p>
-            </Link>
+            <NewResumeCard />
           </div>
         )}
       </section>

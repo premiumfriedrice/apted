@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
+import { NewResumeCard } from "@/components/NewResumeCard";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -96,13 +97,6 @@ export default function ResumesPage() {
     return result;
   }, [versions, activeTab, search]);
 
-  const deleteVersion = useCallback(async (id: string, name: string | null, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm(`Delete "${name || "Untitled version"}"?`)) return;
-    await fetch(`/api/versions/${id}`, { method: "DELETE" });
-    setVersions((prev) => prev.filter((v) => v.id !== id));
-  }, []);
-
   return (
     <div className="mx-auto max-w-[1440px]">
       {/* Header */}
@@ -140,30 +134,12 @@ export default function ResumesPage() {
 
       {/* Resumes Grid */}
       {displayedVersions.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center">
-          <p className="body-sm text-on-surface-variant">No tailored resumes yet.</p>
-          <p className="mt-1 text-xs text-on-surface-variant">
-            Tailor your master resume to a job description with the apted Chrome extension, then save it as a version.
-          </p>
-          <Link
-            href="/master"
-            className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-label-md font-label-md text-on-primary hover:opacity-90"
-          >
-            Go to Master Resume
-          </Link>
+        <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+          <NewResumeCard />
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
-          <Link
-            href="/master"
-            className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
-              <MaterialIcon name="add" className="text-[32px]" />
-            </div>
-            <p className="font-bold text-primary">New Resume</p>
-            <p className="px-4 text-center text-xs text-secondary">Start from a template or import a PDF</p>
-          </Link>
+          <NewResumeCard />
           {displayedVersions.map((v) => {
             const app = v.applications[0];
             return (
