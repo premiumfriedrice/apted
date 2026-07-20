@@ -245,7 +245,7 @@ export default function LibraryPage() {
                   <td className="py-3 px-4 text-body-md">{app.role}</td>
                   <td className="py-3 px-4">
                     <Link
-                      href={`/builder?version=${app.versionId}`}
+                      href={`/resumes/${app.versionId}`}
                       className="group/link flex cursor-pointer items-center gap-2 text-secondary transition-colors hover:text-primary"
                     >
                       <MaterialIcon name="description" className="text-[16px]" />

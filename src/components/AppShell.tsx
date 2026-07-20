@@ -17,6 +17,7 @@ export function useSidebarCollapsed() {
 const SIDEBAR_NAV = [
   { href: "/resumes", label: "Resumes", icon: "folder_open" },
   { href: "/applications", label: "Applications", icon: "assignment_turned_in" },
+  { href: "/builder", label: "Tailor", icon: "auto_awesome" },
   { href: "/master", label: "Master Resume", icon: "edit_note" },
 ];
 
@@ -101,6 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // /applications/new is a form, not a split-pane, so it keeps page padding.
   const flush =
     pathname === "/master" ||
+    pathname === "/builder" ||
     pathname.startsWith("/resumes/") ||
     (pathname.startsWith("/applications/") && pathname !== "/applications/new");
   if (flush) {
