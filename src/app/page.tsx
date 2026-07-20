@@ -247,7 +247,7 @@ export default function LibraryPage() {
       </section>
 
       {/* Application Tracker Section */}
-      <section>
+      <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
             <MaterialIcon name="analytics" className="text-[20px]" />
@@ -333,6 +333,8 @@ export default function LibraryPage() {
             </div>
           )}
         </div>
+      </section>
+
       {/* Master Resume Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
@@ -374,8 +376,6 @@ export default function LibraryPage() {
             </div>
           </div>
         </div>
-      </section>
-
       </section>
     </div>
   );
