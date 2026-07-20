@@ -140,7 +140,7 @@ export default function LibraryPage() {
 
         {recentVersions.length === 0 ? (
           <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
-            <NewResumeCard />
+            <NewResumeCard prominent />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
