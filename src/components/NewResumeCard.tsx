@@ -4,7 +4,7 @@ function MaterialIcon({ name, className = "" }: { name: string; className?: stri
   return (
     <span
       className={`inline-flex items-center justify-center align-middle ${className}`}
-      style={{ fontFamily: "'Material Symbols Outlined', sans-serif", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+      style={{ fontFamily: "'Material Symbols Outlined', sans-serif", fontSize: "20px", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
     >
       {name}
     </span>
