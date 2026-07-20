@@ -155,7 +155,7 @@ export default function ResumesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
           <Link
-            href="/builder"
+            href="/master"
             className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
