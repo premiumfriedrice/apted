@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import FunnelChart from "@/components/FunnelChart";
-import { SkeletonRow, SkeletonFunnel } from "@/components/Skeleton";
+import { SkeletonRow } from "@/components/Skeleton";
 import type { FunnelStats } from "@/components/types";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
@@ -52,7 +51,6 @@ function companyColor(company: string) {
 }
 
 export default function ApplicationsPage() {
-  const router = useRouter();
   const [versions, setVersions] = useState<Version[]>([]);
   const [filter, setFilter] = useState<Outcome | "all">("all");
   const [search, setSearch] = useState("");
@@ -172,11 +170,7 @@ const modeActiveBtnCls =
         </div>
       </div>
 
-      {loading ? (
-        <div className="mb-6">
-          <SkeletonFunnel />
-        </div>
-      ) : applications.length > 0 && (
+      {applications.length > 0 && (
         <div className="mb-6 rounded-lg border border-border-subtle bg-surface-white p-md">
           <FunnelChart stats={funnelStats} compact />
         </div>
@@ -247,22 +241,23 @@ const modeActiveBtnCls =
               </tr>
             )}
             {filtered.map((app) => (
-              <tr key={app.id} onClick={() => router.push(`/applications/${app.id}`)} className="group cursor-pointer transition-colors hover:bg-surface-container-lowest">
+              <tr key={app.id} className="transition-colors hover:bg-surface-container-lowest">
                 <td className="py-3 px-4">
-                  <div className="flex items-center gap-3">
+                  <Link href={`/applications/${app.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                     <div className={`flex h-8 w-8 items-center justify-center rounded text-xs font-bold text-white ${companyColor(app.company)}`}>
                       {companyInitial(app.company)}
                     </div>
                     <span className="font-bold text-primary">{app.company}</span>
-                  </div>
+                  </Link>
                 </td>
                 <td className="py-3 px-4 text-body-md">
-                  {app.role}
+                  <Link href={`/applications/${app.id}`} className="text-body-md text-on-surface hover:text-primary hover:underline">
+                    {app.role}
+                  </Link>
                 </td>
                 <td className="py-3 px-4">
                   <Link
                     href={`/resumes/${app.versionId}`}
-                    onClick={(e) => e.stopPropagation()}
                     className="text-secondary transition-colors hover:text-primary hover:underline"
                   >
                     {app.versionName || "Untitled version"}.pdf

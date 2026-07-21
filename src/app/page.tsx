@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
 import { NewResumeCard } from "@/components/NewResumeCard";
-import { SkeletonCard, SkeletonRow, SkeletonStatCard } from "@/components/Skeleton";
+import { SkeletonCard, SkeletonRow } from "@/components/Skeleton";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -142,7 +142,7 @@ export default function LibraryPage() {
           <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" />
           <input
             type="text"
-            placeholder="Search by company or role..."
+            placeholder="Search resumes..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2 pl-10 pr-4 text-body-md outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -159,15 +159,10 @@ export default function LibraryPage() {
           </h3>
         </div>
         <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
-          {loading
-            ? Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)
-            : <>
-              <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
-              <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
-              <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
-              <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
-            </>
-          }
+          <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
+          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
+          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
+          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
         </div>
       </section>
 

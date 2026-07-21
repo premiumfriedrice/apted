@@ -233,12 +233,12 @@ function SidebarInner({
               onClick={collapsed ? (e) => e.stopPropagation() : undefined}
               className={`flex items-center py-sm transition-colors duration-200 ${
                 isActive ? sideActiveBtnCls : sideBtnCls
-              } ${collapsed ? "mx-0 px-0" : "mx-md px-md"}`}
+              } ${collapsed ? "mx-0 px-0" : "mx-sm px-sm"}`}
             >
               <span className="flex w-12 shrink-0 items-center justify-center">
                 <MaterialIcon name={item.icon} className="text-[20px]" />
               </span>
-              {!collapsed && <span className="truncate ml-sm">{item.label}</span>}
+              {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
@@ -251,7 +251,7 @@ function SidebarInner({
           onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
           title="Open profile menu"
           aria-label="Open profile menu"
-          className={`flex items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low ${collapsed ? "px-0 pb-sm" : "px-md pb-sm"}`}
+          className={`flex items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low ${collapsed ? "px-0 pb-sm" : "px-sm pb-sm"}`}
         >
           <span className="flex w-12 shrink-0 items-center justify-center">
             <span className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">

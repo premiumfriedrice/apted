@@ -42,23 +42,3 @@ export function SkeletonRow() {
     </tr>
   );
 }
-
-export function SkeletonStatCard() {
-  return (
-    <div className="flex flex-col gap-2 border border-border-subtle bg-surface-white p-md">
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-5 w-5" />
-        <Skeleton className="h-3 w-28" />
-      </div>
-      <Skeleton className="h-8 w-16" />
-    </div>
-  );
-}
-
-export function SkeletonFunnel() {
-  return (
-    <div className="rounded-lg border border-border-subtle bg-surface-white p-md">
-      <Skeleton className="h-40 w-full" />
-    </div>
-  );
-}
