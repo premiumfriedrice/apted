@@ -21,7 +21,7 @@ export function NewResumeCard({ href = "/master" }: { href?: string }) {
       href={href}
       className="group flex cursor-pointer flex-col gap-3 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
     >
-      <div className="relative flex aspect-[1/1.4] flex-col items-center justify-center gap-2 overflow-hidden border border-dashed border-border-subtle bg-surface-container-low resume-preview-mask">
+      <div className="relative flex aspect-[1/1.1] flex-col items-center justify-center gap-2 overflow-hidden border border-dashed border-border-subtle bg-surface-container-low resume-preview-mask">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-lowest text-secondary transition-colors group-hover:text-primary">
           <MaterialIcon name="add" className="text-[32px]" />
         </div>
