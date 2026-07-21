@@ -4,6 +4,7 @@ import { Resume } from "@/lib/resume";
 import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
 import { compileTexToPdf } from "@/lib/compile";
+import { invalidateInsights } from "@/lib/insights";
 import { injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
 import { requireUserId } from "@/lib/auth";
@@ -123,6 +124,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
     `UPDATE resume_versions SET ${fields.join(", ")} WHERE id = $${i} AND user_id = $${i + 1}`,
     vals,
   );
+
+  // Invalidate cached insights when the resume content changes so they
+  // regenerate on the next Insights tab view (PRE-88).
+  if (body.tailoredContent !== undefined) {
+    await invalidateInsights(id, userId);
+  }
 
   const r = await pool.query(
     `${SELECT} WHERE v.id = $1 AND v.user_id = $2 GROUP BY v.id`,

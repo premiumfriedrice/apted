@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { PdfPreviewPane } from "@/components/PdfPreviewPane";
 import type { Application, Outcome } from "@/lib/applications";
 
@@ -62,6 +62,7 @@ function normalizeUrl(value: string): string {
 
 export default function ApplicationDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const appId = params.id as string;
 
   const [app, setApp] = useState<Application | null>(null);
@@ -86,6 +87,29 @@ export default function ApplicationDetailPage() {
 
   const [outcomeBusy, setOutcomeBusy] = useState(false);
   const [roundBusy, setRoundBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteApplication() {
+    if (!app) return;
+    if (
+      !window.confirm(
+        `Delete the application to "${app.company}"? This cannot be undone.`,
+      )
+    )
+      return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/applications/${appId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("delete failed");
+      router.push("/applications");
+      router.refresh();
+    } catch {
+      setDeleting(false);
+      // Leave the page intact; the user can retry.
+    }
+  }
 
   useEffect(() => {
     if (!appId) return;
@@ -270,6 +294,14 @@ export default function ApplicationDetailPage() {
             <span className="font-label-md text-label-md text-on-surface-variant truncate">
               Application
             </span>
+            <button
+              onClick={deleteApplication}
+              disabled={deleting}
+              title={deleting ? "Deleting..." : "Delete application"}
+              className="ml-auto inline-flex items-center gap-1 rounded px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low hover:text-red-600 transition-colors duration-200 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">delete</span>
+            </button>
           </div>
 
           {/* Scrollable details */}

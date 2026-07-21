@@ -486,8 +486,10 @@ describe("PATCH /api/versions/[id] — re-compile PDF", () => {
   it("re-compiles PDF when tailoredContent is updated", async () => {
     // pii_map query for PDF re-compile (PRE-53)
     mockQuery.mockResolvedValueOnce({ rows: [fakePiiMapRow] });
-    // Return updated version row after UPDATE
+    // UPDATE resume_versions
     mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
+    // Invalidate cached insights (PRE-88)
+    mockQuery.mockResolvedValueOnce({ rows: [] });
     // Re-fetch with applications
     mockQuery.mockResolvedValueOnce({ rows: [makeVersionRow()] });
 

@@ -4,6 +4,7 @@
 // Uses the same provider seam as version-names.ts so it works with any
 // configured model (Claude / OpenAI / Gemini / …).
 
+import { pool } from "./db";
 import { getProvider } from "./providers";
 import type { Resume } from "./resume";
 import type { Application } from "./applications";
@@ -51,6 +52,66 @@ function buildUserPrompt(resume: Resume, applications: Application[]): string {
     },
     null,
     2,
+  );
+}
+
+// ── Cache (PRE-88) ─────────────────────────────────────────────────────────
+// Insights are persisted in `resume_insights` keyed by (version_id, user_id)
+// so each version only pays the LLM cost once. The row is deleted whenever the
+// version's tailored_content changes (see PATCH /api/versions/[id]).
+
+export async function getCachedInsights(
+  versionId: string,
+  userId: string,
+): Promise<ResumeInsights | null> {
+  const r = await pool.query(
+    `SELECT summary, keywords, strengths, tone
+       FROM resume_insights
+      WHERE version_id = $1 AND user_id = $2`,
+    [versionId, userId],
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  return {
+    summary: row.summary,
+    keywords: row.keywords ?? [],
+    strengths: row.strengths ?? [],
+    tone: row.tone ?? "",
+  };
+}
+
+export async function saveInsights(
+  versionId: string,
+  userId: string,
+  insights: ResumeInsights,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO resume_insights (version_id, user_id, summary, keywords, strengths, tone)
+     VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6)
+     ON CONFLICT (version_id, user_id)
+     DO UPDATE SET summary = EXCLUDED.summary,
+                    keywords = EXCLUDED.keywords,
+                    strengths = EXCLUDED.strengths,
+                    tone = EXCLUDED.tone,
+                    created_at = now()`,
+    [
+      versionId,
+      userId,
+      insights.summary,
+      JSON.stringify(insights.keywords),
+      JSON.stringify(insights.strengths),
+      insights.tone,
+    ],
+  );
+}
+
+export async function invalidateInsights(
+  versionId: string,
+  userId: string,
+): Promise<void> {
+  await pool.query(
+    "DELETE FROM resume_insights WHERE version_id = $1 AND user_id = $2",
+    [versionId, userId],
   );
 }
 
