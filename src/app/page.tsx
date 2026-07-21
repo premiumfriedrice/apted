@@ -164,21 +164,16 @@ export default function LibraryPage() {
         </div>
       </section>
 
-      {/* Application Tracker Section */}
+      {/* Recent Applications Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
             <MaterialIcon name="analytics" className="text-[20px]" />
-            Application Tracker
+            Recent Applications
           </h3>
-          <div className="flex gap-2">
-            <button className={smallBtnCls}>
-              <MaterialIcon name="filter_list" className="text-[18px]" /> Filter
-            </button>
-            <button className={smallBtnCls}>
-              <MaterialIcon name="download" className="text-[18px]" /> Export
-            </button>
-          </div>
+          <Link href="/applications" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
+            View all
+          </Link>
         </div>
 
         <div className="overflow-hidden border border-border-subtle bg-surface-white">
@@ -190,19 +185,18 @@ export default function LibraryPage() {
                 <th className="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Resume Used</th>
                 <th className="py-3 px-4 text-center font-label-md text-label-md uppercase tracking-wider text-secondary">Status</th>
                 <th className="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Date</th>
-                <th className="py-3 px-4 text-right font-label-md text-label-md uppercase tracking-wider text-secondary">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {activeApplications.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 px-4 text-center text-sm text-secondary">
+                  <td colSpan={5} className="py-6 px-4 text-center text-sm text-secondary">
                     No active applications yet.
                   </td>
                 </tr>
               )}
               {activeApplications.slice(0, 10).map((app) => (
-                <tr key={app.id} className="group transition-colors hover:bg-surface-container-lowest">
+                <tr key={app.id} onClick={() => router.push(`/applications/${app.id}`)} className="group cursor-pointer transition-colors hover:bg-surface-container-lowest">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div className={`flex h-8 w-8 items-center justify-center rounded text-xs font-bold text-white ${companyColor(app.company)}`}>
@@ -213,13 +207,18 @@ export default function LibraryPage() {
                   </td>
                   <td className="py-3 px-4 text-body-md">{app.role}</td>
                   <td className="py-3 px-4">
-                    <Link
-                      href={`/resumes/${app.versionId}`}
-                      className="group/link flex cursor-pointer items-center gap-2 text-secondary transition-colors hover:text-primary"
-                    >
-                      <MaterialIcon name="description" className="text-[16px]" />
-                      <span className="text-xs group-hover/link:underline">{app.versionName || "Untitled version"}.pdf</span>
-                    </Link>
+                    {app.versionId ? (
+                      <Link
+                        href={`/resumes/${app.versionId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="group/link flex cursor-pointer items-center gap-2 text-secondary transition-colors hover:text-primary"
+                      >
+                        <MaterialIcon name="description" className="text-[16px]" />
+                        <span className="text-xs group-hover/link:underline">{app.versionName || "Untitled version"}.pdf</span>
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-secondary">No resume linked</span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-center">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}>
@@ -227,24 +226,15 @@ export default function LibraryPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-xs text-secondary">{formatDate(app.createdAt)}</td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => updateOutcome(app.id, app.outcome, setVersions)}
-                      className="rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-                      title="Advance stage"
-                    >
-                      <MaterialIcon name="more_horiz" className="text-[18px]" />
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
           {activeApplications.length > 10 && (
             <div className="flex justify-center bg-surface-container-low p-3">
-              <button className="inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded">
-                Load more applications
-              </button>
+              <Link href="/applications" className="inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded">
+                View all applications
+              </Link>
             </div>
           )}
         </div>
