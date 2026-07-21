@@ -245,7 +245,7 @@ function SidebarInner({
       </nav>
 
       {/* Footer: profile trigger (opens the menu in AppShell) */}
-      <div className="shrink-0 px-0">
+      <div className="shrink-0 px-0 pb-md">
         {collapsed ? (
           <button
             type="button"
@@ -262,7 +262,7 @@ function SidebarInner({
             onClick={onOpenProfile}
             title="Open profile menu"
             aria-label="Open profile menu"
-            className="flex w-full items-center gap-sm border-t border-outline-variant px-sm pt-sm text-left transition-colors hover:bg-surface-container-low"
+            className="flex w-full items-center gap-sm border-t border-outline-variant px-sm pt-sm pb-md text-left transition-colors hover:bg-surface-container-low"
           >
             <span className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
               <span className="text-label-sm font-bold text-secondary">{initials}</span>
