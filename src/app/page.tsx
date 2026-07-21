@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
 import { NewResumeCard } from "@/components/NewResumeCard";
-import FunnelChart from "@/components/FunnelChart";
-import type { FunnelStats } from "@/components/types";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -107,68 +105,26 @@ export default function LibraryPage() {
   }, [applications]);
 
   // Funnel across ALL applications (matches the /applications page derivation).
-  const funnelStats: FunnelStats = useMemo(() => {
-    let screening = 0;
-    let technical = 0;
-    let final = 0;
-    let offers = 0;
-    let screeningRejections = 0;
-    let technicalRejections = 0;
-    let finalRejections = 0;
+  // Application rate stats. "Applied" means any application with an outcome
+  // other than "draft" — i.e. actually sent. Averages use the relevant span
+  // (year/month) as the denominator so a brand-new account doesn't inflate
+  // the daily/weekly rate.
+  const appStats = useMemo(() => {
+    const now = Date.now();
+    const YEAR_MS = 365 * 86400000;
+    const MONTH_MS = 30 * 86400000;
+    let lastYear = 0;
+    let lastMonth = 0;
     for (const a of applications) {
       if (a.outcome === "draft") continue;
-      screening++;
-      const rejR = a.rejectedAfterRound ?? 0;
-      const intR = a.interviewRound ?? 0;
-      if (a.outcome === "rejected") {
-        if (rejR === 0) { screeningRejections++; continue; }
-        technical++;
-        if (rejR === 1) { technicalRejections++; continue; }
-        final++;
-        finalRejections++; continue;
-      }
-      if (a.outcome === "ghosted" || a.outcome === "applied") continue;
-      technical++;
-      if (intR >= 2 || a.outcome === "offer" || a.outcome === "declined") final++;
-      if (a.outcome === "offer") offers++;
+      const t = new Date(a.createdAt).getTime();
+      if (now - t <= MONTH_MS) lastMonth++;
+      if (now - t <= YEAR_MS) lastYear++;
     }
-    return {
-      total: applications.length,
-      screening,
-      technical,
-      final,
-      offers,
-      screeningRejections,
-      technicalRejections,
-      finalRejections,
-    };
+    const avgWeekly = lastYear > 0 ? lastYear / 52 : 0;
+    const avgDaily = lastYear > 0 ? lastYear / 365 : 0;
+    return { lastYear, lastMonth, avgWeekly, avgDaily };
   }, [applications]);
-
-  // Most used resume = version referenced by the most applications; tie-break
-  // by the most recent application date, then version createdAt. Only
-  // versions with >=1 application are eligible.
-  const mostUsedVersion = useMemo(() => {
-    let best: Version | null = null;
-    let bestCount = 0;
-    let bestLastApp = -Infinity;
-    for (const v of versions) {
-      const n = v.applications.length;
-      if (n === 0) continue;
-      const lastApp = v.applications.reduce(
-        (m, a) => Math.max(m, new Date(a.createdAt).getTime()),
-        -Infinity,
-      );
-      if (
-        n > bestCount ||
-        (n === bestCount && lastApp > bestLastApp)
-      ) {
-        best = v;
-        bestCount = n;
-        bestLastApp = lastApp;
-      }
-    }
-    return best ? { version: best, count: bestCount } : null;
-  }, [versions]);
 
   return (
     <div className="mx-auto max-w-[1440px]">
@@ -255,50 +211,20 @@ export default function LibraryPage() {
         )}
       </section>
 
-      {/* Application Funnel Section */}
+      {/* Application Stats Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="funnel" className="text-[20px]" />
-            Application Funnel
+            <MaterialIcon name="bar_chart" className="text-[20px]" />
+            Application Activity
           </h3>
         </div>
-        {applications.filter((a) => a.outcome !== "draft").length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-border-subtle bg-surface-white p-xl text-center">
-            <MaterialIcon name="analytics" className="text-[40px] text-on-surface-variant" />
-            <div>
-              <p className="font-bold text-primary">No applications tracked yet</p>
-              <p className="mt-1 text-body-sm text-on-surface-variant">
-                Tailor a resume and add an application to see your funnel.
-              </p>
-            </div>
-            <Link href="/resumes" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
-              Go to Resumes
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-gutter lg:flex-row">
-            <div className="flex-1 border border-border-subtle bg-surface-white p-md">
-              <FunnelChart stats={funnelStats} />
-            </div>
-            <div className="flex w-full flex-col gap-gutter lg:w-80">
-              {mostUsedVersion ? (
-                <MostUsedResumeCard
-                  version={mostUsedVersion.version}
-                  count={mostUsedVersion.count}
-                  onOpen={() => router.push(`/resumes/${mostUsedVersion.version.id}`)}
-                />
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-md text-center">
-                  <MaterialIcon name="folder_open" className="text-[28px] text-on-surface-variant" />
-                  <p className="text-body-sm text-on-surface-variant">
-                    No resume has been used on an application yet.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
+          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
+          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
+          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
+          <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
+        </div>
       </section>
 
       {/* Application Tracker Section */}
@@ -412,47 +338,23 @@ function MatchBadge({ version }: { version: Version }) {
   );
 }
 
-function MostUsedResumeCard({ version, count, onOpen }: { version: Version; count: number; onOpen: () => void }) {
-  const app = version.applications[0];
-  const outcomes = version.applications.map((a) => a.outcome);
-  const offerCount = outcomes.filter((o) => o === "offer").length;
+function StatCard({ label, value, icon }: { label: string; value: string | number; icon: string }) {
   return (
-    <div
-      onClick={onOpen}
-      className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
-    >
-      <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
-        <ResumePreview pdfBase64={version.pdfBase64} />
-        <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter text-on-primary">
-          Most used
-        </span>
+    <div className="flex flex-col gap-2 border border-border-subtle bg-surface-white p-md">
+      <div className="flex items-center gap-2 text-on-surface-variant">
+        <MaterialIcon name={icon} className="text-[20px]" />
+        <span className="font-label-md text-label-md uppercase tracking-wider">{label}</span>
       </div>
-      <div>
-        <div className="mb-1 flex items-start justify-between gap-2">
-          <h4 className="truncate pr-2 font-bold text-primary">{version.name || "Untitled version"}</h4>
-          <span className="bg-secondary-container px-1.5 py-0.5 text-[10px] font-bold text-secondary">{count} apps</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-secondary">
-          {app ? (
-            <>
-              <span className={`flex h-4 w-4 items-center justify-center rounded-sm text-[10px] text-white ${companyColor(app.company)}`}>
-                {companyInitial(app.company)}
-              </span>
-              <span>Latest: {app.company} • Updated {timeAgo(version.createdAt)}</span>
-            </>
-          ) : (
-            <span>Updated {timeAgo(version.createdAt)}</span>
-          )}
-        </div>
-        {offerCount > 0 && (
-          <div className="mt-1 flex items-center gap-1 text-xs text-status-success">
-            <MaterialIcon name="workspace_premium" className="text-[14px]" />
-            <span>{offerCount} offer{offerCount > 1 ? "s" : ""}</span>
-          </div>
-        )}
-      </div>
+      <p className="font-headline-xl text-headline-xl text-primary">{value}</p>
     </div>
   );
+}
+
+function fmtRate(n: number): string {
+  if (n === 0) return "0";
+  if (n < 0.1) return "<0.1";
+  // One decimal place, dropping the trailing ".0".
+  return Number(n.toFixed(1)).toString();
 }
 
 async function updateOutcome(appId: string, current: Outcome, setVersions: React.Dispatch<React.SetStateAction<Version[]>>) {
