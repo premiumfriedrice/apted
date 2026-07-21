@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import FunnelChart from "@/components/FunnelChart";
+import { SkeletonRow } from "@/components/Skeleton";
 import type { FunnelStats } from "@/components/types";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
@@ -54,11 +55,13 @@ export default function ApplicationsPage() {
   const [filter, setFilter] = useState<Outcome | "all">("all");
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/versions")
       .then((r) => r.json())
-      .then((data: Version[]) => setVersions(data));
+      .then((data: Version[]) => { setVersions(data); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   const applications = useMemo(() => {
@@ -229,7 +232,8 @@ const modeActiveBtnCls =
                 </Link>
               </td>
             </tr>
-            {filtered.length === 0 && (
+            {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
+            {!loading && filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="py-6 px-4 text-center text-sm text-secondary">
                   No applications found.

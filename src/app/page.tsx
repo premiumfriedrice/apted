@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
 import { NewResumeCard } from "@/components/NewResumeCard";
+import { SkeletonCard, SkeletonRow } from "@/components/Skeleton";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -77,12 +78,13 @@ export default function LibraryPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/versions")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: Version[]) => setVersions(Array.isArray(data) ? data : []))
-      .catch(() => setVersions([]));
+      .then((data: Version[]) => { setVersions(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => { setVersions([]); setLoading(false); });
   }, []);
 
   const recentVersions = useMemo(() => {
@@ -188,7 +190,8 @@ export default function LibraryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {activeApplications.length === 0 && (
+              {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
+              {!loading && activeApplications.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-6 px-4 text-center text-sm text-secondary">
                     No active applications yet.
@@ -252,7 +255,11 @@ export default function LibraryPage() {
           </Link>
         </div>
 
-        {recentVersions.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : recentVersions.length === 0 ? (
           <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
             <NewResumeCard />
           </div>
