@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
 import { NewResumeCard } from "@/components/NewResumeCard";
+import FunnelChart from "@/components/FunnelChart";
+import type { FunnelStats } from "@/components/types";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -104,6 +106,70 @@ export default function LibraryPage() {
     return applications.filter((a) => ["applied", "interviewing", "ghosted"].includes(a.outcome));
   }, [applications]);
 
+  // Funnel across ALL applications (matches the /applications page derivation).
+  const funnelStats: FunnelStats = useMemo(() => {
+    let screening = 0;
+    let technical = 0;
+    let final = 0;
+    let offers = 0;
+    let screeningRejections = 0;
+    let technicalRejections = 0;
+    let finalRejections = 0;
+    for (const a of applications) {
+      if (a.outcome === "draft") continue;
+      screening++;
+      const rejR = a.rejectedAfterRound ?? 0;
+      const intR = a.interviewRound ?? 0;
+      if (a.outcome === "rejected") {
+        if (rejR === 0) { screeningRejections++; continue; }
+        technical++;
+        if (rejR === 1) { technicalRejections++; continue; }
+        final++;
+        finalRejections++; continue;
+      }
+      if (a.outcome === "ghosted" || a.outcome === "applied") continue;
+      technical++;
+      if (intR >= 2 || a.outcome === "offer" || a.outcome === "declined") final++;
+      if (a.outcome === "offer") offers++;
+    }
+    return {
+      total: applications.length,
+      screening,
+      technical,
+      final,
+      offers,
+      screeningRejections,
+      technicalRejections,
+      finalRejections,
+    };
+  }, [applications]);
+
+  // Most used resume = version referenced by the most applications; tie-break
+  // by the most recent application date, then version createdAt. Only
+  // versions with >=1 application are eligible.
+  const mostUsedVersion = useMemo(() => {
+    let best: Version | null = null;
+    let bestCount = 0;
+    let bestLastApp = -Infinity;
+    for (const v of versions) {
+      const n = v.applications.length;
+      if (n === 0) continue;
+      const lastApp = v.applications.reduce(
+        (m, a) => Math.max(m, new Date(a.createdAt).getTime()),
+        -Infinity,
+      );
+      if (
+        n > bestCount ||
+        (n === bestCount && lastApp > bestLastApp)
+      ) {
+        best = v;
+        bestCount = n;
+        bestLastApp = lastApp;
+      }
+    }
+    return best ? { version: best, count: bestCount } : null;
+  }, [versions]);
+
   return (
     <div className="mx-auto max-w-[1440px]">
       {/* Header & Filters */}
@@ -185,6 +251,52 @@ export default function LibraryPage() {
               );
             })}
             <NewResumeCard />
+          </div>
+        )}
+      </section>
+
+      {/* Application Funnel Section */}
+      <section className="mb-12">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
+          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
+            <MaterialIcon name="funnel" className="text-[20px]" />
+            Application Funnel
+          </h3>
+        </div>
+        {applications.filter((a) => a.outcome !== "draft").length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-border-subtle bg-surface-white p-xl text-center">
+            <MaterialIcon name="analytics" className="text-[40px] text-on-surface-variant" />
+            <div>
+              <p className="font-bold text-primary">No applications tracked yet</p>
+              <p className="mt-1 text-body-sm text-on-surface-variant">
+                Tailor a resume and add an application to see your funnel.
+              </p>
+            </div>
+            <Link href="/resumes" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
+              Go to Resumes
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-gutter lg:flex-row">
+            <div className="flex-1 border border-border-subtle bg-surface-white p-md">
+              <FunnelChart stats={funnelStats} />
+            </div>
+            <div className="flex w-full flex-col gap-gutter lg:w-80">
+              {mostUsedVersion ? (
+                <MostUsedResumeCard
+                  version={mostUsedVersion.version}
+                  count={mostUsedVersion.count}
+                  onOpen={() => router.push(`/resumes/${mostUsedVersion.version.id}`)}
+                />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-md text-center">
+                  <MaterialIcon name="folder_open" className="text-[28px] text-on-surface-variant" />
+                  <p className="text-body-sm text-on-surface-variant">
+                    No resume has been used on an application yet.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -297,6 +409,49 @@ function MatchBadge({ version }: { version: Version }) {
     <span className={`shrink-0 px-1.5 py-0.5 text-[10px] font-bold ${score >= 90 ? "bg-status-success/10 text-status-success" : "bg-secondary-container text-secondary"}`}>
       {score}% Match
     </span>
+  );
+}
+
+function MostUsedResumeCard({ version, count, onOpen }: { version: Version; count: number; onOpen: () => void }) {
+  const app = version.applications[0];
+  const outcomes = version.applications.map((a) => a.outcome);
+  const offerCount = outcomes.filter((o) => o === "offer").length;
+  return (
+    <div
+      onClick={onOpen}
+      className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
+    >
+      <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
+        <ResumePreview pdfBase64={version.pdfBase64} />
+        <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter text-on-primary">
+          Most used
+        </span>
+      </div>
+      <div>
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <h4 className="truncate pr-2 font-bold text-primary">{version.name || "Untitled version"}</h4>
+          <span className="bg-secondary-container px-1.5 py-0.5 text-[10px] font-bold text-secondary">{count} apps</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-secondary">
+          {app ? (
+            <>
+              <span className={`flex h-4 w-4 items-center justify-center rounded-sm text-[10px] text-white ${companyColor(app.company)}`}>
+                {companyInitial(app.company)}
+              </span>
+              <span>Latest: {app.company} • Updated {timeAgo(version.createdAt)}</span>
+            </>
+          ) : (
+            <span>Updated {timeAgo(version.createdAt)}</span>
+          )}
+        </div>
+        {offerCount > 0 && (
+          <div className="mt-1 flex items-center gap-1 text-xs text-status-success">
+            <MaterialIcon name="workspace_premium" className="text-[14px]" />
+            <span>{offerCount} offer{offerCount > 1 ? "s" : ""}</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
