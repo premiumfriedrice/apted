@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
-import { generateInsights } from "@/lib/insights";
+import { generateInsights, getCachedInsights, saveInsights } from "@/lib/insights";
 import type { Application } from "@/lib/applications";
 import { requireUserId } from "@/lib/auth";
 
@@ -54,7 +54,20 @@ export async function GET(req: Request, { params }: Ctx) {
   }
 
   const applications = row.applications as Application[];
+
+  // Cache check (PRE-88): unless the caller asks for a refresh, return cached
+  // insights immediately so repeat visits are instant and free. On a cache
+  // miss (or refresh), generate via the LLM, persist, and return.
+  const url = new URL(req.url);
+  const refresh = url.searchParams.get("refresh") === "true";
+
+  if (!refresh) {
+    const cached = await getCachedInsights(id, userId);
+    if (cached) return NextResponse.json(cached);
+  }
+
   const insights = await generateInsights(resume, applications, userId);
+  await saveInsights(id, userId, insights);
 
   return NextResponse.json(insights);
 }
