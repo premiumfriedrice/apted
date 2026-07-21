@@ -22,11 +22,13 @@ const SIDEBAR_NAV = [
 
 const STORAGE_KEY = "apted:sidebar-collapsed";
 
-// Shared button language (matches the master resume editor header).
+// Shared button language (matches the master resume editor header). No
+// horizontal padding here: the w-12 icon column sits flush-left so nav icons
+// center at the same x (24px) as the brand "a" and the profile avatar.
 const sideBtnCls =
-  "flex items-center gap-1 px-3 w-full text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
+  "flex items-center gap-1 w-full text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
 const sideActiveBtnCls =
-  "flex items-center gap-1 px-3 w-full text-on-surface text-label-md font-label-md bg-surface-container-high font-semibold rounded";
+  "flex items-center gap-1 w-full text-on-surface text-label-md font-label-md bg-surface-container-high font-semibold rounded";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
