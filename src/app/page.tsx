@@ -148,6 +148,22 @@ export default function LibraryPage() {
         </div>
       </div>
 
+      {/* Application Stats Section */}
+      <section className="mb-12">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
+          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
+            <MaterialIcon name="bar_chart" className="text-[20px]" />
+            Application Activity
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
+          <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
+          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
+          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
+          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
+        </div>
+      </section>
+
       {/* Application Tracker Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
@@ -231,22 +247,6 @@ export default function LibraryPage() {
               </button>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Application Stats Section */}
-      <section className="mb-12">
-        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
-          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="bar_chart" className="text-[20px]" />
-            Application Activity
-          </h3>
-        </div>
-        <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
-          <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
-          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
-          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
-          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
         </div>
       </section>
 
