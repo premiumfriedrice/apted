@@ -148,85 +148,6 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Recent Resumes Section */}
-      <section className="mb-12">
-        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
-          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="description" className="text-[20px]" />
-            Recent Resumes
-          </h3>
-          <Link href="/resumes" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
-            View all
-          </Link>
-        </div>
-
-        {recentVersions.length === 0 ? (
-          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
-            <NewResumeCard />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
-            {recentVersions.map((v) => {
-              const app = v.applications[0];
-              return (
-                <div
-                  key={v.id}
-                  onClick={() => router.push(`/resumes/${v.id}`)}
-                  className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
-                >
-                  <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
-                    <ResumePreview pdfBase64={v.pdfBase64} />
-                    <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
-                      <button className={primaryBtnCls}>View Resume</button>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <h4 className="truncate pr-2 font-bold text-primary">{v.name || "Untitled version"}</h4>
-                      <MatchBadge version={v} />
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-secondary">
-                      {app ? (
-                        <>
-                          <div className={`flex h-4 w-4 items-center justify-center rounded-sm text-[10px] text-white ${companyColor(app.company)}`}>
-                            {companyInitial(app.company)}
-                          </div>
-                          <span>
-                            {app.company} • Updated {timeAgo(v.createdAt)}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <MaterialIcon name="public" className="text-[14px]" />
-                          <span>Master Draft • Updated {timeAgo(v.createdAt)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <NewResumeCard />
-          </div>
-        )}
-      </section>
-
-      {/* Application Stats Section */}
-      <section className="mb-12">
-        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
-          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="bar_chart" className="text-[20px]" />
-            Application Activity
-          </h3>
-        </div>
-        <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
-          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
-          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
-          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
-          <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
-        </div>
-      </section>
-
       {/* Application Tracker Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
@@ -311,6 +232,85 @@ export default function LibraryPage() {
             </div>
           )}
         </div>
+      </section>
+
+      {/* Application Stats Section */}
+      <section className="mb-12">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
+          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
+            <MaterialIcon name="bar_chart" className="text-[20px]" />
+            Application Activity
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
+          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
+          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
+          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
+          <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
+        </div>
+      </section>
+
+      {/* Recent Resumes Section */}
+      <section className="mb-12">
+        <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
+          <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
+            <MaterialIcon name="description" className="text-[20px]" />
+            Recent Resumes
+          </h3>
+          <Link href="/resumes" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
+            View all
+          </Link>
+        </div>
+
+        {recentVersions.length === 0 ? (
+          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+            <NewResumeCard />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+            {recentVersions.map((v) => {
+              const app = v.applications[0];
+              return (
+                <div
+                  key={v.id}
+                  onClick={() => router.push(`/resumes/${v.id}`)}
+                  className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
+                >
+                  <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
+                    <ResumePreview pdfBase64={v.pdfBase64} />
+                    <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
+                      <button className={primaryBtnCls}>View Resume</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-start justify-between gap-2">
+                      <h4 className="truncate pr-2 font-bold text-primary">{v.name || "Untitled version"}</h4>
+                      <MatchBadge version={v} />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-secondary">
+                      {app ? (
+                        <>
+                          <div className={`flex h-4 w-4 items-center justify-center rounded-sm text-[10px] text-white ${companyColor(app.company)}`}>
+                            {companyInitial(app.company)}
+                          </div>
+                          <span>
+                            {app.company} • Updated {timeAgo(v.createdAt)}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <MaterialIcon name="public" className="text-[14px]" />
+                          <span>Master Draft • Updated {timeAgo(v.createdAt)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <NewResumeCard />
+          </div>
+        )}
       </section>
     </div>
   );
