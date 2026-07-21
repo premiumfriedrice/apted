@@ -195,21 +195,22 @@ function SidebarInner({
 
   return (
     <>
-      {/* Brand area: always centered in w-12, text overflows when expanded */}
-      <div className={`flex h-12 shrink-0 items-center ${collapsed ? "" : "px-md"}`}>
-        <div className="flex w-12 shrink-0 items-center justify-center">
-          <Link
-            href="/"
-            title="apted"
-            onClick={(e) => e.stopPropagation()}
-            className="text-[28px] font-medium tracking-tight leading-none flex items-center justify-center pb-1 text-on-surface"
-            style={{ fontFamily: "'Outfit', sans-serif" }}
-          >
-            {collapsed ? "a" : "apted"}
-          </Link>
-        </div>
+      {/* Brand area: the logo text is left-anchored at the same x in both the
+          collapsed and expanded rail (pl-4 from the rail's left edge), so the
+          "a" in "apted" sits at the same position as the "a" shown when the
+          sidebar is collapsed. The collapse button is pushed to the far right. */}
+      <div className="flex h-12 shrink-0 items-center">
+        <Link
+          href="/"
+          title="apted"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center pb-1 pl-4 text-[28px] font-medium tracking-tight leading-none text-on-surface"
+          style={{ fontFamily: "'Outfit', sans-serif" }}
+        >
+          {collapsed ? "a" : "apted"}
+        </Link>
         {!collapsed && (
-          <div className="flex flex-1 items-center justify-end">
+          <div className="flex items-center justify-end pr-md ml-auto">
             <button
               onClick={() => setCollapsed(true)}
               title="Collapse sidebar"
@@ -233,7 +234,7 @@ function SidebarInner({
               onClick={collapsed ? (e) => e.stopPropagation() : undefined}
               className={`flex items-center py-sm transition-colors duration-200 ${
                 isActive ? sideActiveBtnCls : sideBtnCls
-              } ${collapsed ? "mx-0 px-0" : "px-md"}`}
+              } mx-0 px-0`}
             >
               <span className="flex w-12 shrink-0 items-center justify-center">
                 <MaterialIcon name={item.icon} className="text-[20px]" />
@@ -251,7 +252,7 @@ function SidebarInner({
           onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
           title="Open profile menu"
           aria-label="Open profile menu"
-          className={`flex items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low ${collapsed ? "px-0 pb-sm" : "px-md pb-sm"}`}
+          className={`flex w-full items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low px-0 pb-sm`}
         >
           <span className="flex w-12 shrink-0 items-center justify-center">
             <span className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">

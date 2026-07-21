@@ -4,6 +4,58 @@ import React, { useRef, useState } from "react";
 import { Download, Info } from "lucide-react";
 import { FunnelStats } from "./types";
 
+const FUNNEL_STAGES = ["Total", "Screening", "Technical Interview", "Final Round", "Offers"] as const;
+
+/**
+ * Empty-state substitute for FunnelChart shown when there are no applications.
+ * Renders the same bordered-card skeleton (stage labels with a 0 value) so the
+ * funnel stays present at the top of the page instead of vanishing.
+ */
+export function EmptyFunnel() {
+  return (
+    <div className="relative flex h-full flex-col select-none">
+      <div className="flex flex-1 items-center justify-center gap-2 py-10 text-center">
+        <div className="flex flex-col items-center gap-2">
+          <span
+            className="material-symbols-outlined text-[40px] text-on-surface-variant"
+            style={{ opacity: 0.3 }}
+          >
+            filter_alt
+          </span>
+          <p className="text-body-md text-on-surface-variant">No application data yet.</p>
+          <p className="text-label-sm text-on-surface-variant" style={{ opacity: 0.7 }}>
+            Add applications to see your interview funnel here.
+          </p>
+        </div>
+      </div>
+      {/* Stage labels row (mirrors the full funnel's column headers) */}
+      <div className="flex shrink-0 items-stretch justify-between gap-2 border-t border-border-subtle pt-3">
+        {FUNNEL_STAGES.map((label, i) => (
+          <div key={label} className="flex min-w-0 flex-1 flex-col items-center">
+            <span className="truncate font-display text-sm font-bold text-on-surface-variant" style={{ opacity: 0.6 }}>
+              {label}
+            </span>
+            <span className="font-sans text-base font-medium text-on-surface-variant" style={{ opacity: 0.5 }}>
+              0
+            </span>
+            {i < FUNNEL_STAGES.length - 1 && (
+              <span className="mt-1 text-on-surface-variant" style={{ opacity: 0.3 }}>
+                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex shrink-0 items-center justify-between text-xs text-on-surface-variant">
+        <span className="flex items-center gap-2">
+          <Info className="h-3.5 w-3.5" />
+          Hover over any node or flow for details.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface FunnelChartProps {
   stats: FunnelStats;
   /** Shrink the chart height for compact containers (e.g. resume detail pane). */
