@@ -234,7 +234,7 @@ const modeActiveBtnCls =
                 </td>
                 <td className="py-3 px-4">
                   <Link
-                    href={`/builder?version=${app.versionId}`}
+                    href={`/resumes/${app.versionId}`}
                     className="text-secondary transition-colors hover:text-primary hover:underline"
                   >
                     {app.versionName || "Untitled version"}.pdf

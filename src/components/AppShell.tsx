@@ -20,8 +20,6 @@ const SIDEBAR_NAV = [
   { href: "/master", label: "Master Resume", icon: "edit_note" },
 ];
 
-const SETTINGS_NAV = { href: "/settings", label: "Settings", icon: "settings" };
-
 const STORAGE_KEY = "apted:sidebar-collapsed";
 
 // Shared button language (matches the master resume editor header).
@@ -35,6 +33,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  async function logout() {
+    setProfileOpen(false);
+    await signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   const authed = !!isAuthConfigured();
   // authed is a build-time constant (NEXT_PUBLIC_AUTH_ENABLED) so the value is
@@ -106,11 +112,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             title={collapsed ? "Click to expand sidebar" : undefined}
             className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
           >
-            <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} session={session} />
+            <SidebarInner
+              pathname={pathname}
+              collapsed={collapsed}
+              setCollapsed={setCollapsed}
+              session={session}
+              onOpenProfile={() => setProfileOpen(true)}
+            />
           </aside>
           <div className={`h-full transition-[margin] duration-200 ease-out ${mainLeft}`}>
             {children}
           </div>
+          <ProfileMenu
+            open={profileOpen}
+            onClose={() => setProfileOpen(false)}
+            session={session}
+            collapsed={collapsed}
+            onSignOut={logout}
+          />
         </div>
       </SidebarCollapsedContext.Provider>
     );
@@ -125,13 +144,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           title={collapsed ? "Click to expand sidebar" : undefined}
           className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
         >
-          <SidebarInner pathname={pathname} collapsed={collapsed} setCollapsed={setCollapsed} session={session} />
+          <SidebarInner
+            pathname={pathname}
+            collapsed={collapsed}
+            setCollapsed={setCollapsed}
+            session={session}
+            onOpenProfile={() => setProfileOpen(true)}
+          />
         </aside>
 
         {/* Main content */}
         <main className={`min-h-screen p-margin-desktop transition-[margin] duration-200 ease-out ${mainLeft}`}>
           {children}
         </main>
+        <ProfileMenu
+          open={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          session={session}
+          collapsed={collapsed}
+          onSignOut={logout}
+        />
       </div>
     </SidebarCollapsedContext.Provider>
   );
@@ -142,14 +174,15 @@ function SidebarInner({
   collapsed,
   setCollapsed,
   session,
+  onOpenProfile,
 }: {
   pathname: string;
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
   session: { user?: { name?: string | null; email?: string | null } } | null;
+  onOpenProfile: () => void;
 }) {
   const authed = !!isAuthConfigured();
-  const router = useRouter();
   const user = session?.user;
   const initials = user?.name
     ? user.name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase()
@@ -159,12 +192,6 @@ function SidebarInner({
   // Local mode (no BETTER_AUTH_SECRET): show "Apted User" / "Local mode" like before.
   const displayName = authed ? (user?.name ?? user?.email ?? "-") : "Apted User";
   const displayTier = authed ? (user?.email ?? "") : "Local mode";
-
-  async function logout() {
-    await signOut();
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <>
@@ -217,53 +244,35 @@ function SidebarInner({
         })}
       </nav>
 
-      {/* Footer: Settings, compact profile */}
-      <div className="shrink-0 space-y-sm px-0 pb-md">
+      {/* Footer: profile trigger (opens the menu in AppShell) */}
+      <div className="shrink-0 px-0">
         {collapsed ? (
-          <div className="flex w-12 flex-col items-center gap-xs pt-xs pb-xs">
-            <Link
-              href={SETTINGS_NAV.href}
-              title={SETTINGS_NAV.label}
-              onClick={(e) => e.stopPropagation()}
-              className={`rounded p-1.5 transition-colors ${pathname === SETTINGS_NAV.href ? "bg-surface-container-high text-on-surface" : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
-            >
-              <MaterialIcon name={SETTINGS_NAV.icon} className="text-[22px]" />
-            </Link>
-            <Link
-              href={SETTINGS_NAV.href}
-              title="Profile"
-              onClick={(e) => e.stopPropagation()}
-              className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary"
-            >
-              <span className="text-label-sm font-bold">{initials}</span>
-            </Link>
-          </div>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
+            title="Profile"
+            aria-label="Open profile menu"
+            className="mx-auto flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary transition-colors hover:border-primary"
+          >
+            <span className="text-label-sm font-bold">{initials}</span>
+          </button>
         ) : (
-          <div className="flex items-center gap-sm border-t border-outline-variant px-sm pt-sm">
-            <div className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            title="Open profile menu"
+            aria-label="Open profile menu"
+            className="flex w-full items-center gap-sm border-t border-outline-variant px-sm pt-sm pb-md text-left transition-colors hover:bg-surface-container-low"
+          >
+            <span className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
               <span className="text-label-sm font-bold text-secondary">{initials}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-label-md text-label-md truncate leading-tight">{displayName}</p>
-              <p className="text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</p>
-            </div>
-            {authed && user && (
-              <button
-                onClick={logout}
-                title="Sign out"
-                className="rounded p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-              >
-                <MaterialIcon name="logout" className="text-[20px]" />
-              </button>
-            )}
-            <Link
-              href={SETTINGS_NAV.href}
-              title={SETTINGS_NAV.label}
-              className={`rounded p-1.5 transition-colors ${pathname === SETTINGS_NAV.href ? "bg-surface-container-high text-on-surface" : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
-            >
-              <MaterialIcon name={SETTINGS_NAV.icon} className="text-[20px]" />
-            </Link>
-          </div>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-label-md text-label-md truncate leading-tight">{displayName}</span>
+              <span className="block text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</span>
+            </span>
+            <MaterialIcon name="expand_less" className="text-[20px] text-on-surface-variant" />
+          </button>
         )}
       </div>
     </>
@@ -274,6 +283,138 @@ function sideIconBtnCls(active: boolean): string {
   return active
     ? "bg-surface-container-high text-on-surface"
     : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface";
+}
+
+const MENU_LINKS = [
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/usage", label: "Usage Policy" },
+  { href: "/terms", label: "Terms of Service" },
+] as const;
+
+function ProfileMenu({
+  open,
+  onClose,
+  session,
+  collapsed,
+  onSignOut,
+}: {
+  open: boolean;
+  onClose: () => void;
+  session: { user?: { name?: string | null; email?: string | null } } | null;
+  collapsed: boolean;
+  onSignOut: () => void;
+}) {
+  const authed = !!isAuthConfigured();
+  const user = session?.user;
+  const initials = user?.name
+    ? user.name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase()
+    : user?.email
+      ? user.email[0].toUpperCase()
+      : "AU";
+  const displayName = authed ? (user?.name ?? user?.email ?? "-") : "Apted User";
+  const displayTier = authed ? (user?.email ?? "") : "Local mode";
+
+  // Close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  // Close the menu whenever the sidebar collapses/expands so the popover
+  // never ends up anchored to the wrong rail width.
+  useEffect(() => {
+    if (open) onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
+
+  if (!open) return null;
+
+  // Anchor the popover to the bottom-left, opening upward over the sidebar
+  // footer. Expanded sidebar is w-64 (256px); collapsed is w-12 (48px).
+  const anchorLeft = collapsed ? "left-2" : "left-4";
+  const width = collapsed ? "w-64" : "w-56";
+
+  return (
+    <div className="fixed inset-0 z-[60]" onClick={onClose} role="presentation">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute bottom-16 ${anchorLeft} ${width} overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest shadow-lg`
+        }
+        role="menu"
+        aria-label="Profile menu"
+      >
+        {/* Header: avatar + name + email */}
+        <div className="flex items-center gap-sm border-b border-outline-variant px-md py-sm">
+          <span className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
+            <span className="text-label-sm font-bold text-secondary">{initials}</span>
+          </span>
+          <div className="min-w-0">
+            <p className="font-label-md text-label-md truncate leading-tight text-on-surface">{displayName}</p>
+            <p className="text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</p>
+          </div>
+        </div>
+
+        {/* Menu links */}
+        <nav className="py-xs" onClick={onClose}>
+          <Link
+            href="/settings"
+            className="flex w-full items-center gap-sm px-md py-sm text-left text-body-md text-on-surface transition-colors hover:bg-surface-container-low"
+            role="menuitem"
+          >
+            <MaterialIcon name="settings" className="text-[20px] text-on-surface-variant" />
+            Settings
+          </Link>
+          <button
+            type="button"
+            disabled
+            className="flex w-full items-center gap-sm px-md py-sm text-left text-body-md text-on-surface-variant"
+            role="menuitem"
+            title="Coming soon"
+          >
+            <MaterialIcon name="workspace_premium" className="text-[20px] text-on-surface-variant" />
+            <span className="flex-1">Upgrade plan</span>
+            <span className="rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">Soon</span>
+          </button>
+        </nav>
+
+        {/* Learn more section */}
+        <div className="border-t border-outline-variant py-xs">
+          <p className="px-md py-xs text-label-sm uppercase tracking-wider text-on-surface-variant">Learn more</p>
+          {MENU_LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={onClose}
+              className="flex w-full items-center gap-sm px-md py-sm text-left text-body-md text-on-surface transition-colors hover:bg-surface-container-low"
+              role="menuitem"
+            >
+              <MaterialIcon name="article" className="text-[20px] text-on-surface-variant" />
+              {l.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Sign out */}
+        {authed && user && (
+          <div className="border-t border-outline-variant p-xs">
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="flex w-full items-center gap-sm px-md py-sm text-left text-body-md text-error transition-colors hover:bg-error-container"
+              role="menuitem"
+            >
+              <MaterialIcon name="logout" className="text-[20px]" />
+              Sign out
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function CollapseIcon() {

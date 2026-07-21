@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
+import { NewResumeCard } from "@/components/NewResumeCard";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -28,19 +29,9 @@ type Version = {
   applications: Application[];
 };
 
-type Master = {
-  id: string;
-  resume: unknown;
-  updatedAt: string;
-};
-
-const TABS = ["All Resumes", "Active Applications", "Archived"] as const;
-
 // Button language shared with the master resume editor (PRE-82 design system).
 const smallBtnCls =
   "inline-flex items-center gap-1 px-3 py-2 text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
-const modeActiveBtnCls =
-  "bg-surface-container-high text-on-surface text-label-md font-label-md px-3 py-2 rounded font-semibold";
 const primaryBtnCls =
   "inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200";
 
@@ -84,25 +75,14 @@ function companyColor(company: string) {
 
 export default function LibraryPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All Resumes");
   const [search, setSearch] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
-  const [master, setMaster] = useState<Master | null>(null);
 
   useEffect(() => {
     fetch("/api/versions")
       .then((r) => (r.ok ? r.json() : []))
       .then((data: Version[]) => setVersions(Array.isArray(data) ? data : []))
       .catch(() => setVersions([]));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/master")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.id) setMaster(data);
-      })
-      .catch(() => setMaster(null));
   }, []);
 
   const recentVersions = useMemo(() => {
@@ -124,22 +104,27 @@ export default function LibraryPage() {
     return applications.filter((a) => ["applied", "interviewing", "ghosted"].includes(a.outcome));
   }, [applications]);
 
-  const displayedVersions = useMemo(() => {
-    if (activeTab === "Active Applications") {
-      return versions.filter((v) => v.applications.some((a) => ["applied", "interviewing", "ghosted"].includes(a.outcome)));
+  // Funnel across ALL applications (matches the /applications page derivation).
+  // Application rate stats. "Applied" means any application with an outcome
+  // other than "draft" — i.e. actually sent. Averages use the relevant span
+  // (year/month) as the denominator so a brand-new account doesn't inflate
+  // the daily/weekly rate.
+  const appStats = useMemo(() => {
+    const now = Date.now();
+    const YEAR_MS = 365 * 86400000;
+    const MONTH_MS = 30 * 86400000;
+    let lastYear = 0;
+    let lastMonth = 0;
+    for (const a of applications) {
+      if (a.outcome === "draft") continue;
+      const t = new Date(a.createdAt).getTime();
+      if (now - t <= MONTH_MS) lastMonth++;
+      if (now - t <= YEAR_MS) lastYear++;
     }
-    if (activeTab === "Archived") {
-      return versions.filter((v) => v.applications.every((a) => ["rejected", "offer", "declined"].includes(a.outcome)));
-    }
-    return versions;
-  }, [versions, activeTab]);
-
-  const deleteVersion = useCallback(async (id: string, name: string | null, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm(`Delete "${name || "Untitled version"}"?`)) return;
-    await fetch(`/api/versions/${id}`, { method: "DELETE" });
-    setVersions((prev) => prev.filter((v) => v.id !== id));
-  }, []);
+    const avgWeekly = lastYear > 0 ? lastYear / 52 : 0;
+    const avgDaily = lastYear > 0 ? lastYear / 365 : 0;
+    return { lastYear, lastMonth, avgWeekly, avgDaily };
+  }, [applications]);
 
   return (
     <div className="mx-auto max-w-[1440px]">
@@ -148,7 +133,7 @@ export default function LibraryPage() {
         <div>
           <h2 className="font-headline-xl text-headline-xl text-primary">Dashboard</h2>
           <p className="mt-1 max-w-lg text-secondary">
-            An overview of your resumes, master document, and active job applications.
+            An overview of your resumes and active job applications.
           </p>
         </div>
         <div className="relative w-full max-w-xs">
@@ -163,100 +148,30 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex items-center gap-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={activeTab === tab ? modeActiveBtnCls : smallBtnCls}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-      {/* Recent Resumes Section */}
+      {/* Application Stats Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="description" className="text-[20px]" />
-            Recent Resumes
+            <MaterialIcon name="bar_chart" className="text-[20px]" />
+            Application Activity
           </h3>
-          <Link href="/resumes" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
-            View all
-          </Link>
         </div>
-
-        {displayedVersions.length === 0 ? (
-          <p className="text-secondary">No versions found.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
-            {recentVersions.map((v) => {
-              const app = v.applications[0];
-              return (
-                <div
-                  key={v.id}
-                  onClick={() => router.push(`/resumes/${v.id}`)}
-                  className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
-                >
-                  <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
-                    <ResumePreview pdfBase64={v.pdfBase64} />
-                    <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
-                      <button className={primaryBtnCls}>View Resume</button>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <h4 className="truncate pr-2 font-bold text-primary">{v.name || "Untitled version"}</h4>
-                      <MatchBadge version={v} />
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-secondary">
-                      {app ? (
-                        <>
-                          <div className={`flex h-4 w-4 items-center justify-center rounded-sm text-[10px] text-white ${companyColor(app.company)}`}>
-                            {companyInitial(app.company)}
-                          </div>
-                          <span>
-                            {app.company} • Updated {timeAgo(v.createdAt)}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <MaterialIcon name="public" className="text-[14px]" />
-                          <span>Master Draft • Updated {timeAgo(v.createdAt)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <Link
-              href="/builder"
-              className="group flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low text-secondary transition-colors group-hover:text-primary">
-                <MaterialIcon name="add" className="text-[32px]" />
-              </div>
-              <p className="font-bold text-primary">New Resume</p>
-              <p className="px-4 text-center text-xs text-secondary">Start from a template or import a PDF</p>
-            </Link>
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
+          <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
+          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
+          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
+          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
+        </div>
       </section>
 
       {/* Application Tracker Section */}
-      <section>
+      <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
             <MaterialIcon name="analytics" className="text-[20px]" />
             Application Tracker
           </h3>
           <div className="flex gap-2">
-            <Link href="/applications" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
-              View all
-            </Link>
             <button className={smallBtnCls}>
               <MaterialIcon name="filter_list" className="text-[18px]" /> Filter
             </button>
@@ -299,7 +214,7 @@ export default function LibraryPage() {
                   <td className="py-3 px-4 text-body-md">{app.role}</td>
                   <td className="py-3 px-4">
                     <Link
-                      href={`/builder?version=${app.versionId}`}
+                      href={`/resumes/${app.versionId}`}
                       className="group/link flex cursor-pointer items-center gap-2 text-secondary transition-colors hover:text-primary"
                     >
                       <MaterialIcon name="description" className="text-[16px]" />
@@ -333,49 +248,69 @@ export default function LibraryPage() {
             </div>
           )}
         </div>
-      {/* Master Resume Section */}
+      </section>
+
+      {/* Recent Resumes Section */}
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-2">
           <h3 className="flex items-center gap-2 font-headline-md text-headline-md">
-            <MaterialIcon name="verified" className="text-[20px]" />
-            Master Resume
+            <MaterialIcon name="description" className="text-[20px]" />
+            Recent Resumes
           </h3>
-          <span className="font-label-md text-label-md uppercase tracking-widest text-on-surface-variant">Source of Truth</span>
+          <Link href="/resumes" className="text-label-md text-on-surface-variant underline hover:text-on-surface">
+            View all
+          </Link>
         </div>
-        <div className="flex flex-col items-center gap-8 border border-border-subtle bg-surface-white p-6 md:flex-row">
-          <div className="relative aspect-[1/1.4] w-full shrink-0 overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask md:w-48">
-            <ResumePreview pdfBase64={null} />
-          </div>
-          <div className="flex-1 space-y-4">
-            <div>
-              <h4 className="text-headline-lg font-bold text-primary">Global Master Document</h4>
-              <p className="mt-2 text-secondary">
-                This is your primary resume containing all experience, skills, and achievements. Use this as the base for all tailored applications.
-              </p>
-            </div>
-            <div className="flex items-center gap-6 text-sm text-secondary">
-              <div className="flex items-center gap-2">
-                <MaterialIcon name="history" className="text-[18px]" />
-                <span>Last synced {master?.updatedAt ? timeAgo(master.updatedAt) : "never"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MaterialIcon name="article" className="text-[18px]" />
-                <span>{countSections(master?.resume)} Sections</span>
-              </div>
-            </div>
-            <div className="pt-2">
-              <Link
-                href="/master"
-                className={primaryBtnCls + " px-6 py-3"}
-              >
-                <MaterialIcon name="edit_note" className="text-[18px]" />
-                Go to Editor
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
 
+        {recentVersions.length === 0 ? (
+          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+            <NewResumeCard />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+            {recentVersions.map((v) => {
+              const app = v.applications[0];
+              return (
+                <div
+                  key={v.id}
+                  onClick={() => router.push(`/resumes/${v.id}`)}
+                  className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
+                >
+                  <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
+                    <ResumePreview pdfBase64={v.pdfBase64} />
+                    <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
+                      <button className={primaryBtnCls}>View Resume</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-start justify-between gap-2">
+                      <h4 className="truncate pr-2 font-bold text-primary">{v.name || "Untitled version"}</h4>
+                      <MatchBadge version={v} />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-secondary">
+                      {app ? (
+                        <>
+                          <div className={`flex h-4 w-4 items-center justify-center rounded-sm text-[10px] text-white ${companyColor(app.company)}`}>
+                            {companyInitial(app.company)}
+                          </div>
+                          <span>
+                            {app.company} • Updated {timeAgo(v.createdAt)}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <MaterialIcon name="public" className="text-[14px]" />
+                          <span>Master Draft • Updated {timeAgo(v.createdAt)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <NewResumeCard />
+          </div>
+        )}
       </section>
     </div>
   );
@@ -403,10 +338,23 @@ function MatchBadge({ version }: { version: Version }) {
   );
 }
 
-function countSections(resume: unknown): number {
-  if (!resume || typeof resume !== "object") return 0;
-  const r = resume as { sections?: unknown[] };
-  return Array.isArray(r.sections) ? r.sections.length : 0;
+function StatCard({ label, value, icon }: { label: string; value: string | number; icon: string }) {
+  return (
+    <div className="flex flex-col gap-2 border border-border-subtle bg-surface-white p-md">
+      <div className="flex items-center gap-2 text-on-surface-variant">
+        <MaterialIcon name={icon} className="text-[20px]" />
+        <span className="font-label-md text-label-md uppercase tracking-wider">{label}</span>
+      </div>
+      <p className="font-headline-xl text-headline-xl text-primary">{value}</p>
+    </div>
+  );
+}
+
+function fmtRate(n: number): string {
+  if (n === 0) return "0";
+  if (n < 0.1) return "<0.1";
+  // One decimal place, dropping the trailing ".0".
+  return Number(n.toFixed(1)).toString();
 }
 
 async function updateOutcome(appId: string, current: Outcome, setVersions: React.Dispatch<React.SetStateAction<Version[]>>) {
