@@ -196,7 +196,7 @@ function SidebarInner({
   return (
     <>
       {/* Brand area: always centered in w-12, text overflows when expanded */}
-      <div className="flex h-12 shrink-0 items-center">
+      <div className={`flex h-12 shrink-0 items-center ${collapsed ? "" : "px-md"}`}>
         <div className="flex w-12 shrink-0 items-center justify-center">
           <Link
             href="/"
@@ -209,14 +209,16 @@ function SidebarInner({
           </Link>
         </div>
         {!collapsed && (
-          <button
-            onClick={() => setCollapsed(true)}
-            title="Collapse sidebar"
-            aria-label="Collapse sidebar"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface mr-sm"
-          >
-            <CollapseIcon />
-          </button>
+          <div className="flex flex-1 items-center justify-end">
+            <button
+              onClick={() => setCollapsed(true)}
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+            >
+              <CollapseIcon />
+            </button>
+          </div>
         )}
       </div>
       {/* Nav: icons always centered in w-12, text overflows when expanded */}
