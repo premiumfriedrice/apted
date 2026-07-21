@@ -5,6 +5,21 @@
 **Linear**: PRE-88 (not yet created in Linear — API was failing)
 **Date**: 2026-07-18
 
+## Status
+
+**Implemented** (commit `530d3f1` on `feature/lazy-insights-cache`):
+- ✅ Migration `0011_insights_cache.sql` (new `resume_insights` table + unique index)
+- ✅ `getCachedInsights` / `saveInsights` / `invalidateInsights` in `src/lib/insights.ts`
+- ✅ Insights GET route is cache-first and honors `?refresh=true` to force regeneration
+- ✅ PATCH `/api/versions/[id]` invalidates cache when `tailoredContent` changes
+- ✅ Tests pass: `npx vitest run` (170 passed, 1 skipped) incl. new insights route cache tests
+- ✅ Types clean: `npx tsc --noEmit` exits clean
+- ❎ Frontend regenerated-button (optional in handoff) — NOT done (out of scope, low value without UI sign-off)
+
+**Remaining verification before merge**:
+1. Run `npm run db:migrate` against a seeded DB (no `.env.local` in this worktree, so migration not yet applied). After migrating, inspect the table with `\d resume_insights`.
+2. Manual end-to-end: `npm run dev`, open a resume, switch to the Insights tab, confirm it loads; reload and confirm the cached hit is near-instant; `?refresh=true` (or edit the resume) should regenerate.
+
 ## What to Build
 
 Cache AI-generated insights for resume versions so they're only generated once per version, and only when the user actually views the insights tab (lazy generation).
