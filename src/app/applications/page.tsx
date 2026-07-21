@@ -173,16 +173,35 @@ const modeActiveBtnCls =
         </div>
       )}
 
-      <div className="mb-4 flex items-center gap-1">
-        {STATUSES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={filter === s ? modeActiveBtnCls : smallBtnCls}
-          >
-            {s === "all" ? "All" : s}
-          </button>
-        ))}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {STATUSES.map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={filter === s ? modeActiveBtnCls : smallBtnCls}
+            >
+              {s === "all" ? "All" : s}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            const csv = ["Company,Role,Status,Date"]
+              .concat(filtered.map((a) => `"${a.company}","${a.role}","${a.outcome}","${formatDate(a.createdAt)}"`))
+              .join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "applications.csv";
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
+          className={smallBtnCls}
+        >
+          <MaterialIcon name="download" className="text-[18px]" /> Export
+        </button>
       </div>
 
       <div className="overflow-hidden border border-border-subtle bg-surface-white">

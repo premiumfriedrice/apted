@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <aside
             onClick={collapsed ? () => setCollapsed(false) : undefined}
             title={collapsed ? "Click to expand sidebar" : undefined}
-            className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
+            className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out overflow-hidden ${asideCls}`}
           >
             <SidebarInner
               pathname={pathname}
@@ -142,7 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <aside
           onClick={collapsed ? () => setCollapsed(false) : undefined}
           title={collapsed ? "Click to expand sidebar" : undefined}
-          className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out ${asideCls}`}
+          className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-outline-variant bg-surface-white transition-[width] duration-200 ease-out overflow-hidden ${asideCls}`}
         >
           <SidebarInner
             pathname={pathname}
@@ -237,25 +237,29 @@ function SidebarInner({
                 collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
               } ${collapsed ? "justify-center w-full px-0" : ""}`}
             >
-              <MaterialIcon name={item.icon} className={collapsed ? "text-[22px]" : "text-[20px]"} />
-              {!collapsed && <span>{item.label}</span>}
+              <span className="flex shrink-0 items-center justify-center w-12">
+                <MaterialIcon name={item.icon} className={collapsed ? "text-[22px]" : "text-[20px]"} />
+              </span>
+              {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
       {/* Footer: profile trigger (opens the menu in AppShell) */}
-      <div className="shrink-0 px-0">
+      <div className="shrink-0 px-0 pb-md">
         {collapsed ? (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
-            title="Profile"
-            aria-label="Open profile menu"
-            className="mx-auto flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary transition-colors hover:border-primary"
-          >
-            <span className="text-label-sm font-bold">{initials}</span>
-          </button>
+          <div className="flex w-12 flex-col items-center pb-sm">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
+              title="Profile"
+              aria-label="Open profile menu"
+              className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary transition-colors hover:border-primary"
+            >
+              <span className="text-label-sm font-bold">{initials}</span>
+            </button>
+          </div>
         ) : (
           <button
             type="button"

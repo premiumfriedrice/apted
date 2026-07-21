@@ -97,6 +97,14 @@ export default function ResumesPage() {
     return result;
   }, [versions, activeTab, search]);
 
+  async function deleteVersion(id: string) {
+    if (!confirm("Delete this resume version? This cannot be undone.")) return;
+    const res = await fetch(`/api/versions/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setVersions((prev) => prev.filter((v) => v.id !== id));
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1440px]">
       {/* Header */}
@@ -146,8 +154,16 @@ export default function ResumesPage() {
               <div
                 key={v.id}
                 onClick={() => router.push(`/resumes/${v.id}`)}
-                className="group flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
+                className="group relative flex cursor-pointer flex-col gap-3 border border-border-subtle bg-surface-white p-3 transition-all hover:border-primary"
               >
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteVersion(v.id); }}
+                  className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded bg-surface-white/80 text-on-surface-variant opacity-0 backdrop-blur transition-all hover:text-error group-hover:opacity-100"
+                  title="Delete version"
+                  aria-label="Delete version"
+                >
+                  <MaterialIcon name="delete" className="text-[16px]" />
+                </button>
                 <div className="relative aspect-[1/1.4] overflow-hidden border border-border-subtle bg-surface-container-low resume-preview-mask">
                   <ResumePreview pdfBase64={v.pdfBase64} />
                   <div className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition-all group-hover:bg-primary/5 group-hover:opacity-100">
