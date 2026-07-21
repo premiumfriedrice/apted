@@ -245,7 +245,7 @@ function SidebarInner({
       </nav>
 
       {/* Footer: profile trigger (opens the menu in AppShell) */}
-      <div className="shrink-0 px-0 pb-md">
+      <div className="shrink-0 px-0">
         {collapsed ? (
           <button
             type="button"
