@@ -26,9 +26,9 @@ export function NewResumeCard({ href = "/master" }: { href?: string }) {
           <MaterialIcon name="add" className="text-[32px]" />
         </div>
       </div>
-      <div className="flex flex-col items-center text-center">
+      <div>
         <p className="mb-1 font-bold text-primary">New Resume</p>
-        <p className="px-4 text-xs text-secondary">Start from a template or import a PDF</p>
+        <p className="text-xs text-secondary">Start from a template or import a PDF</p>
       </div>
     </Link>
   );
