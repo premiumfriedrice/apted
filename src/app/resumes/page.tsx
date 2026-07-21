@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResumePreview } from "@/components/ResumePreview";
 import { NewResumeCard } from "@/components/NewResumeCard";
+import { SkeletonCard } from "@/components/Skeleton";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
 
@@ -71,11 +72,13 @@ export default function ResumesPage() {
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All Resumes");
   const [search, setSearch] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/versions")
       .then((r) => r.json())
-      .then((data: Version[]) => setVersions(data));
+      .then((data: Version[]) => { setVersions(data); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   const displayedVersions = useMemo(() => {
@@ -141,7 +144,11 @@ export default function ResumesPage() {
       </div>
 
       {/* Resumes Grid */}
-      {displayedVersions.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : displayedVersions.length === 0 ? (
         <div className="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-4">
           <NewResumeCard />
         </div>

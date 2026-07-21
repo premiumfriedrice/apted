@@ -195,9 +195,9 @@ function SidebarInner({
 
   return (
     <>
-      {/* Brand — aligned with the collapsed 'a' square (h-12) */}
-      <div className={`flex h-12 shrink-0 items-center ${collapsed ? "w-12 justify-center px-0" : "justify-between px-md"}`}>
-        {collapsed ? (
+      {/* Brand area: always centered in w-12, text overflows when expanded */}
+      <div className="flex h-12 shrink-0 items-center">
+        <div className="flex w-12 shrink-0 items-center justify-center">
           <Link
             href="/"
             title="apted"
@@ -205,26 +205,22 @@ function SidebarInner({
             className="text-[28px] font-medium tracking-tight leading-none flex items-center justify-center pb-1 text-on-surface"
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
-            a
+            {collapsed ? "a" : "apted"}
           </Link>
-        ) : (
-          <>
-            <Link href="/" className="text-[28px] font-medium tracking-tight text-on-surface" style={{ fontFamily: "'Outfit', sans-serif" }}>
-              apted
-            </Link>
-            <button
-              onClick={() => setCollapsed(true)}
-              title="Collapse sidebar"
-              aria-label="Collapse sidebar"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-            >
-              <CollapseIcon />
-            </button>
-          </>
+        </div>
+        {!collapsed && (
+          <button
+            onClick={() => setCollapsed(true)}
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface mr-sm"
+          >
+            <CollapseIcon />
+          </button>
         )}
       </div>
-      {/* Nav */}
-      <nav className={`flex-1 ${collapsed ? "pt-0 space-y-0 px-0" : "pt-sm space-y-sm px-sm"}`}>
+      {/* Nav: icons always centered in w-12, text overflows when expanded */}
+      <nav className="flex-1 pt-sm space-y-sm">
         {SIDEBAR_NAV.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
@@ -233,12 +229,12 @@ function SidebarInner({
               href={item.href}
               title={collapsed ? item.label : undefined}
               onClick={collapsed ? (e) => e.stopPropagation() : undefined}
-              className={`flex items-center ${collapsed ? "py-1.5" : "py-sm"} transition-colors duration-200 ${
-                collapsed ? sideIconBtnCls(isActive) : isActive ? sideActiveBtnCls : sideBtnCls
-              } ${collapsed ? "justify-center w-full px-0" : ""}`}
+              className={`flex items-center py-sm transition-colors duration-200 ${
+                isActive ? sideActiveBtnCls : sideBtnCls
+              } ${collapsed ? "mx-0 px-0" : "mx-sm px-sm"}`}
             >
-              <span className="flex shrink-0 items-center justify-center w-12">
-                <MaterialIcon name={item.icon} className={collapsed ? "text-[22px]" : "text-[20px]"} />
+              <span className="flex w-12 shrink-0 items-center justify-center">
+                <MaterialIcon name={item.icon} className="text-[20px]" />
               </span>
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
@@ -246,38 +242,27 @@ function SidebarInner({
         })}
       </nav>
 
-      {/* Footer: profile trigger (opens the menu in AppShell) */}
-      <div className="shrink-0 px-0 pb-md">
-        {collapsed ? (
-          <div className="flex w-12 flex-col items-center pb-sm">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
-              title="Profile"
-              aria-label="Open profile menu"
-              className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest text-secondary transition-colors hover:border-primary"
-            >
-              <span className="text-label-sm font-bold">{initials}</span>
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            title="Open profile menu"
-            aria-label="Open profile menu"
-            className="flex w-full items-center gap-sm border-t border-outline-variant px-sm pt-sm pb-md text-left transition-colors hover:bg-surface-container-low"
-          >
-            <span className="flex py-sm px-sm shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
+      {/* Footer: profile trigger. Avatar always centered in w-12. No extra bottom padding. */}
+      <div className="shrink-0">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
+          title="Open profile menu"
+          aria-label="Open profile menu"
+          className={`flex items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low ${collapsed ? "px-0 pb-sm" : "px-sm pb-sm"}`}
+        >
+          <span className="flex w-12 shrink-0 items-center justify-center">
+            <span className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
               <span className="text-label-sm font-bold text-secondary">{initials}</span>
             </span>
+          </span>
+          {!collapsed && (
             <span className="min-w-0 flex-1">
               <span className="block font-label-md text-label-md truncate leading-tight">{displayName}</span>
               <span className="block text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</span>
             </span>
-            <MaterialIcon name="expand_less" className="text-[20px] text-on-surface-variant" />
-          </button>
-        )}
+          )}
+        </button>
       </div>
     </>
   );
