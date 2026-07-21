@@ -84,3 +84,16 @@ npm run dev  # visual check: sidebar alignment, loading states, hover, portal li
 - Changing the sidebar collapse animation (already fixed in PRE-90)
 - Adding new features
 - Changing the extension
+
+---
+
+## Resolution (commit cee648e)
+
+All six items completed; tests, `tsc --noEmit`, and `npm run build` all pass.
+
+1. **Sidebar alignment:** `src/components/AppShell.tsx` nav links use `px-md` only (dropped `mx-md`) so brand, nav icons, and profile avatar all center at 40px from the edge.
+2. **Skeleton funnel (applications page):** Verified `loading ? <SkeletonFunnel/> : ...` renders while loading; `SkeletonRow`s also render in the table body during load.
+3. **Skeleton stat cards (dashboard):** Verified four `SkeletonStatCard`s render while `loading` is true; real `StatCard`s only render after load, so "0" never flashes.
+4. **Row parity (applications page takes precedence):** Dashboard recent-application rows now mirror `/applications`: the Resume Used cell is a plain text link with `hover:underline` + `stopPropagation`, and the Status cell is an inline `<select>` with optimistic `updateOutcome` + `updatingId` (ported from `src/app/applications/page.tsx`, replacing the static badge and the unused cycling `updateOutcome`).
+5. **Portal link label:** In `src/app/applications/[id]/page.tsx` the link now reads "Open application portal" with an `open_in_new` icon; the hostname (with `www.` stripped) is shown as secondary text instead of the raw URL.
+6. **Search placeholder:** Verified `"Search by company or role..."` in `src/app/page.tsx`.
