@@ -243,10 +243,10 @@ export default function LibraryPage() {
           </h3>
         </div>
         <div className="grid grid-cols-2 gap-gutter lg:grid-cols-4">
-          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
-          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
-          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
           <StatCard label="Avg per day" value={fmtRate(appStats.avgDaily)} icon="schedule" />
+          <StatCard label="Avg per week" value={fmtRate(appStats.avgWeekly)} icon="trending_up" />
+          <StatCard label="In the last month" value={appStats.lastMonth} icon="calendar_month" />
+          <StatCard label="In the last year" value={appStats.lastYear} icon="event_available" />
         </div>
       </section>
 
