@@ -233,7 +233,7 @@ function SidebarInner({
               onClick={collapsed ? (e) => e.stopPropagation() : undefined}
               className={`flex items-center py-sm transition-colors duration-200 ${
                 isActive ? sideActiveBtnCls : sideBtnCls
-              } ${collapsed ? "mx-0 px-0" : "mx-md px-md"}`}
+              } ${collapsed ? "mx-0 px-0" : "px-md"}`}
             >
               <span className="flex w-12 shrink-0 items-center justify-center">
                 <MaterialIcon name={item.icon} className="text-[20px]" />
