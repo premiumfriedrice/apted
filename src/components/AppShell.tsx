@@ -15,8 +15,8 @@ export function useSidebarCollapsed() {
 }
 
 const SIDEBAR_NAV = [
-  { href: "/resumes", label: "Resumes", icon: "folder_open" },
   { href: "/applications", label: "Applications", icon: "assignment_turned_in" },
+  { href: "/resumes", label: "Resumes", icon: "folder_open" },
   { href: "/master", label: "Master Resume", icon: "edit_note" },
 ];
 
