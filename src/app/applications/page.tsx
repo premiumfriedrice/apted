@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import FunnelChart, { EmptyFunnel } from "@/components/FunnelChart";
+import FunnelChart from "@/components/FunnelChart";
 import { SkeletonRow, SkeletonFunnel } from "@/components/Skeleton";
 import type { FunnelStats } from "@/components/types";
 
@@ -176,13 +176,9 @@ const modeActiveBtnCls =
         <div className="mb-6">
           <SkeletonFunnel />
         </div>
-      ) : applications.length > 0 ? (
-        <div className="mb-6 rounded-lg border border-border-subtle bg-surface-white p-md">
-          <FunnelChart stats={funnelStats} compact />
-        </div>
       ) : (
         <div className="mb-6 rounded-lg border border-border-subtle bg-surface-white p-md">
-          <EmptyFunnel />
+          <FunnelChart stats={funnelStats} compact />
         </div>
       )}
 
