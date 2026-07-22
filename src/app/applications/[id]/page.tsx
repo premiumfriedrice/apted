@@ -384,9 +384,15 @@ export default function ApplicationDetailPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 truncate text-body-md text-primary hover:underline"
                   >
-                    {portalUrl}
+                    Open application portal
                     <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                   </a>
+                  <span className="truncate text-label-sm text-on-surface-variant">
+                    {(() => {
+                      try { return new URL(normalizeUrl(portalUrl)).hostname.replace(/^www\./, ""); }
+                      catch { return portalUrl; }
+                    })()}
+                  </span>
                   <button
                     onClick={() => {
                       setPortalDraft(portalUrl);

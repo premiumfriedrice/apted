@@ -15,18 +15,20 @@ export function useSidebarCollapsed() {
 }
 
 const SIDEBAR_NAV = [
-  { href: "/resumes", label: "Resumes", icon: "folder_open" },
   { href: "/applications", label: "Applications", icon: "assignment_turned_in" },
+  { href: "/resumes", label: "Resumes", icon: "folder_open" },
   { href: "/master", label: "Master Resume", icon: "edit_note" },
 ];
 
 const STORAGE_KEY = "apted:sidebar-collapsed";
 
-// Shared button language (matches the master resume editor header).
+// Shared button language (matches the master resume editor header). No
+// horizontal padding here: the w-12 icon column sits flush-left so nav icons
+// center at the same x (24px) as the brand "a" and the profile avatar.
 const sideBtnCls =
-  "flex items-center gap-1 px-3 w-full text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
+  "flex items-center gap-1 w-full text-on-surface-variant text-label-md font-label-md hover:bg-surface-container-low transition-colors duration-200 rounded";
 const sideActiveBtnCls =
-  "flex items-center gap-1 px-3 w-full text-on-surface text-label-md font-label-md bg-surface-container-high font-semibold rounded";
+  "flex items-center gap-1 w-full text-on-surface text-label-md font-label-md bg-surface-container-high font-semibold rounded";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -85,8 +87,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  const sidebarWidth = collapsed ? "w-12" : "w-64";
-  const mainLeft = collapsed ? "ml-12" : "ml-64";
+  const sidebarWidth = collapsed ? "w-12" : "w-56";
+  const mainLeft = collapsed ? "ml-12" : "ml-56";
 
   // When collapsed, the whole sidebar rail is a click target to expand. The
   // inner links/brand call stopPropagation so they keep working; they share the
@@ -195,28 +197,29 @@ function SidebarInner({
 
   return (
     <>
-      {/* Brand area: always centered in w-12, text overflows when expanded */}
-      <div className={`flex h-12 shrink-0 items-center ${collapsed ? "" : "px-md"}`}>
-        <div className="flex w-12 shrink-0 items-center justify-center">
-          <Link
-            href="/"
-            title="apted"
-            onClick={(e) => e.stopPropagation()}
-            className="text-[28px] font-medium tracking-tight leading-none flex items-center justify-center pb-1 text-on-surface"
-            style={{ fontFamily: "'Outfit', sans-serif" }}
-          >
-            {collapsed ? "a" : "apted"}
-          </Link>
-        </div>
+      {/* Brand area: the logo text is left-anchored at the same x in both the
+          collapsed and expanded rail (pl-4 from the rail's left edge), so the
+          "a" in "apted" sits at the same position as the "a" shown when the
+          sidebar is collapsed. The collapse button is pushed to the far right. */}
+      <div className="flex h-12 shrink-0 items-center">
+        <Link
+          href="/"
+          title="apted"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center pb-1 pl-4 text-[28px] font-medium tracking-tight leading-none text-on-surface"
+          style={{ fontFamily: "'Outfit', sans-serif" }}
+        >
+          {collapsed ? "a" : "apted"}
+        </Link>
         {!collapsed && (
-          <div className="flex flex-1 items-center justify-end">
+          <div className="flex items-center justify-end pr-md ml-auto">
             <button
               onClick={() => setCollapsed(true)}
               title="Collapse sidebar"
               aria-label="Collapse sidebar"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             >
-              <CollapseIcon />
+              <MaterialIcon name="dock_to_right" className="text-[20px]" />
             </button>
           </div>
         )}
@@ -233,7 +236,7 @@ function SidebarInner({
               onClick={collapsed ? (e) => e.stopPropagation() : undefined}
               className={`flex items-center py-sm transition-colors duration-200 ${
                 isActive ? sideActiveBtnCls : sideBtnCls
-              } ${collapsed ? "mx-0 px-0" : "mx-sm px-sm"}`}
+              } mx-0 px-0`}
             >
               <span className="flex w-12 shrink-0 items-center justify-center">
                 <MaterialIcon name={item.icon} className="text-[20px]" />
@@ -251,7 +254,7 @@ function SidebarInner({
           onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
           title="Open profile menu"
           aria-label="Open profile menu"
-          className={`flex items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low ${collapsed ? "px-0 pb-sm" : "px-sm pb-sm"}`}
+          className={`flex w-full items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low px-0 pb-sm`}
         >
           <span className="flex w-12 shrink-0 items-center justify-center">
             <span className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
@@ -325,9 +328,10 @@ function ProfileMenu({
   if (!open) return null;
 
   // Anchor the popover to the bottom-left, opening upward over the sidebar
-  // footer. Expanded sidebar is w-64 (256px); collapsed is w-12 (48px).
-  const anchorLeft = collapsed ? "left-2" : "left-4";
-  const width = collapsed ? "w-64" : "w-56";
+  // footer. Expanded sidebar is w-56 (224px); collapsed is w-12 (48px). The
+  // popover floats inside the rail so it stays slightly narrower than it.
+  const anchorLeft = "left-2";
+  const width = collapsed ? "w-64" : "w-52";
 
   return (
     <div className="fixed inset-0 z-[60]" onClick={onClose} role="presentation">
@@ -408,15 +412,6 @@ function ProfileMenu({
   );
 }
 
-function CollapseIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <line x1="9" y1="4" x2="9" y2="20" />
-      <polyline points="15 10 13 12 15 14" transform="translate(-2 0)" />
-    </svg>
-  );
-}
 
 function MaterialIcon({ name, className = "" }: { name: string; className?: string }) {
   return (

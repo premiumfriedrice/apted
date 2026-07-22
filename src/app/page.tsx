@@ -78,6 +78,7 @@ export default function LibraryPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -127,6 +128,30 @@ export default function LibraryPage() {
     const avgDaily = lastYear > 0 ? lastYear / 365 : 0;
     return { lastYear, lastMonth, avgWeekly, avgDaily };
   }, [applications]);
+
+  async function updateOutcome(appId: string, outcome: Outcome) {
+    setUpdatingId(appId);
+    // Optimistic: update local state immediately.
+    setVersions((prev) =>
+      prev.map((v) => ({
+        ...v,
+        applications: v.applications.map((a) => (a.id === appId ? { ...a, outcome } : a)),
+      })),
+    );
+    try {
+      const res = await fetch(`/api/applications/${appId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome }),
+      });
+      if (!res.ok) throw new Error("update failed");
+    } catch {
+      // Revert on failure by reloading.
+      fetch("/api/versions").then((r) => (r.ok ? r.json() : [])).then((data: Version[]) => setVersions(Array.isArray(data) ? data : []));
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[1440px]">
@@ -210,23 +235,27 @@ export default function LibraryPage() {
                   </td>
                   <td className="py-3 px-4 text-body-md">{app.role}</td>
                   <td className="py-3 px-4">
-                    {app.versionId ? (
-                      <Link
-                        href={`/resumes/${app.versionId}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="group/link flex cursor-pointer items-center gap-2 text-secondary transition-colors hover:text-primary"
-                      >
-                        <MaterialIcon name="description" className="text-[16px]" />
-                        <span className="text-xs group-hover/link:underline">{app.versionName || "Untitled version"}.pdf</span>
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-secondary">No resume linked</span>
-                    )}
+                    <Link
+                      href={`/resumes/${app.versionId}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-secondary transition-colors hover:text-primary hover:underline"
+                    >
+                      {app.versionName || "Untitled version"}.pdf
+                    </Link>
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${OUTCOME_COLORS[app.outcome] || OUTCOME_COLORS.draft}`}>
-                      {app.outcome}
-                    </span>
+                    <select
+                      value={app.outcome}
+                      disabled={updatingId === app.id}
+                      onChange={(e) => updateOutcome(app.id, e.target.value as Outcome)}
+                      className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter outline-none ring-1 ring-inset ring-transparent transition focus:ring-primary ${OUTCOME_COLORS[app.outcome]} ${updatingId === app.id ? "opacity-50" : ""}`}
+                    >
+                      {(["draft", "applied", "ghosted", "interviewing", "rejected", "offer", "declined"] as Outcome[]).map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="py-3 px-4 text-xs text-secondary">{formatDate(app.createdAt)}</td>
                 </tr>
@@ -352,21 +381,4 @@ function fmtRate(n: number): string {
   if (n < 0.1) return "<0.1";
   // One decimal place, dropping the trailing ".0".
   return Number(n.toFixed(1)).toString();
-}
-
-async function updateOutcome(appId: string, current: Outcome, setVersions: React.Dispatch<React.SetStateAction<Version[]>>) {
-  const order: Outcome[] = ["applied", "interviewing", "offer", "declined", "rejected", "ghosted", "draft"];
-  const next = order[(order.indexOf(current) + 1) % order.length];
-  const res = await fetch(`/api/applications/${appId}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ outcome: next }),
-  });
-  if (!res.ok) return;
-  setVersions((prev) =>
-    prev.map((v) => ({
-      ...v,
-      applications: v.applications.map((a) => (a.id === appId ? { ...a, outcome: next } : a)),
-    }))
-  );
 }

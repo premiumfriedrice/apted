@@ -29,7 +29,9 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
     pct: string;
   } | null>(null);
 
-  if (stats.total === 0) return null;
+  // With zero applications every value is 0, so all node heights/flows
+  // collapse to zero and the labels render "0" — i.e. a blank Sankey kept
+  // in place at the top of the page rather than vanishing.
 
   // --- Derived drop-off buckets (so flows conserve mass) ---
   const drafts = Math.max(stats.total - stats.screening, 0);
@@ -46,7 +48,7 @@ export default function FunnelChart({ stats, compact = false }: FunnelChartProps
   const nodeW = 16;
   const topY = 86; // y of the top of every main-chain node (room for larger labels)
   const maxBar = compact ? 160 : 280; // pixel height of the tallest node (total)
-  const scale = maxBar / stats.total;
+  const scale = stats.total > 0 ? maxBar / stats.total : 0;
   const colGap = 200;
   const colX = [70, 70 + colGap, 70 + colGap * 2, 70 + colGap * 3, 70 + colGap * 4];
 

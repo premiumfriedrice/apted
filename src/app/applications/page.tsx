@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import FunnelChart from "@/components/FunnelChart";
-import { SkeletonRow } from "@/components/Skeleton";
+import { SkeletonRow, SkeletonFunnel } from "@/components/Skeleton";
 import type { FunnelStats } from "@/components/types";
 
 type Outcome = "draft" | "applied" | "ghosted" | "interviewing" | "rejected" | "offer" | "declined";
@@ -170,11 +170,15 @@ const modeActiveBtnCls =
         </div>
       </div>
 
-      {applications.length > 0 && (
+      {loading ? (
+        <div className="mb-6">
+          <SkeletonFunnel />
+        </div>
+      ) : applications.length > 0 ? (
         <div className="mb-6 rounded-lg border border-border-subtle bg-surface-white p-md">
           <FunnelChart stats={funnelStats} compact />
         </div>
-      )}
+      ) : null}
 
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-1">
