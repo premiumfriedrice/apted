@@ -330,7 +330,7 @@ function ProfileMenu({
   // Anchor the popover to the bottom-left, opening upward over the sidebar
   // footer. Expanded sidebar is w-56 (224px); collapsed is w-12 (48px). The
   // popover floats inside the rail so it stays slightly narrower than it.
-  const anchorLeft = collapsed ? "left-2" : "left-4";
+  const anchorLeft = "left-2";
   const width = collapsed ? "w-64" : "w-52";
 
   return (
