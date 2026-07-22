@@ -5,87 +5,30 @@
 **Linear**: PRE-93
 **Date**: 2026-07-21
 
-## What to Build
+## Pricing Structure
 
-Three interconnected features: rate limiting per user/plan, an upgrade plan page, and Stripe integration for payments.
+- **Free Trial (3 days, starts on signup)**: Unlimited everything. No credit card required. Expires automatically.
+- **Free (after trial)**: 3 tailor sessions/month. Edits, generate-bullets, extracts all unlimited. Can view/manage existing resumes and applications.
+- **Monthly ($9.99/mo)**: Unlimited everything. Recurring subscription, cancel via Stripe Customer Portal.
+- **3-Month Pack ($24.99 one-time)**: Unlimited everything for 90 days. No recurring billing. Targets recruiting season (July-October). After 90 days, drops back to Free.
 
-### 1. Rate Limiting
+## Rate Limiting Design
 
-Limit API usage based on the user's plan tier. Free tier gets a limited number of LLM calls per month; Pro tier gets unlimited (or a much higher cap).
+The **tailored resume session** is the unit of value. A user clicks "Tailor Resume," gets a draft, refines it as much as they want via chat, saves it. That's one session.
 
-**Plan tiers:**
-- **Free**: 10 tailors/month, 20 edits/month, 5 generate-bullets/month
-- **Pro** ($9/mo): Unlimited tailors, edits, generate-bullets
+- Only `/api/tailor` checks the rate limit. Everything else (edit, generate-bullets, extract) is unlimited.
+- Free tier: 3 tailor sessions per calendar month. Reset on the 1st of each month.
+- Trial and Pro: no limit on tailors.
 
-**Implementation:**
-- New migration `0012_plans.sql`: add `plan` column to the `user` table (Better Auth). Values: `free` (default), `pro`. Add `stripe_customer_id` and `stripe_subscription_id` columns.
-- New table `usage_events`: tracks each LLM call with `user_id`, `flow` (tailor/edit/generate-bullets/extract), `created_at`. Used to count monthly usage.
-- New `src/lib/rate-limit.ts`: `checkRateLimit(userId, flow)` — counts usage in the current month, returns `{ allowed: boolean, remaining: number, limit: number }`. Called at the start of each LLM-heavy API route.
-- API routes that call LLMs (`/api/tailor`, `/api/edit`, `/api/master/generate-bullets`, `/api/extract`) check the rate limit before proceeding. Return 429 with `{ error: "rate_limit_exceeded", limit, remaining, resetAt }` when exceeded.
-- The rate limit check increments the usage counter only when the LLM call actually succeeds (not on 429 responses).
+### Implementation
 
-**Files to modify:**
-- `src/app/api/tailor/route.ts` — add rate limit check
-- `src/app/api/edit/route.ts` — add rate limit check
-- `src/app/api/master/generate-bullets/route.ts` — add rate limit check
-- `src/app/api/extract/route.ts` — add rate limit check
-
-**New files:**
-- `migrations/0012_plans.sql`
-- `src/lib/rate-limit.ts`
-- `src/lib/plans.ts` — plan definitions, limits, helper to get user's plan
-
-### 2. Upgrade Plan Page
-
-A new `/upgrade` page showing the pricing tiers and a CTA to subscribe via Stripe.
-
-**Page content:**
-- Two plan cards: Free and Pro
-- Free: shows current usage (tailors used X/10, edits used X/20, etc.)
-- Pro: features list (unlimited tailors, unlimited edits, priority compile, etc.), price $9/mo, "Upgrade to Pro" button
-- Button triggers Stripe Checkout
-
-**Files:**
-- `src/app/upgrade/page.tsx` — NEW: upgrade page
-- `src/app/api/usage/route.ts` — NEW: GET returns current month's usage counts for the user
-- Update `src/components/AppShell.tsx`: "Upgrade plan" link in profile menu now goes to `/upgrade`
-
-### 3. Stripe Integration
-
-**Setup:**
-- `npm install stripe @stripe/stripe-js`
-- Env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` (for the Pro monthly price)
-- Add to `.env.example`
-
-**Endpoints:**
-- `POST /api/stripe/checkout` — creates a Stripe Checkout session for Pro subscription. Requires authenticated user. Returns `{ url }` for redirect. Creates/reuses Stripe customer ID.
-- `POST /api/stripe/portal` — creates a Stripe Customer Portal session for managing subscriptions (cancel, update payment). Returns `{ url }`.
-- `POST /api/stripe/webhook` — receives Stripe webhooks. Handles:
-  - `checkout.session.completed` — update user's plan to `pro`, save stripe IDs
-  - `customer.subscription.deleted` — downgrade user's plan to `free`
-  - `customer.subscription.updated` — check status, upgrade/downgrade accordingly
-
-**Webhook security:**
-- Verify Stripe signature using `STRIPE_WEBHOOK_SECRET`
-- This endpoint must NOT go through the middleware auth check (Stripe sends raw body). Add `/api/stripe/webhook` to the middleware exclusion list.
-
-**Files:**
-- `src/app/api/stripe/checkout/route.ts` — NEW
-- `src/app/api/stripe/portal/route.ts` — NEW
-- `src/app/api/stripe/webhook/route.ts` — NEW
-- `src/lib/stripe.ts` — NEW: Stripe client init + helper functions
-- `src/middleware.ts` — exclude `/api/stripe/webhook` from auth check
-
-### 4. Database Changes
-
-`migrations/0012_plans.sql`:
+**New migration `0012_plans.sql`:**
 ```sql
--- Add plan and Stripe fields to the Better Auth user table
-ALTER TABLE "user" ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'free';
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'trial';
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS plan_started_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS pro_expires_at timestamptz;
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_customer_id text;
-ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_subscription_id text;
 
--- Track LLM usage for rate limiting
 CREATE TABLE IF NOT EXISTS usage_events (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     text NOT NULL,
@@ -96,56 +39,120 @@ CREATE INDEX IF NOT EXISTS usage_events_user_flow_created_idx
   ON usage_events (user_id, flow, created_at DESC);
 ```
 
-### 5. Update AppShell Profile Menu
+**New `src/lib/plans.ts`:**
+- Plan type: `'trial' | 'free' | 'pro_monthly' | 'pro_3month'`
+- `TRIAL_DURATION_DAYS = 3`
+- `PRO_3MONTH_DURATION_DAYS = 90`
+- `FREE_TAILOR_LIMIT = 3`
+- `getUserPlan(userId)`: reads plan, plan_started_at, pro_expires_at from user table. If trial and >3 days since plan_started_at, returns 'free'. If pro and pro_expires_at < now, returns 'free'.
+- `isProOrTrial(plan)`: returns true for trial, pro_monthly, pro_3month
+
+**New `src/lib/rate-limit.ts`:**
+- `checkTailorLimit(userId)`: 
+  1. Get user's effective plan (via getUserPlan)
+  2. If trial or pro: return `{ allowed: true, remaining: Infinity, limit: Infinity }`
+  3. If free: count usage_events this month for flow='tailor'. If < 3: allowed. Else: denied.
+  4. Returns `{ allowed: boolean, remaining: number, limit: number }`
+- `recordUsage(userId, flow)`: inserts a row into usage_events. Called AFTER the LLM call succeeds (not on 429).
+- `getMonthlyUsage(userId)`: returns counts for the current month, used by the upgrade page and dashboard.
+
+**Modify `/api/tailor/route.ts`:**
+- At the start: call `checkTailorLimit(userId)`. If not allowed, return 429 with `{ error: 'rate_limit_exceeded', limit: 3, remaining: 0 }`.
+- After successful tailor: call `recordUsage(userId, 'tailor')`.
+
+**No changes needed to:** `/api/edit`, `/api/master/generate-bullets`, `/api/extract` — these are unlimited.
+
+## Upgrade Plan Page
+
+**New `/upgrade` page:**
+- Shows current plan and trial status
+- If on trial: shows countdown "X days left in your free trial"
+- If free: shows "Upgrade" CTAs
+- Two pricing cards:
+  - Monthly: $9.99/mo, "Cancel anytime", "Upgrade" button → Stripe Checkout (subscription)
+  - 3-Month Pack: $24.99, "90 days of full access", "Best for recruiting season" badge, "Buy now" button → Stripe Checkout (one-time payment)
+- If on Pro: shows "Manage subscription" button → Stripe Customer Portal
+- Shows free tier limits: "3 tailored resumes per month" with current usage
+
+**New `src/app/api/usage/route.ts`:**
+- GET: returns `{ plan, trialDaysLeft, tailorUsed, tailorLimit, proExpiresAt }`
+
+## Stripe Integration
+
+**Setup:**
+- `npm install stripe @stripe/stripe-js`
+- Env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_MONTHLY_PRICE_ID`, `STRIPE_3MONTH_PRICE_ID`
+- Two Stripe products:
+  - Monthly subscription: $9.99/mo recurring
+  - One-time payment: $24.99 for 90-day access
+
+**Endpoints:**
+- `POST /api/stripe/checkout` — creates Stripe Checkout session. Body: `{ plan: 'pro_monthly' | 'pro_3month' }`. Returns `{ url }`. Creates/reuses Stripe customer ID on user table.
+- `POST /api/stripe/portal` — creates Stripe Customer Portal session for managing/canceling subscriptions. Returns `{ url }`.
+- `POST /api/stripe/webhook` — receives Stripe webhooks. Handles:
+  - `checkout.session.completed` — set plan to `pro_monthly` or `pro_3month` based on which product was purchased. Set `pro_expires_at` (now + 90 days for 3-month pack; null for monthly since it's recurring). Save `stripe_customer_id`.
+  - `customer.subscription.deleted` — downgrade to `free`
+  - `customer.subscription.updated` — check status, upgrade/downgrade
+  - Must be excluded from middleware auth check (raw body verification)
+
+**New `src/lib/stripe.ts`:** Stripe client init + helpers (createCheckoutSession, createPortalSession, handleWebhook)
+
+## AppShell Updates
 
 - "Upgrade plan" link → `/upgrade`
-- If user is on Pro, show "Manage subscription" instead, linking to Stripe portal via `/api/stripe/portal`
-- Show plan badge next to user name in profile footer
+- If user is on Pro: show "Manage subscription" instead, linking to `/api/stripe/portal`
+- Show plan badge next to user name in profile footer ("Trial", "Free", "Pro")
+- Trial users see "X days left" badge
 
-## Current State
+## Database Changes
 
-- No rate limiting exists
-- No Stripe integration
-- `user` table has no plan/tier column
-- AppShell profile menu has "Upgrade plan" link that goes nowhere
-- `displayTier` shows the user's email, not their plan
+See migration above. Summary:
+- `user` table: add `plan`, `plan_started_at`, `pro_expires_at`, `stripe_customer_id`
+- New `usage_events` table for tracking tailor sessions
+
+## Env Vars
+
+Add to `.env.example`:
+```
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_MONTHLY_PRICE_ID=
+STRIPE_3MONTH_PRICE_ID=
+```
 
 ## Key Files
 
-- `migrations/0012_plans.sql` — NEW: plans + usage tracking
-- `src/lib/plans.ts` — NEW: plan definitions and limits
-- `src/lib/rate-limit.ts` — NEW: rate limit checking
-- `src/lib/stripe.ts` — NEW: Stripe client
+- `migrations/0012_plans.sql` — NEW
+- `src/lib/plans.ts` — NEW: plan definitions, trial logic, getUserPlan
+- `src/lib/rate-limit.ts` — NEW: checkTailorLimit, recordUsage, getMonthlyUsage
+- `src/lib/stripe.ts` — NEW: Stripe client + helpers
 - `src/app/upgrade/page.tsx` — NEW: upgrade page
+- `src/app/api/usage/route.ts` — NEW: usage stats endpoint
 - `src/app/api/stripe/checkout/route.ts` — NEW
 - `src/app/api/stripe/portal/route.ts` — NEW
 - `src/app/api/stripe/webhook/route.ts` — NEW
-- `src/app/api/usage/route.ts` — NEW: usage stats
-- `src/app/api/tailor/route.ts` — modify: add rate limit
-- `src/app/api/edit/route.ts` — modify: add rate limit
-- `src/app/api/master/generate-bullets/route.ts` — modify: add rate limit
-- `src/app/api/extract/route.ts` — modify: add rate limit
-- `src/middleware.ts` — modify: exclude webhook from auth
-- `src/components/AppShell.tsx` — modify: upgrade link, plan badge
+- `src/app/api/tailor/route.ts` — modify: add rate limit check + record usage
+- `src/middleware.ts` — modify: exclude `/api/stripe/webhook` from auth
+- `src/components/AppShell.tsx` — modify: upgrade link, plan badge, trial countdown
 - `.env.example` — add Stripe env vars
 
 ## Testing
 
 ```bash
 cd /Users/lloydalba/code/apted-stripe
-npm install stripe @stripe/stripe-js
+npm install stripe @stripe-stripe-js
 npm run db:migrate
 npx vitest run
 npx tsc --noEmit
 npm run build
-npm run dev  # test upgrade page, rate limiting (will need Stripe test keys)
+npm run dev  # test upgrade page, rate limiting (need Stripe test keys)
 ```
 
 ## Out of Scope
 
-- Annual billing (monthly only for now)
-- Multiple Pro tiers (just Free and Pro)
-- Usage-based pricing (flat $9/mo)
+- Annual billing
+- Multiple Pro tiers
+- Usage-based pricing
 - Stripe Tax
-- Invoicing
 - Team plans
+- Proration logic (Stripe handles this)
