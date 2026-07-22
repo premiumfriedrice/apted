@@ -219,7 +219,7 @@ function SidebarInner({
               aria-label="Collapse sidebar"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             >
-              <CollapseIcon />
+              <MaterialIcon name="dock_to_right" className="text-[20px]" />
             </button>
           </div>
         )}
@@ -412,15 +412,6 @@ function ProfileMenu({
   );
 }
 
-function CollapseIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <line x1="9" y1="4" x2="9" y2="20" />
-      <polyline points="15 10 13 12 15 14" transform="translate(-2 0)" />
-    </svg>
-  );
-}
 
 function MaterialIcon({ name, className = "" }: { name: string; className?: string }) {
   return (
