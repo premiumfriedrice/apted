@@ -241,7 +241,7 @@ function SidebarInner({
               <span className="flex w-12 shrink-0 items-center justify-center">
                 <MaterialIcon name={item.icon} className="text-[20px]" />
               </span>
-              {!collapsed && <span className="truncate ml-sm">{item.label}</span>}
+              {!collapsed && <span className="truncate ml-xs">{item.label}</span>}
             </Link>
           );
         })}
@@ -262,7 +262,7 @@ function SidebarInner({
             </span>
           </span>
           {!collapsed && (
-            <span className="min-w-0 flex-1">
+            <span className="min-w-0 flex-1 ml-xs">
               <span className="block font-label-md text-label-md truncate leading-tight">{displayName}</span>
               <span className="block text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</span>
             </span>
