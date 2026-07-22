@@ -238,10 +238,10 @@ function SidebarInner({
                 isActive ? sideActiveBtnCls : sideBtnCls
               } mx-0 px-0`}
             >
-              <span className="flex w-8 shrink-0 items-center justify-center">
+              <span className="flex w-12 shrink-0 items-center justify-start pl-4">
                 <MaterialIcon name={item.icon} className="text-[20px]" />
               </span>
-              {!collapsed && <span className="truncate ml-xs">{item.label}</span>}
+              {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
@@ -256,13 +256,13 @@ function SidebarInner({
           aria-label="Open profile menu"
           className={`flex w-full items-center border-t border-outline-variant pt-sm text-left transition-colors hover:bg-surface-container-low px-0 pb-sm`}
         >
-          <span className="flex w-8 shrink-0 items-center justify-center">
+          <span className="flex w-12 shrink-0 items-center justify-start pl-4">
             <span className="flex py-sm px-sm items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-surface-container-highest">
               <span className="text-label-sm font-bold text-secondary">{initials}</span>
             </span>
           </span>
           {!collapsed && (
-            <span className="min-w-0 flex-1 ml-xs">
+            <span className="min-w-0 flex-1">
               <span className="block font-label-md text-label-md truncate leading-tight">{displayName}</span>
               <span className="block text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</span>
             </span>
