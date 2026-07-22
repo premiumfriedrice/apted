@@ -27,6 +27,16 @@ export const TRIAL_DURATION_DAYS = 3;
 export const PRO_3MONTH_DURATION_DAYS = 90;
 export const FREE_TAILOR_LIMIT = 3;
 
+// PRE-93 fair-use caps for APP-SUBSIDIZED users (those running tailor against a
+// server-side env key, not their own BYOK key). BYOK users on trial/pro are
+// uncapped — they spend their own tokens. These bounds keep our per-user token
+// cost positive-margin and stop a no-card trial from burning an uncapped spend.
+// Env-overridable for ops tuning without a redeploy.
+export const TRIAL_SUBSIDIZED_TAILOR_LIMIT =
+  Number(process.env.TRIAL_SUBSIDIZED_TAILOR_LIMIT) || 25;
+export const PRO_SUBSIDIZED_TAILOR_LIMIT =
+  Number(process.env.PRO_SUBSIDIZED_TAILOR_LIMIT) || 60;
+
 export const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
 export const PRO_3MONTH_DURATION_MS =
   PRO_3MONTH_DURATION_DAYS * 24 * 60 * 60 * 1000;

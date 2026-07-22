@@ -1,17 +1,25 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { isAuthConfigured } from "@/lib/auth-config";
 
 type Plan = "trial" | "free" | "pro_monthly" | "pro_3month";
 
+// Client-side mirror of isProOrTrial (kept here to avoid importing src/lib/plans,
+// which pulls the pg/db pool into the browser bundle).
+function isProOrTrial(plan: Plan): boolean {
+  return plan === "trial" || plan === "pro_monthly" || plan === "pro_3month";
+}
+
 type UsageResponse = {
   plan: Plan;
   trialDaysLeft: number | null;
   proExpiresAt: string | null;
+  byok: boolean;            // true when the tailor flow runs on the user's own key
   tailorUsed: number;
-  tailorLimit: number | null; // null = unlimited
+  tailorLimit: number | null; // null = unlimited (BYOK pro/trial)
 };
 
 const primaryBtnCls =
@@ -98,6 +106,7 @@ export default function UpgradePage() {
         plan={plan}
         trialDaysLeft={trialDays}
         proExpiresAt={usage?.proExpiresAt ?? null}
+        byok={usage?.byok ?? false}
         tailorUsed={usage?.tailorUsed ?? 0}
         tailorLimit={usage?.tailorLimit ?? null}
         isPro={isPro}
@@ -112,7 +121,7 @@ export default function UpgradePage() {
             name="Monthly"
             price="$9.99"
             cadence="/mo"
-            tagline="Unlimited everything. Cancel anytime."
+            tagline="Unlimited tailored resumes. Cancel anytime."
             cta="Upgrade"
             featured={false}
             busy={busy === "pro_monthly"}
@@ -122,7 +131,7 @@ export default function UpgradePage() {
             name="3-Month Pack"
             price="$24.99"
             cadence="/90 days"
-            tagline="90 days of full access. Perfect for recruiting season."
+            tagline="Unlimited tailored resumes through recruiting season."
             badge="Best for recruiting season"
             cta="Buy now"
             featured
@@ -132,17 +141,15 @@ export default function UpgradePage() {
         </div>
       )}
 
-      {/* Free tier explainer */}
+      {/* Fair use & BYOK explainer */}
       <section className="mt-8 border border-border-subtle bg-surface-white p-md">
         <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
-          Free tier
+          Fair use &amp; your own API key
         </h3>
         <p className="mt-2 text-body-sm text-on-surface-variant">
-          After your trial ends, you get <span className="font-semibold text-on-surface">3 tailored resumes per calendar month</span>.
-          Editing, bullet generation, and extraction stay unlimited, and all your existing resumes and applications remain viewable.
-          {usage && usage.tailorLimit !== null && (
-            <> This month you&apos;ve used {usage.tailorUsed} of {usage.tailorLimit}.</>
-          )}
+          Pro plans are designed for an active individual job search. Usage on apted-provided AI is capped at a generous monthly fair-use limit so the service stays sustainable. Bring your own provider API key in{" "}
+          <Link href="/settings" className="font-semibold text-on-surface underline underline-offset-2 hover:text-primary">Settings</Link>{" "}
+          for genuinely unlimited usage — you pay your provider directly. Editing, bullet generation, and extraction are always unlimited for everyone.
         </p>
       </section>
 
@@ -158,6 +165,7 @@ function CurrentPlanCard({
   plan,
   trialDaysLeft,
   proExpiresAt,
+  byok,
   tailorUsed,
   tailorLimit,
   isPro,
@@ -168,6 +176,7 @@ function CurrentPlanCard({
   plan: Plan;
   trialDaysLeft: number | null;
   proExpiresAt: string | null;
+  byok: boolean;
   tailorUsed: number;
   tailorLimit: number | null;
   isPro: boolean;
@@ -211,7 +220,7 @@ function CurrentPlanCard({
         <p className="mt-md rounded-lg bg-surface-container-low p-md text-body-sm text-on-surface">
           <span className="font-semibold">{trialDaysLeft}</span>
           {trialDaysLeft === 1 ? " day" : " days"} left in your free trial.
-          Everything is unlimited until it ends.
+          {byok ? " Usage is unlimited — you&apos;re using your own API key." : " Everything is unlimited until it ends."}
         </p>
       )}
 
@@ -222,12 +231,22 @@ function CurrentPlanCard({
         </p>
       )}
 
-      {/* Free usage */}
-      {plan === "free" && tailorLimit !== null && (
+      {/* BYOK unlimited line (pro/trial on their own key) */}
+      {isProOrTrial(plan) && byok && (
+        <p className="mt-md rounded-lg bg-surface-container-low p-md text-body-sm text-on-surface">
+          Unlimited tailored resumes — running on your own API key.
+        </p>
+      )}
+
+      {/* Subsidized usage (pro/trial on apted tokens, or free) */}
+      {((isProOrTrial(plan) && !byok) || plan === "free") && tailorLimit !== null && (
         <p className="mt-md text-body-sm text-on-surface-variant">
           You&apos;ve used <span className="font-semibold text-on-surface">{tailorUsed}</span>{" "}
           of <span className="font-semibold text-on-surface">{tailorLimit}</span> tailored
           resumes this month.
+          {isProOrTrial(plan) && !byok && (
+            <> Add your API key in{" "}<Link href="/settings" className="font-semibold text-on-surface underline underline-offset-2 hover:text-primary">Settings</Link>{" "}for unlimited usage.</>
+          )}
         </p>
       )}
     </section>

@@ -10,7 +10,7 @@ import OpenAI from "openai";
 import { AnthropicProvider } from "./anthropic";
 import { OpenAICompatibleProvider } from "./openai";
 import type { Provider } from "./types";
-import { resolveApiKey } from "../api-keys";
+import { resolveApiKey, getApiKey } from "../api-keys";
 
 export type ProviderName = "anthropic" | "openai" | "gemini" | "deepseek" | "opencode";
 export type { Provider } from "./types";
@@ -136,6 +136,21 @@ function buildOpenCodeProvider(userId: string, model: string): Provider {
     model,
     "opencode",
   );
+}
+
+// True when the tailor flow will run against a USER-supplied (BYOK) key rather
+// than a server-side env key. Mirrors getProviderForFlow(userId, "tailor")
+// routing exactly so rate-limiting only grants "unlimited" to users whose
+// tailor calls actually spend their own tokens (not the app's). A user who
+// BYOK'd a provider the flow doesn't use (e.g. anthropic while the server runs
+// OpenCode) is correctly reported as subsidized — that's the real cost path.
+export function tailorUsesByokKey(userId: string): boolean {
+  if (hasOpenCodeKey(userId)) {
+    // OpenCode path: BYOK iff a DB-stored opencode key exists (env-only = subsidized).
+    return getApiKey(userId, "opencode") != null;
+  }
+  // Anthropic fallback path: BYOK iff a DB-stored anthropic key exists.
+  return getApiKey(userId, "anthropic") != null;
 }
 
 // Per-flow model routing. Each flow can be pinned with its own LLM_PROVIDER_<FLOW>

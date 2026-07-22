@@ -25,6 +25,9 @@ vi.mock("@/lib/db", () => ({
 import {
   TRIAL_DURATION_MS,
   PRO_3MONTH_DURATION_MS,
+  FREE_TAILOR_LIMIT,
+  TRIAL_SUBSIDIZED_TAILOR_LIMIT,
+  PRO_SUBSIDIZED_TAILOR_LIMIT,
   isProOrTrial,
   getUserPlan,
   getPlanInfo,
@@ -154,5 +157,11 @@ describe("PLAN constants", () => {
   it("matches the handoff durations", () => {
     expect(TRIAL_DURATION_MS).toBe(3 * 24 * 60 * 60 * 1000);
     expect(PRO_3MONTH_DURATION_MS).toBe(90 * 24 * 60 * 60 * 1000);
+  });
+
+  it("exposes the fair-use tailor caps", () => {
+    expect(FREE_TAILOR_LIMIT).toBe(3);
+    expect(TRIAL_SUBSIDIZED_TAILOR_LIMIT).toBe(25);
+    expect(PRO_SUBSIDIZED_TAILOR_LIMIT).toBe(60);
   });
 });

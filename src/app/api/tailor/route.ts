@@ -51,7 +51,13 @@ export async function POST(req: Request) {
   const limit = await checkTailorLimit(userId);
   if (!limit.allowed) {
     return NextResponse.json(
-      { error: "rate_limit_exceeded", limit: limit.limit, remaining: limit.remaining },
+      {
+        error: "rate_limit_exceeded",
+        limit: limit.limit,
+        remaining: limit.remaining,
+        // "velocity" = slow down (hourly throttle); "monthly" = upgrade / BYOK.
+        reason: limit.reason ?? "monthly",
+      },
       { status: 429 },
     );
   }
