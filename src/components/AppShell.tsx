@@ -14,6 +14,11 @@ export function useSidebarCollapsed() {
   return useContext(SidebarCollapsedContext);
 }
 
+type PlanInfo = {
+  plan: "trial" | "free" | "pro_monthly" | "pro_3month";
+  trialDaysLeft: number | null;
+};
+
 const SIDEBAR_NAV = [
   { href: "/applications", label: "Applications", icon: "assignment_turned_in" },
   { href: "/resumes", label: "Resumes", icon: "folder_open" },
@@ -36,6 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
 
   async function logout() {
     setProfileOpen(false);
@@ -56,6 +62,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored !== null) setCollapsed(stored === "1");
     } catch { /* ignore */ }
+  }, []);
+
+  // Best-effort plan/trial fetch for the sidebar badge + the profile menu link
+  // label. Runs once after mount; a 401 just leaves the badge unset (graceful).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/usage")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d) setPlanInfo(d as PlanInfo); })
+      .catch(() => { /* plan badge is best-effort */ });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -119,6 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               collapsed={collapsed}
               setCollapsed={setCollapsed}
               session={session}
+              planInfo={planInfo}
               onOpenProfile={() => setProfileOpen(true)}
             />
           </aside>
@@ -130,6 +148,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClose={() => setProfileOpen(false)}
             session={session}
             collapsed={collapsed}
+            planInfo={planInfo}
             onSignOut={logout}
           />
         </div>
@@ -151,6 +170,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             collapsed={collapsed}
             setCollapsed={setCollapsed}
             session={session}
+            planInfo={planInfo}
             onOpenProfile={() => setProfileOpen(true)}
           />
         </aside>
@@ -164,6 +184,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClose={() => setProfileOpen(false)}
           session={session}
           collapsed={collapsed}
+          planInfo={planInfo}
           onSignOut={logout}
         />
       </div>
@@ -176,12 +197,14 @@ function SidebarInner({
   collapsed,
   setCollapsed,
   session,
+  planInfo,
   onOpenProfile,
 }: {
   pathname: string;
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
   session: { user?: { name?: string | null; email?: string | null } } | null;
+  planInfo: PlanInfo | null;
   onOpenProfile: () => void;
 }) {
   const authed = !!isAuthConfigured();
@@ -264,7 +287,11 @@ function SidebarInner({
           {!collapsed && (
             <span className="min-w-0 flex-1">
               <span className="block font-label-md text-label-md truncate leading-tight">{displayName}</span>
-              <span className="block text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</span>
+              {authed && planInfo ? (
+                <PlanBadge plan={planInfo.plan} trialDaysLeft={planInfo.trialDaysLeft} />
+              ) : (
+                <span className="block text-label-sm text-on-surface-variant truncate leading-tight">{displayTier}</span>
+              )}
             </span>
           )}
         </button>
@@ -290,12 +317,14 @@ function ProfileMenu({
   onClose,
   session,
   collapsed,
+  planInfo,
   onSignOut,
 }: {
   open: boolean;
   onClose: () => void;
   session: { user?: { name?: string | null; email?: string | null } } | null;
   collapsed: boolean;
+  planInfo: PlanInfo | null;
   onSignOut: () => void;
 }) {
   const authed = !!isAuthConfigured();
@@ -363,17 +392,18 @@ function ProfileMenu({
             <MaterialIcon name="settings" className="text-[20px] text-on-surface-variant" />
             Settings
           </Link>
-          <button
-            type="button"
-            disabled
-            className="flex w-full items-center gap-sm px-md py-sm text-left text-body-md text-on-surface-variant"
+          <Link
+            href="/upgrade"
+            className="flex w-full items-center gap-sm px-md py-sm text-left text-body-md text-on-surface transition-colors hover:bg-surface-container-low"
             role="menuitem"
-            title="Coming soon"
           >
             <MaterialIcon name="workspace_premium" className="text-[20px] text-on-surface-variant" />
-            <span className="flex-1">Upgrade plan</span>
-            <span className="rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">Soon</span>
-          </button>
+            <span className="flex-1">
+              {planInfo && (planInfo.plan === "pro_monthly" || planInfo.plan === "pro_3month")
+                ? "Manage subscription"
+                : "Upgrade plan"}
+            </span>
+          </Link>
         </nav>
 
         {/* Learn more section */}
@@ -412,6 +442,29 @@ function ProfileMenu({
   );
 }
 
+
+function PlanBadge({ plan, trialDaysLeft }: { plan: PlanInfo["plan"]; trialDaysLeft: number | null }) {
+  if (plan === "trial") {
+    const days = trialDaysLeft ?? 0;
+    return (
+      <span className="mt-0.5 inline-flex w-fit items-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-primary">
+        Trial{days > 0 ? ` · ${days}d left` : ""}
+      </span>
+    );
+  }
+  if (plan === "pro_monthly" || plan === "pro_3month") {
+    return (
+      <span className="mt-0.5 inline-flex w-fit items-center rounded-full bg-tertiary-container px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-tertiary">
+        Pro
+      </span>
+    );
+  }
+  return (
+    <span className="mt-0.5 inline-flex w-fit items-center rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
+      Free
+    </span>
+  );
+}
 
 function MaterialIcon({ name, className = "" }: { name: string; className?: string }) {
   return (

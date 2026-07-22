@@ -10,6 +10,7 @@ import { tailorUserPrompt } from "@/lib/prompts/user";
 import { applyFilter } from "@/lib/structure";
 import { redactResume } from "@/lib/redact";
 import { requireUserId } from "@/lib/auth";
+import { checkTailorLimit, recordUsage } from "@/lib/rate-limit";
 import {
   createProgress,
   updateProgress,
@@ -42,6 +43,17 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+
+  // PRE-93: Free-tier users are limited to FREE_TAILOR_LIMIT tailor sessions
+  // per calendar month. Trial/Pro are unmetered. Check BEFORE doing any work
+  // so a rejected request never burns an LLM call.
+  const limit = await checkTailorLimit(userId);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "rate_limit_exceeded", limit: limit.limit, remaining: limit.remaining },
+      { status: 429 },
+    );
   }
 
   const jobId = crypto.randomUUID();
@@ -108,6 +120,10 @@ export async function POST(req: Request) {
         role: v.role,
         score: v.score,
       }));
+
+      // PRE-93: record the metered tailor session only after the LLM call
+      // + draft insert succeeded, so a 429 or a failed run never counts.
+      await recordUsage(userId, "tailor");
 
       finishProgress(jobId);
 
