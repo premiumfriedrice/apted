@@ -87,8 +87,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  const sidebarWidth = collapsed ? "w-12" : "w-64";
-  const mainLeft = collapsed ? "ml-12" : "ml-64";
+  const sidebarWidth = collapsed ? "w-12" : "w-56";
+  const mainLeft = collapsed ? "ml-12" : "ml-56";
 
   // When collapsed, the whole sidebar rail is a click target to expand. The
   // inner links/brand call stopPropagation so they keep working; they share the
@@ -328,9 +328,10 @@ function ProfileMenu({
   if (!open) return null;
 
   // Anchor the popover to the bottom-left, opening upward over the sidebar
-  // footer. Expanded sidebar is w-64 (256px); collapsed is w-12 (48px).
+  // footer. Expanded sidebar is w-56 (224px); collapsed is w-12 (48px). The
+  // popover floats inside the rail so it stays slightly narrower than it.
   const anchorLeft = collapsed ? "left-2" : "left-4";
-  const width = collapsed ? "w-64" : "w-56";
+  const width = collapsed ? "w-64" : "w-52";
 
   return (
     <div className="fixed inset-0 z-[60]" onClick={onClose} role="presentation">
