@@ -108,6 +108,7 @@ export default function UpgradePage() {
           featured={false}
           busy={false}
           onChoose={() => {}}
+          icon={<PlanSankeyIcon gradId="pi-free" total={20} screening={20} technical={0} ghosted={18} rejected={2} />}
         />
         <PricingCard
           name="Monthly"
@@ -126,6 +127,7 @@ export default function UpgradePage() {
           featured={false}
           busy={busy === "pro_monthly"}
           onChoose={() => startCheckout("pro_monthly")}
+          icon={<PlanSankeyIcon gradId="pi-monthly" total={10} screening={10} technical={7} ghosted={1.5} rejected={1.5} />}
         />
         <PricingCard
           name="3-Month Plan"
@@ -144,6 +146,7 @@ export default function UpgradePage() {
           featured
           busy={busy === "pro_3month"}
           onChoose={() => startCheckout("pro_3month")}
+          icon={<PlanSankeyIcon gradId="pi-pro3m" total={15} screening={15} technical={12} ghosted={1.5} rejected={1.5} />}
         />
       </div>
 
@@ -242,5 +245,105 @@ function MaterialIcon({ name, className = "" }: { name: string; className?: stri
     >
       {name}
     </span>
+  );
+}
+
+// Compact Sankey funnel icon for each pricing card. Reuses the FunnelChart's
+// visual language (constant-thickness bezi ribbons, gradient fills #000->#333
+// pass / #666->#888 rej / #999->#bbb ghost, black main-chain nodes, #555
+// drop-off nodes) so the icons read as the same funnel the user sees on the
+// applications page, just shrunk and de-labelled.
+//
+// Three columns: Total -> Screening -> Interview. Flow conservation is exact
+// (pass + rej + ghost = screening height) just like the full chart. The three
+// plan icons tell a story:
+//   - Free (technical=0, ghosted=18/20): everything pours into Ghosted, no
+//     interview pipe visible.
+//   - Monthly (technical=7/10): a medium interview pipe, thin rej/ghost trails.
+//   - 3-Month (technical=12/15): a fatter interview pipe, even thinner trails.
+function PlanSankeyIcon({
+  gradId,
+  total,
+  screening,
+  technical,
+  ghosted,
+  rejected,
+}: {
+  gradId: string;
+  total: number;
+  screening: number;
+  technical: number;
+  ghosted: number;
+  rejected: number;
+}) {
+  const W = 128;
+  const H = 60;
+  const nodeW = 5;
+  const colX = [6, 52, 98];
+  const topY = 2;
+  const maxBar = 24;
+  const scale = total > 0 ? maxBar / total : 0;
+  const hh = (v: number) => (v > 0 ? Math.max(v * scale, 1.5) : 0);
+
+  const hTotal = hh(total);
+  const hScreen = hh(screening);
+  const hTech = hh(technical);
+  const hRej = hh(rejected);
+  const hGhost = hh(ghosted);
+
+  // Stacked flow source offsets on Screening's right edge: pass (top), rej, ghost.
+  const screenPassY = topY;
+  const screenRejY = topY + hTech;
+  const screenGhostY = topY + hTech + hRej;
+
+  // Drop-off destination nodes in col 2, below the interview node.
+  const dropGap = 6;
+  const dropY = topY + hScreen + dropGap;
+  const rejNodeY = dropY;
+  const ghostNodeY = dropY + hRej + 2;
+
+  const ribbon = (x1: number, y1: number, x2: number, y2: number, h: number) => {
+    const dx = x2 - x1;
+    const cp1x = x1 + dx * 0.5;
+    const cp2x = x2 - dx * 0.5;
+    return `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2} L ${x2} ${y2 + h} C ${cp2x} ${y2 + h}, ${cp1x} ${y1 + h}, ${x1} ${y1 + h} Z`;
+  };
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-auto" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id={`${gradId}-pass`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#000" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#333" stopOpacity="0.8" />
+        </linearGradient>
+        <linearGradient id={`${gradId}-rej`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#666" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="#888" stopOpacity="0.55" />
+        </linearGradient>
+        <linearGradient id={`${gradId}-ghost`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#999" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#bbb" stopOpacity="0.3" />
+        </linearGradient>
+      </defs>
+
+      {/* Flows */}
+      <path d={ribbon(colX[0] + nodeW, topY, colX[1], topY, hScreen)} fill={`url(#${gradId}-pass)`} opacity={0.85} />
+      {technical > 0 && (
+        <path d={ribbon(colX[1] + nodeW, screenPassY, colX[2], topY, hTech)} fill={`url(#${gradId}-pass)`} opacity={0.85} />
+      )}
+      {rejected > 0 && (
+        <path d={ribbon(colX[1] + nodeW, screenRejY, colX[2], rejNodeY, hRej)} fill={`url(#${gradId}-rej)`} opacity={0.6} />
+      )}
+      {ghosted > 0 && (
+        <path d={ribbon(colX[1] + nodeW, screenGhostY, colX[2], ghostNodeY, hGhost)} fill={`url(#${gradId}-ghost)`} opacity={0.5} />
+      )}
+
+      {/* Nodes */}
+      <rect x={colX[0]} y={topY} width={nodeW} height={hTotal} fill="#000" rx={1} />
+      <rect x={colX[1]} y={topY} width={nodeW} height={hScreen} fill="#000" rx={1} />
+      {technical > 0 && <rect x={colX[2]} y={topY} width={nodeW} height={hTech} fill="#000" rx={1} />}
+      {rejected > 0 && <rect x={colX[2]} y={rejNodeY} width={nodeW} height={hRej} fill="#555" rx={1} />}
+      {ghosted > 0 && <rect x={colX[2]} y={ghostNodeY} width={nodeW} height={hGhost} fill="#555" rx={1} />}
+    </svg>
   );
 }
