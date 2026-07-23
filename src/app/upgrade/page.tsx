@@ -159,20 +159,6 @@ export default function UpgradePage() {
         </div>
       )}
 
-      {/* Two ways to run the AI */}
-      <section className="mt-8 border border-border-subtle bg-surface-white p-md">
-        <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
-          Two ways to run the AI
-        </h3>
-        <p className="mt-2 text-body-sm text-on-surface-variant">
-          Every Pro plan is the full apted harness at a flat rate, and each plan{" "}
-          <span className="font-semibold text-on-surface">includes {proLimit} AI-tailored resumes per month</span>{" "}
-          on apted-provided AI. Editing, bullet generation, and extraction are always unlimited for everyone. Bring your own provider API key in{" "}
-          <Link href="/settings" className="font-semibold text-on-surface underline underline-offset-2 hover:text-primary">Settings</Link>{" "}
-          for genuinely unlimited tailoring. You pay your provider directly, and we drop the monthly cap.
-        </p>
-      </section>
-
       {error && (
         <p className="mt-4 text-body-sm text-error" role="alert">{error}</p>
       )}
