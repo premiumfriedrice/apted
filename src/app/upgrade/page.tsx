@@ -148,9 +148,6 @@ export default function UpgradePage() {
             tagline="The full apted harness through recruiting season."
             features={[
               "Everything in Monthly, for 90 days",
-              `${proLimit} AI-tailored resumes / month on apted-provided AI`,
-              "Unlimited job description extraction",
-              "Bring your own API key for unlimited tailoring (your provider\u2019s cost)",
               "No recurring billing, drops to Free after 90 days",
             ]}
             badge="Best for recruiting season"
