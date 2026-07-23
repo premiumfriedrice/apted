@@ -8,7 +8,10 @@
 //     proExpiresAt: string | null,    // ISO for pro_3month's fixed expiry
 //     byok: boolean,                  // is the tailor flow using the user's own key?
 //     tailorUsed: number,             // sessions this calendar month
-//     tailorLimit: number | null      // monthly cap; null = unlimited (BYOK pro/trial)
+//     tailorLimit: number | null,     // monthly cap; null = unlimited (BYOK pro/trial)
+//     proSubsidizedLimit: number,      // the included AI-tailor allotment on a Pro plan
+//     trialSubsidizedLimit: number,    // the included allotment on trial (us-provided AI)
+//     freeTailorLimit: number          // free-tier monthly cap (upsell lever)
 //   }
 //
 // `tailorLimit` is null (not Infinity) on the wire because JSON.stringify turns
@@ -16,10 +19,21 @@
 // ("no limit"). It's null ONLY for BYOK trial/pro users — subsidized pro/trial
 // get their numeric fair-use cap, and free always gets 3 (BYOK on free does
 // not unlock unlimited; that's a Pro benefit).
+//
+// proSubsidizedLimit / trialSubsidizedLimit / freeTailorLimit are echoed so the
+// upgrade page's marketing copy can interpolate the SAME constant the runtime
+// enforces (PRO/TRIAL_SUBSIDIZED_TAILOR_LIMIT) — no hardcoded number in JSX
+// that can drift from the actual cap when env vars retune it.
 
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
-import { getPlanInfo, isProOrTrial } from "@/lib/plans";
+import {
+  FREE_TAILOR_LIMIT,
+  TRIAL_SUBSIDIZED_TAILOR_LIMIT,
+  PRO_SUBSIDIZED_TAILOR_LIMIT,
+  getPlanInfo,
+  isProOrTrial,
+} from "@/lib/plans";
 import { getMonthlyUsage, tailorLimitForPlan } from "@/lib/rate-limit";
 import { tailorUsesByokKey } from "@/lib/providers";
 
@@ -43,5 +57,9 @@ export async function GET(req: Request) {
     byok,
     tailorUsed,
     tailorLimit,
+    // Echoed for drift-proof marketing copy (see file header).
+    proSubsidizedLimit: PRO_SUBSIDIZED_TAILOR_LIMIT,
+    trialSubsidizedLimit: TRIAL_SUBSIDIZED_TAILOR_LIMIT,
+    freeTailorLimit: FREE_TAILOR_LIMIT,
   });
 }

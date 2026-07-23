@@ -20,6 +20,11 @@ type UsageResponse = {
   byok: boolean;            // true when the tailor flow runs on the user's own key
   tailorUsed: number;
   tailorLimit: number | null; // null = unlimited (BYOK pro/trial)
+  // Echoed server constants so marketing copy interpolates the SAME value the
+  // runtime enforces — no hardcoded number that drifts when env vars retune.
+  proSubsidizedLimit: number;
+  trialSubsidizedLimit: number;
+  freeTailorLimit: number;
 };
 
 const primaryBtnCls =
@@ -90,13 +95,16 @@ export default function UpgradePage() {
   const plan = usage?.plan ?? "free";
   const isPro = plan === "pro_monthly" || plan === "pro_3month";
   const trialDays = usage?.trialDaysLeft ?? null;
+  // Drift-proof: every marketing number comes from the server constant, so the
+  // copy can never disagree with the runtime cap when env vars retune it.
+  const proLimit = usage?.proSubsidizedLimit ?? 60;
 
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8">
         <h2 className="font-headline-xl text-headline-xl text-primary">Upgrade</h2>
         <p className="mt-1 text-secondary">
-          Tailored resume sessions are the only thing you pay for. Everything else is always unlimited.
+          apted is a harness for your job search: master resume, AI tailoring, application tracking, and the Chrome extension. Pay a flat rate; bring your own API key for unlimited AI tailoring, or use apted-provided AI with a monthly allotment.
         </p>
       </div>
 
@@ -121,7 +129,14 @@ export default function UpgradePage() {
             name="Monthly"
             price="$9.99"
             cadence="/mo"
-            tagline="Unlimited tailored resumes. Cancel anytime."
+            tagline="The full apted harness, month to month."
+            features={[
+              "Full harness: master resume, tailor, edit, application tracking, Chrome extension",
+              `${proLimit} AI-tailored resumes / month on apted-provided AI`,
+              "Unlimited edit, generate-bullets & extract",
+              "Bring your own API key for unlimited tailoring (your provider\u2019s cost)",
+              "Cancel anytime via Stripe portal",
+            ]}
             cta="Upgrade"
             featured={false}
             busy={busy === "pro_monthly"}
@@ -131,7 +146,14 @@ export default function UpgradePage() {
             name="3-Month Pack"
             price="$24.99"
             cadence="/90 days"
-            tagline="Unlimited tailored resumes through recruiting season."
+            tagline="The full apted harness through recruiting season."
+            features={[
+              "Everything in Monthly, for 90 days",
+              `${proLimit} AI-tailored resumes / month on apted-provided AI`,
+              "Unlimited edit, generate-bullets & extract",
+              "Bring your own API key for unlimited tailoring (your provider\u2019s cost)",
+              "No recurring billing \u2014 drops to Free after 90 days",
+            ]}
             badge="Best for recruiting season"
             cta="Buy now"
             featured
@@ -141,15 +163,17 @@ export default function UpgradePage() {
         </div>
       )}
 
-      {/* Fair use & BYOK explainer */}
+      {/* Two ways to run the AI */}
       <section className="mt-8 border border-border-subtle bg-surface-white p-md">
         <h3 className="font-label-md text-label-md uppercase tracking-wider text-secondary">
-          Fair use &amp; your own API key
+          Two ways to run the AI
         </h3>
         <p className="mt-2 text-body-sm text-on-surface-variant">
-          Pro plans are designed for an active individual job search. Usage on apted-provided AI is capped at a generous monthly fair-use limit so the service stays sustainable. Bring your own provider API key in{" "}
+          Every Pro plan is the full apted harness at a flat rate, and each plan{" "}
+          <span className="font-semibold text-on-surface">includes {proLimit} AI-tailored resumes per month</span>{" "}
+          on apted-provided AI. Editing, bullet generation, and extraction are always unlimited for everyone. Bring your own provider API key in{" "}
           <Link href="/settings" className="font-semibold text-on-surface underline underline-offset-2 hover:text-primary">Settings</Link>{" "}
-          for genuinely unlimited usage — you pay your provider directly. Editing, bullet generation, and extraction are always unlimited for everyone.
+          for genuinely unlimited tailoring {"\u2014"} you pay your provider directly and we drop the monthly cap.
         </p>
       </section>
 
@@ -219,8 +243,16 @@ function CurrentPlanCard({
       {plan === "trial" && trialDaysLeft !== null && (
         <p className="mt-md rounded-lg bg-surface-container-low p-md text-body-sm text-on-surface">
           <span className="font-semibold">{trialDaysLeft}</span>
-          {trialDaysLeft === 1 ? " day" : " days"} left in your free trial.
-          {byok ? " Usage is unlimited — you&apos;re using your own API key." : " Everything is unlimited until it ends."}
+          {trialDaysLeft === 1 ? " day" : " days"} left in your free trial.{" "}
+          {byok ? (
+            "Unlimited tailoring on your own API key."
+          ) : (
+            <>
+              You get <span className="font-semibold">{tailorLimit ?? 0}</span> AI-tailored resumes on apted AI. Add your{" "}
+              <Link href="/settings" className="font-semibold underline underline-offset-2 hover:text-primary">API key</Link>{" "}
+              for unlimited.
+            </>
+          )}
         </p>
       )}
 
@@ -258,6 +290,7 @@ function PricingCard({
   price,
   cadence,
   tagline,
+  features,
   cta,
   featured,
   badge,
@@ -268,6 +301,7 @@ function PricingCard({
   price: string;
   cadence: string;
   tagline: string;
+  features: string[];
   cta: string;
   featured: boolean;
   badge?: string;
@@ -292,7 +326,15 @@ function PricingCard({
         <span className="font-headline-xl text-headline-xl text-primary">{price}</span>
         <span className="text-body-sm text-on-surface-variant">{cadence}</span>
       </div>
-      <p className="mt-2 flex-1 text-body-sm text-on-surface-variant">{tagline}</p>
+      <p className="mt-2 text-body-sm text-on-surface-variant">{tagline}</p>
+      <ul className="mt-3 flex-1 space-y-2">
+        {features.map((f) => (
+          <li key={f} className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+            <MaterialIcon name="check" className="mt-0.5 shrink-0 text-[18px] text-status-success" />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
       <button onClick={onChoose} disabled={busy} className={`mt-md ${featured ? primaryBtnCls : secondaryBtnCls}`}>
         {busy ? "Redirecting…" : cta}
       </button>
