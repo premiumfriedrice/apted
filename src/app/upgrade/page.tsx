@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { isAuthConfigured } from "@/lib/auth-config";
 
@@ -72,9 +73,21 @@ export default function UpgradePage() {
   const proLimit = usage?.proSubsidizedLimit ?? 30;
   const freeLimit = usage?.freeTailorLimit ?? 3;
 
+  const router = useRouter();
+
   return (
-    <div className="mx-auto max-w-6xl px-lg pb-xl pt-xl">
-      <h1 className="mb-8 text-center font-headline-xl text-headline-xl text-primary">
+    <div className="mx-auto max-w-6xl px-lg pb-xl pt-[72px]">
+      <button
+        type="button"
+        onClick={() => router.push("/")}
+        title="Back to app"
+        aria-label="Back to app"
+        className="flex h-9 w-9 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+      >
+        <MaterialIcon name="arrow_back" className="text-[20px]" />
+      </button>
+
+      <h1 className="mt-md mb-8 text-center font-headline-xl text-headline-xl text-primary">
         Plans to get you passed screening
       </h1>
 
