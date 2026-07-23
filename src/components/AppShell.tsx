@@ -104,6 +104,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  // Full-width no-chrome routes (the /upgrade pricing page) render edge-to-edge
+  // with no sidebar, like a landing page. Still auth-gated by the session check
+  // above so anonymous visitors bounce to /login via the useEffect.
+  if (pathname === "/upgrade") {
+    return <>{children}</>;
+  }
+
   const sidebarWidth = collapsed ? "w-12" : "w-56";
   const mainLeft = collapsed ? "ml-12" : "ml-56";
 
