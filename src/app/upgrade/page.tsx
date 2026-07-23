@@ -22,9 +22,9 @@ type UsageResponse = {
 };
 
 const primaryBtnCls =
-  "inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-body-md font-label-md px-6 py-3 rounded-lg hover:bg-on-primary-fixed-variant transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
 const secondaryBtnCls =
-  "inline-flex items-center justify-center gap-2 border border-outline-variant text-on-surface text-label-md font-label-md px-4 py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-2 border border-outline-variant text-on-surface text-body-md font-label-md px-6 py-3 rounded-lg hover:bg-surface-container-low transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function UpgradePage() {
   const authed = !!isAuthConfigured();
@@ -92,7 +92,7 @@ export default function UpgradePage() {
       </h1>
 
       {/* Pricing cards */}
-      <div className="grid gap-md sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-lg sm:grid-cols-2 lg:grid-cols-3">
         <PricingCard
           name="Free"
           price="$0"
@@ -190,43 +190,43 @@ function PricingCard({
 }) {
   return (
     <div
-      className={`relative flex flex-col border p-lg ${
+      className={`relative flex flex-col border p-xl ${
         featured
           ? "border-primary bg-surface-white shadow-sm"
           : "border-border-subtle bg-surface-white"
       }`}
     >
       {badge && (
-        <span className="absolute -top-2 left-md rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-primary">
+        <span className="absolute -top-2 left-md rounded-full bg-primary px-3 py-1 text-label-sm font-semibold uppercase tracking-wider text-on-primary">
           {badge}
         </span>
       )}
       {/* Icon slot: a fixed-height reserved area at the top of each card for a
           per-plan icon. Pass an <img>/SVG/etc via the `icon` prop; empty for now. */}
-      <div className="flex h-16 items-center justify-center">
+      <div className="flex h-24 items-center justify-center">
         {icon}
       </div>
-      <h3 className="font-headline-md text-headline-md text-on-surface">{name}</h3>
-      <div className="mt-1 flex items-baseline gap-sm flex-wrap">
+      <h3 className="font-headline-lg text-headline-lg text-on-surface">{name}</h3>
+      <div className="mt-md flex items-baseline gap-sm flex-wrap">
         {originalPrice && (
-          <span className="text-body-md text-on-surface-variant line-through">{originalPrice}</span>
+          <span className="text-body-lg text-on-surface-variant line-through">{originalPrice}</span>
         )}
-        <span className="font-headline-xl text-headline-xl text-primary">{price}</span>
-        <span className="text-body-sm text-on-surface-variant">{cadence}</span>
+        <span className="text-[34px] font-semibold leading-none text-primary">{price}</span>
+        <span className="text-body-md text-on-surface-variant">{cadence}</span>
       </div>
       {savings && (
-        <p className="mt-1 text-label-sm font-semibold text-status-success">{savings}</p>
+        <p className="mt-sm text-label-md font-semibold text-status-success">{savings}</p>
       )}
-      <p className="mt-2 text-body-sm text-on-surface-variant">{tagline}</p>
-      <ul className="mt-3 flex-1 space-y-2">
+      <p className="mt-md text-body-md text-on-surface-variant">{tagline}</p>
+      <ul className="mt-lg flex-1 space-y-md">
         {features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-            <MaterialIcon name="check" className="mt-0.5 shrink-0 text-[18px] text-status-success" />
+          <li key={f} className="flex items-start gap-sm text-body-md text-on-surface-variant">
+            <MaterialIcon name="check" className="mt-0.5 shrink-0 text-[20px] text-status-success" />
             <span>{f}</span>
           </li>
         ))}
       </ul>
-      <button onClick={onChoose} disabled={busy || disabled} className={`mt-md ${featured || !disabled ? primaryBtnCls : secondaryBtnCls}`}>
+      <button onClick={onChoose} disabled={busy || disabled} className={`mt-lg ${featured || !disabled ? primaryBtnCls : secondaryBtnCls}`}>
         {busy ? "Redirecting\u2026" : cta}
       </button>
     </div>
