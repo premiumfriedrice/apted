@@ -98,6 +98,7 @@ export default function UpgradePage() {
   // Drift-proof: every marketing number comes from the server constant, so the
   // copy can never disagree with the runtime cap when env vars retune it.
   const proLimit = usage?.proSubsidizedLimit ?? 30;
+  const freeLimit = usage?.freeTailorLimit ?? 3;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -121,7 +122,7 @@ export default function UpgradePage() {
 
       {/* Pricing cards */}
       {!isPro && (
-        <div className="mt-8 grid gap-md sm:grid-cols-2">
+        <div className="mt-8 grid gap-md sm:grid-cols-2 lg:grid-cols-3">
           <PricingCard
             name="Monthly"
             price="$9.99"
@@ -155,6 +156,22 @@ export default function UpgradePage() {
             featured
             busy={busy === "pro_3month"}
             onChoose={() => startCheckout("pro_3month")}
+          />
+          <PricingCard
+            name="Free"
+            price="$0"
+            cadence="/mo"
+            tagline="Everything you need to keep job searching, no card required."
+            features={[
+              `${freeLimit} free tailored resumes / month`,
+              "Unlimited job description extraction",
+              "Full harness: master resume, edit, application tracking, Chrome extension",
+            ]}
+            cta={plan === "free" ? "Current plan" : "Free"}
+            disabled
+            featured={false}
+            busy={false}
+            onChoose={() => {}}
           />
         </div>
       )}
@@ -279,6 +296,7 @@ function PricingCard({
   originalPrice,
   savings,
   busy,
+  disabled,
   onChoose,
 }: {
   name: string;
@@ -292,6 +310,7 @@ function PricingCard({
   originalPrice?: string;
   savings?: string;
   busy: boolean;
+  disabled?: boolean;
   onChoose: () => void;
 }) {
   return (
@@ -327,7 +346,7 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      <button onClick={onChoose} disabled={busy} className={`mt-md ${featured ? primaryBtnCls : secondaryBtnCls}`}>
+      <button onClick={onChoose} disabled={busy || disabled} className={`mt-md ${featured ? primaryBtnCls : secondaryBtnCls}`}>
         {busy ? "Redirecting…" : cta}
       </button>
     </div>
