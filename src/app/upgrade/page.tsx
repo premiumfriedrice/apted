@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { isAuthConfigured } from "@/lib/auth-config";
 
@@ -72,14 +73,42 @@ export default function UpgradePage() {
   const proLimit = usage?.proSubsidizedLimit ?? 30;
   const freeLimit = usage?.freeTailorLimit ?? 3;
 
+  const router = useRouter();
+
   return (
-    <div className="mx-auto max-w-6xl px-lg py-xl">
-      <div className="mb-8">
+    <div className="mx-auto max-w-6xl px-lg pb-xl pt-xl">
+      {/* Back to app */}
+      <button
+        type="button"
+        onClick={() => router.push("/")}
+        className="mb-md inline-flex items-center gap-1 text-label-md text-on-surface-variant transition-colors hover:text-on-surface"
+      >
+        <MaterialIcon name="arrow_back" className="text-[20px]" />
+        Back to app
+      </button>
+
+      <div className="mb-8 mt-lg">
         <h2 className="font-headline-xl text-headline-xl text-primary">Upgrade</h2>
       </div>
 
       {/* Pricing cards */}
       <div className="grid gap-md sm:grid-cols-2 lg:grid-cols-3">
+        <PricingCard
+          name="Free"
+          price="$0"
+          cadence="/mo"
+          tagline="Everything you need to keep job searching, no card required."
+          features={[
+            `${freeLimit} free tailored resumes / month`,
+            "Unlimited job description extraction",
+            "Full harness: master resume, edit, application tracking, Chrome extension",
+          ]}
+          cta={plan === "free" ? "Current plan" : "Free"}
+          disabled
+          featured={false}
+          busy={false}
+          onChoose={() => {}}
+        />
         <PricingCard
           name="Monthly"
           price="$9.99"
@@ -116,22 +145,6 @@ export default function UpgradePage() {
           busy={busy === "pro_3month"}
           onChoose={() => startCheckout("pro_3month")}
         />
-        <PricingCard
-          name="Free"
-          price="$0"
-          cadence="/mo"
-          tagline="Everything you need to keep job searching, no card required."
-          features={[
-            `${freeLimit} free tailored resumes / month`,
-            "Unlimited job description extraction",
-            "Full harness: master resume, edit, application tracking, Chrome extension",
-          ]}
-          cta={plan === "free" ? "Current plan" : "Free"}
-          disabled
-          featured={false}
-          busy={false}
-          onChoose={() => {}}
-        />
       </div>
 
       {error && (
@@ -150,6 +163,7 @@ function PricingCard({
   cta,
   featured,
   badge,
+  icon,
   originalPrice,
   savings,
   busy,
@@ -164,6 +178,7 @@ function PricingCard({
   cta: string;
   featured: boolean;
   badge?: string;
+  icon?: React.ReactNode;
   originalPrice?: string;
   savings?: string;
   busy: boolean;
@@ -183,6 +198,11 @@ function PricingCard({
           {badge}
         </span>
       )}
+      {/* Icon slot: a fixed-height reserved area at the top of each card for a
+          per-plan icon. Pass an <img>/SVG/etc via the `icon` prop; empty for now. */}
+      <div className="flex h-16 items-center">
+        {icon}
+      </div>
       <h3 className="font-headline-md text-headline-md text-on-surface">{name}</h3>
       <div className="mt-1 flex items-baseline gap-sm flex-wrap">
         {originalPrice && (
