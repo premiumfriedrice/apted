@@ -2,18 +2,18 @@
 //
 // Two gates run on every /api/tailor request, cheapest first:
 //
-//   1. Velocity throttle (MAX_TAILOR_PER_HOUR) — applies to EVERYONE including
+//   1. Velocity throttle (MAX_TAILOR_PER_HOUR) - applies to EVERYONE including
 //      BYOK users. One tailored session every few minutes sustained is beyond
 //      any human, so a generous hourly cap kills scripts/loops without
 //      affecting real use. This is infra/abuse protection, not cost control.
 //
-//   2. Monthly fair-use cap — only APP-SUBSIDIZED users are metered:
+//   2. Monthly fair-use cap - only APP-SUBSIDIZED users are metered:
 //        - Trial (subsidized): TRIAL_SUBSIDIZED_TAILOR_LIMIT / calendar month
 //          (effectively across the 3 no-card days; bounds trial CAC).
 //        - Pro (subsidized):    PRO_SUBSIDIZED_TAILOR_LIMIT / calendar month
 //          (positive margin on $9.99; a human rarely approaches it).
 //        - Free:  FREE_TAILOR_LIMIT / calendar month (the upsell lever; BYOK
-//          on free does NOT unlock unlimited — "unlimited with your key" is a
+//          on free does NOT unlock unlimited - "unlimited with your key" is a
 //          Pro benefit).
 //      BYOK users on trial/pro are UNCAPPED: they spend their own tokens, so
 //      there is no cost to bound. `tailorUsesByokKey` mirrors the tailor
@@ -73,7 +73,7 @@ async function getTailorCounts(userId: string): Promise<Counts> {
   };
 }
 
-// Monthly count only — used by /api/usage for the upgrade page / dashboard.
+// Monthly count only - used by /api/usage for the upgrade page / dashboard.
 export async function getMonthlyUsage(userId: string): Promise<number> {
   const r = await pool.query(
     `SELECT count(*)::int AS n FROM usage_events
@@ -125,7 +125,7 @@ export async function recordUsage(userId: string, flow: Flow): Promise<void> {
 }
 
 // The APP-SUBSIDIZED monthly cap for a plan. BYOK unlimited is decided in
-// checkTailorLimit (not here) — this returns the numeric ceiling the upgrade
+// checkTailorLimit (not here) - this returns the numeric ceiling the upgrade
 // page / /api/usage report for subsidized users. Free stays 3 regardless of
 // BYOK (unlimited-with-key is a Pro benefit).
 export function tailorLimitForPlan(plan: Plan): number {

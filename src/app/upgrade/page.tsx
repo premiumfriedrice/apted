@@ -21,7 +21,7 @@ type UsageResponse = {
   tailorUsed: number;
   tailorLimit: number | null; // null = unlimited (BYOK pro/trial)
   // Echoed server constants so marketing copy interpolates the SAME value the
-  // runtime enforces — no hardcoded number that drifts when env vars retune.
+  // runtime enforces (no hardcoded number that drifts when env vars retune).
   proSubsidizedLimit: number;
   trialSubsidizedLimit: number;
   freeTailorLimit: number;
@@ -143,8 +143,10 @@ export default function UpgradePage() {
             onChoose={() => startCheckout("pro_monthly")}
           />
           <PricingCard
-            name="3-Month Pack"
+            name="3-Month Plan"
             price="$24.99"
+            originalPrice="$29.97"
+            savings="Save $4.98 vs monthly"
             cadence="/90 days"
             tagline="The full apted harness through recruiting season."
             features={[
@@ -152,7 +154,7 @@ export default function UpgradePage() {
               `${proLimit} AI-tailored resumes / month on apted-provided AI`,
               "Unlimited edit, generate-bullets & extract",
               "Bring your own API key for unlimited tailoring (your provider\u2019s cost)",
-              "No recurring billing \u2014 drops to Free after 90 days",
+              "No recurring billing, drops to Free after 90 days",
             ]}
             badge="Best for recruiting season"
             cta="Buy now"
@@ -173,7 +175,7 @@ export default function UpgradePage() {
           <span className="font-semibold text-on-surface">includes {proLimit} AI-tailored resumes per month</span>{" "}
           on apted-provided AI. Editing, bullet generation, and extraction are always unlimited for everyone. Bring your own provider API key in{" "}
           <Link href="/settings" className="font-semibold text-on-surface underline underline-offset-2 hover:text-primary">Settings</Link>{" "}
-          for genuinely unlimited tailoring {"\u2014"} you pay your provider directly and we drop the monthly cap.
+          for genuinely unlimited tailoring. You pay your provider directly, and we drop the monthly cap.
         </p>
       </section>
 
@@ -266,7 +268,7 @@ function CurrentPlanCard({
       {/* BYOK unlimited line (pro/trial on their own key) */}
       {isProOrTrial(plan) && byok && (
         <p className="mt-md rounded-lg bg-surface-container-low p-md text-body-sm text-on-surface">
-          Unlimited tailored resumes — running on your own API key.
+          Unlimited tailored resumes, running on your own API key.
         </p>
       )}
 
@@ -294,6 +296,8 @@ function PricingCard({
   cta,
   featured,
   badge,
+  originalPrice,
+  savings,
   busy,
   onChoose,
 }: {
@@ -305,6 +309,8 @@ function PricingCard({
   cta: string;
   featured: boolean;
   badge?: string;
+  originalPrice?: string;
+  savings?: string;
   busy: boolean;
   onChoose: () => void;
 }) {
@@ -322,10 +328,16 @@ function PricingCard({
         </span>
       )}
       <h3 className="font-headline-md text-headline-md text-on-surface">{name}</h3>
-      <div className="mt-1 flex items-baseline gap-1">
+      <div className="mt-1 flex items-baseline gap-sm flex-wrap">
+        {originalPrice && (
+          <span className="text-body-md text-on-surface-variant line-through">{originalPrice}</span>
+        )}
         <span className="font-headline-xl text-headline-xl text-primary">{price}</span>
         <span className="text-body-sm text-on-surface-variant">{cadence}</span>
       </div>
+      {savings && (
+        <p className="mt-1 text-label-sm font-semibold text-status-success">{savings}</p>
+      )}
       <p className="mt-2 text-body-sm text-on-surface-variant">{tagline}</p>
       <ul className="mt-3 flex-1 space-y-2">
         {features.map((f) => (

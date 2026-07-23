@@ -16,13 +16,13 @@
 //
 // `tailorLimit` is null (not Infinity) on the wire because JSON.stringify turns
 // Infinity into `null` anyway, and an explicit null reads cleaner for clients
-// ("no limit"). It's null ONLY for BYOK trial/pro users — subsidized pro/trial
+// ("no limit"). It's null ONLY for BYOK trial/pro users - subsidized pro/trial
 // get their numeric fair-use cap, and free always gets 3 (BYOK on free does
 // not unlock unlimited; that's a Pro benefit).
 //
 // proSubsidizedLimit / trialSubsidizedLimit / freeTailorLimit are echoed so the
 // upgrade page's marketing copy can interpolate the SAME constant the runtime
-// enforces (PRO/TRIAL_SUBSIDIZED_TAILOR_LIMIT) — no hardcoded number in JSX
+// enforces (PRO/TRIAL_SUBSIDIZED_TAILOR_LIMIT) - no hardcoded number in JSX
 // that can drift from the actual cap when env vars retune it.
 
 import { NextResponse } from "next/server";

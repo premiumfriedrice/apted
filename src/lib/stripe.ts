@@ -2,10 +2,10 @@
 // signature verification.
 //
 // Env vars (see .env.example):
-//   STRIPE_SECRET_KEY       — sk_test_... / sk_live_...
-//   STRIPE_WEBHOOK_SECRET   — whsec_... (set per webhook endpoint in Stripe dashboard)
-//   STRIPE_MONTHLY_PRICE_ID — price_... for the $9.99/mo recurring subscription
-//   STRIPE_3MONTH_PRICE_ID  — price_... for the $24.99 one-time 90-day access
+//   STRIPE_SECRET_KEY       - sk_test_... / sk_live_...
+//   STRIPE_WEBHOOK_SECRET   - whsec_... (set per webhook endpoint in Stripe dashboard)
+//   STRIPE_MONTHLY_PRICE_ID - price_... for the $9.99/mo recurring subscription
+//   STRIPE_3MONTH_PRICE_ID  - price_... for the $24.99 one-time 90-day access
 //
 // `getStripe()` is lazy so the Stripe SDK never instantiates when the env var
 // is unset (local dev / tests / routes that don't need payments). Callers

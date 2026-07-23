@@ -33,7 +33,7 @@ function resolveOrigin(requestOrigin: string | null): string {
   // This is required for credentialed requests (credentials: "include") and
   // is more secure than "*" for production.
   if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) return requestOrigin;
-  // Request origin not in the list — return the first configured origin as a
+  // Request origin not in the list - return the first configured origin as a
   // safe fallback (the browser will reject the response if it doesn't match
   // the request's origin, which is the desired behavior).
   return ALLOWED_ORIGINS[0];

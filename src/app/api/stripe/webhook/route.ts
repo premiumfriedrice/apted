@@ -10,7 +10,7 @@
 //                                       otherwise → free).
 //
 // This endpoint MUST be excluded from the middleware's auth gate (it's
-// Stripe calling us, not a logged-in user) — see src/middleware.ts — and
+// Stripe calling us, not a logged-in user) - see src/middleware.ts - and
 // MUST read the body as raw text so the webhook signature matches.
 
 import { NextResponse } from "next/server";
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         break;
       }
       default:
-        // Unhandled event types are intentionally ignored — Stripe retries on
+        // Unhandled event types are intentionally ignored - Stripe retries on
         // non-2xx, so acknowledging keeps the queue clear.
         break;
     }

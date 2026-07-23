@@ -3,7 +3,7 @@
 // Generators in llm.ts call getProvider() (honoring LLM_PROVIDER); the
 // benchmark passes an explicit name to compare all three.
 //
-// Never import this from a client component — it constructs API clients holding
+// Never import this from a client component - it constructs API clients holding
 // server-only keys.
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
@@ -21,7 +21,7 @@ export const PROVIDER_NAMES: ProviderName[] = ["anthropic", "openai", "gemini", 
 // verbatim against Gemini.
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
 
-// DeepSeek is OpenAI-compatible — same adapter as Gemini.
+// DeepSeek is OpenAI-compatible - same adapter as Gemini.
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
 
 // OpenCode Zen is an OpenAI-compatible proxy at https://opencode.ai/zen/v1.
@@ -143,7 +143,7 @@ function buildOpenCodeProvider(userId: string, model: string): Provider {
 // routing exactly so rate-limiting only grants "unlimited" to users whose
 // tailor calls actually spend their own tokens (not the app's). A user who
 // BYOK'd a provider the flow doesn't use (e.g. anthropic while the server runs
-// OpenCode) is correctly reported as subsidized — that's the real cost path.
+// OpenCode) is correctly reported as subsidized - that's the real cost path.
 export function tailorUsesByokKey(userId: string): boolean {
   if (hasOpenCodeKey(userId)) {
     // OpenCode path: BYOK iff a DB-stored opencode key exists (env-only = subsidized).

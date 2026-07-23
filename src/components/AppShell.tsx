@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const authed = !!isAuthConfigured();
   // authed is a build-time constant (NEXT_PUBLIC_AUTH_ENABLED) so the value is
-  // identical on server and client — no hydration mismatch from branching on it.
+  // identical on server and client - no hydration mismatch from branching on it.
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const { data: session, isPending } = authed ? useSession() : { data: null, isPending: false };
 

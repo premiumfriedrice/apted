@@ -5,12 +5,12 @@
 //
 //   1. The `Plan` union and its constants (trial length, 3-month pack length,
 //      free-tier tailor limit).
-//   2. `getUserPlan(userId)` — reads the plan row and computes the effective
+//   2. `getUserPlan(userId)` - reads the plan row and computes the effective
 //      plan, persisting a transition to 'free' when a trial or pro window has
 //      elapsed so the DB stays in sync (subsequent reads are cheap and every
-//      surface — rate limit, upgrade page, sidebar badge — sees the same
+//      surface - rate limit, upgrade page, sidebar badge - sees the same
 //      value without each re-deriving the boundary).
-//   3. `isProOrTrial(plan)` — the "is this user metered at all?" predicate
+//   3. `isProOrTrial(plan)` - the "is this user metered at all?" predicate
 //      shared by rate-limit.ts.
 //
 // Pricing (mirrors the handoff):
@@ -29,7 +29,7 @@ export const FREE_TAILOR_LIMIT = 3;
 
 // PRE-93 fair-use caps for APP-SUBSIDIZED users (those running tailor against a
 // server-side env key, not their own BYOK key). BYOK users on trial/pro are
-// uncapped — they spend their own tokens. These bounds keep our per-user token
+// uncapped - they spend their own tokens. These bounds keep our per-user token
 // cost positive-margin and stop a no-card trial from burning an uncapped spend.
 // Env-overridable for ops tuning without a redeploy.
 export const TRIAL_SUBSIDIZED_TAILOR_LIMIT =
@@ -73,7 +73,7 @@ export async function getUserPlan(userId: string): Promise<EffectivePlan> {
   );
   const row: PlanRow | undefined = r.rows[0];
 
-  // No user row (shouldn't happen — Better Auth creates the row on signup and
+  // No user row (shouldn't happen - Better Auth creates the row on signup and
   // local mode uses the backfilled 'local' row). Treat as free so a missing
   // row never grants unlimited access.
   if (!row || !row.plan) {
