@@ -277,7 +277,6 @@ function PlanSankeyIcon({
   stages: number[];
 }) {
   const n = stages.length;
-  const W = 184;
   const H = 60;
   const nodeW = 5;
   const colGap = 42;
@@ -301,6 +300,16 @@ function PlanSankeyIcon({
   const rejDstX = colX[n - 1];
   const rejBaseY = topY + hh(stages[n - 1]) + dropGap;
   const rejH = hh(rejTotal);
+
+  // Shrink the viewBox to the rightmost column that actually has content (a
+  // main-chain node > 0, a pale drop, or the shared rejected node) so centered
+  // icons whose later columns are empty (e.g. Free) aren't pushed off-center by
+  // dead space. Icons with full funnels (Monthly/3-Month) keep the full width.
+  let lastCol = 0;
+  for (let i = 0; i < n; i++) if (stages[i] > 0) lastCol = Math.max(lastCol, i);
+  for (let i = 0; i < n - 1; i++) if (dropVal(i) > 0) lastCol = Math.max(lastCol, i + 1);
+  if (rejTotal > 0) lastCol = Math.max(lastCol, n - 1);
+  const W = colX[lastCol] + nodeW + 6;
 
   const ribbon = (x1: number, y1: number, x2: number, y2: number, h: number) => {
     const dx = x2 - x1;
