@@ -103,9 +103,6 @@ export default function UpgradePage() {
     <div className="mx-auto max-w-3xl">
       <div className="mb-8">
         <h2 className="font-headline-xl text-headline-xl text-primary">Upgrade</h2>
-        <p className="mt-1 text-secondary">
-          apted is a harness for your job search: master resume, AI tailoring, application tracking, and the Chrome extension. Pay a flat rate; bring your own API key for unlimited AI tailoring, or use apted-provided AI with a monthly allotment.
-        </p>
       </div>
 
       {/* Current-plan status */}
@@ -133,7 +130,7 @@ export default function UpgradePage() {
             features={[
               "Full harness: master resume, tailor, edit, application tracking, Chrome extension",
               `${proLimit} AI-tailored resumes / month on apted-provided AI`,
-              "Unlimited edit, generate-bullets & extract",
+              "Unlimited job description extraction",
               "Bring your own API key for unlimited tailoring (your provider\u2019s cost)",
               "Cancel anytime via Stripe portal",
             ]}
@@ -152,7 +149,7 @@ export default function UpgradePage() {
             features={[
               "Everything in Monthly, for 90 days",
               `${proLimit} AI-tailored resumes / month on apted-provided AI`,
-              "Unlimited edit, generate-bullets & extract",
+              "Unlimited job description extraction",
               "Bring your own API key for unlimited tailoring (your provider\u2019s cost)",
               "No recurring billing, drops to Free after 90 days",
             ]}
