@@ -76,15 +76,15 @@ export default function UpgradePage() {
   const router = useRouter();
 
   return (
-    <div className="mx-auto max-w-6xl px-lg pb-xl pt-[72px]">
+    <div className="mx-auto max-w-6xl px-lg pb-xl pt-lg">
       <button
         type="button"
         onClick={() => router.push("/")}
         title="Back to app"
         aria-label="Back to app"
-        className="flex h-9 w-9 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+        className="-ml-sm flex h-12 w-12 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
       >
-        <MaterialIcon name="arrow_back" className="text-[20px]" />
+        <MaterialIcon name="arrow_back" className="text-[28px]" />
       </button>
 
       <h1 className="mt-md mb-8 text-center font-headline-xl text-headline-xl text-primary">
