@@ -203,7 +203,7 @@ function PricingCard({
       )}
       {/* Icon slot: a fixed-height reserved area at the top of each card for a
           per-plan icon. Pass an <img>/SVG/etc via the `icon` prop; empty for now. */}
-      <div className="flex h-16 items-center pl-sm">
+      <div className="flex h-16 items-center justify-center">
         {icon}
       </div>
       <h3 className="font-headline-md text-headline-md text-on-surface">{name}</h3>
