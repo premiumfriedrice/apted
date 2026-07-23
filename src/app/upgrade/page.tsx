@@ -289,9 +289,18 @@ function PlanSankeyIcon({
   const hh = (v: number) => (v > 0 ? Math.max(v * scale, 1.5) : 0);
 
   const dropGap = 5;
-  // Drop node for the flow from stage i lands in column i+1, below its main node.
-  const dropNodeY = (i: number) => topY + hh(stages[i + 1]) + dropGap;
   const dropVal = (i: number) => Math.max(stages[i] - stages[i + 1], 0);
+  // Pale (ghosted/drafts) sources land in their own per-column drop node (col i+1).
+  const dropNodeY = (i: number) => topY + hh(stages[i + 1]) + dropGap;
+  // Rejected sources (Technical=2, Final=3 ... up to n-2) CONVERGE onto a single
+  // shared rejected node below the Offers node (col n-1), so rejections from the
+  // interview stages collect into one bucket.
+  const rejSrcs: number[] = [];
+  for (let i = 2; i <= n - 2; i++) rejSrcs.push(i);
+  const rejTotal = rejSrcs.reduce((s, i) => s + dropVal(i), 0);
+  const rejDstX = colX[n - 1];
+  const rejBaseY = topY + hh(stages[n - 1]) + dropGap;
+  const rejH = hh(rejTotal);
 
   const ribbon = (x1: number, y1: number, x2: number, y2: number, h: number) => {
     const dx = x2 - x1;
@@ -311,39 +320,65 @@ function PlanSankeyIcon({
           <stop offset="0%" stopColor="#999" stopOpacity="0.5" />
           <stop offset="100%" stopColor="#bbb" stopOpacity="0.3" />
         </linearGradient>
+        <linearGradient id={`${gradId}-rej`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#666" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="#888" stopOpacity="0.55" />
+        </linearGradient>
       </defs>
 
-      {/* Pass flows + drop flows between consecutive stages */}
-      {stages.slice(0, -1).map((_, i) => {
-        const passH = hh(stages[i + 1]);
-        const dropH = hh(dropVal(i));
-        const srcX = colX[i] + nodeW;
-        const passSrcY = topY;
-        const dropSrcY = topY + passH;
-        const dstX = colX[i + 1];
-        const passDstY = topY;
-        const dropDstY = dropNodeY(i);
-        return (
-          <g key={i}>
-            {stages[i + 1] > 0 && (
-              <path d={ribbon(srcX, passSrcY, dstX, passDstY, passH)} fill={`url(#${gradId}-pass)`} opacity={0.85} />
-            )}
-            {dropVal(i) > 0 && (
-              <path d={ribbon(srcX, dropSrcY, dstX, dropDstY, dropH)} fill={`url(#${gradId}-drop)`} opacity={0.55} />
-            )}
-          </g>
-        );
-      })}
+      {/* Pass flows (main chain, all consecutive pairs) */}
+      {stages.slice(0, -1).map((_, i) => stages[i + 1] > 0 && (
+        <path
+          key={`p${i}`}
+          d={ribbon(colX[i] + nodeW, topY, colX[i + 1], topY, hh(stages[i + 1]))}
+          fill={`url(#${gradId}-pass)`}
+          opacity={0.85}
+        />
+      ))}
+
+      {/* Pale drop flows (drafts at i=0, screening-ghosted at i=1): own per-col node */}
+      {[0, 1].filter((i) => i < n - 1).map((i) => dropVal(i) > 0 && (
+        <path
+          key={`g${i}`}
+          d={ribbon(colX[i] + nodeW, topY + hh(stages[i + 1]), colX[i + 1], dropNodeY(i), hh(dropVal(i)))}
+          fill={`url(#${gradId}-drop)`}
+          opacity={0.55}
+        />
+      ))}
+
+      {/* Shared rejected flows: Technical (i=2) + Final (i=3) converge onto one node */}
+      {(() => {
+        let cursor = rejBaseY;
+        return rejSrcs.map((i) => {
+          const h = hh(dropVal(i));
+          const srcY = topY + hh(stages[i + 1]);
+          const dstY = cursor;
+          cursor += h;
+          return dropVal(i) > 0 ? (
+            <path
+              key={`r${i}`}
+              d={ribbon(colX[i] + nodeW, srcY, rejDstX, dstY, h)}
+              fill={`url(#${gradId}-rej)`}
+              opacity={0.7}
+            />
+          ) : null;
+        });
+      })()}
 
       {/* Main-chain nodes (top of each column) */}
       {stages.map((v, i) => v > 0 && (
         <rect key={`n${i}`} x={colX[i]} y={topY} width={nodeW} height={hh(v)} fill="#000" rx={1} />
       ))}
 
-      {/* Drop-off nodes (below each target column, from the previous stage's drop) */}
-      {stages.slice(0, -1).map((_, i) => dropVal(i) > 0 && (
+      {/* Pale drop nodes (drafts, ghosted) */}
+      {[0, 1].filter((i) => i < n - 1).map((i) => dropVal(i) > 0 && (
         <rect key={`d${i}`} x={colX[i + 1]} y={dropNodeY(i)} width={nodeW} height={hh(dropVal(i))} fill="#555" rx={1} />
       ))}
+
+      {/* Shared rejected node (Technical + Final converge here) */}
+      {rejTotal > 0 && (
+        <rect key="rej" x={rejDstX} y={rejBaseY} width={nodeW} height={rejH} fill="#555" rx={1} />
+      )}
     </svg>
   );
 }
