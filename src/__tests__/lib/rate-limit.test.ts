@@ -159,11 +159,11 @@ describe("checkTailorLimit — subsidized monthly cap (gate 2)", () => {
     getUserPlan.mockResolvedValue({ plan: "pro_monthly", trialMsLeft: null, proExpiresAt: null });
     isProOrTrial.mockReturnValue(true);
     tailorUsesByokKey.mockReturnValue(false);
-    mockCounts(30, 0);
+    mockCounts(18, 0);
     const r = await checkTailorLimit(UID);
     expect(r.allowed).toBe(true);
     expect(r.limit).toBe(PRO_SUBSIDIZED_TAILOR_LIMIT);
-    expect(r.remaining).toBe(PRO_SUBSIDIZED_TAILOR_LIMIT - 30);
+    expect(r.remaining).toBe(PRO_SUBSIDIZED_TAILOR_LIMIT - 18);
   });
 
   it("denies a subsidized pro over the pro cap (remaining clamps to 0)", async () => {
@@ -224,10 +224,10 @@ describe("tailorLimitForPlan", () => {
 });
 
 describe("PLAN constants", () => {
-  it("matches the handoff defaults (free=3, trial=25, pro=60, hourly=10)", () => {
+  it("matches the handoff defaults (free=3, trial=25, pro=30, hourly=10)", () => {
     expect(FREE_TAILOR_LIMIT).toBe(3);
     expect(TRIAL_SUBSIDIZED_TAILOR_LIMIT).toBe(25);
-    expect(PRO_SUBSIDIZED_TAILOR_LIMIT).toBe(60);
+    expect(PRO_SUBSIDIZED_TAILOR_LIMIT).toBe(30);
     expect(MAX_TAILOR_PER_HOUR).toBe(10);
   });
 });

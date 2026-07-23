@@ -162,6 +162,6 @@ describe("PLAN constants", () => {
   it("exposes the fair-use tailor caps", () => {
     expect(FREE_TAILOR_LIMIT).toBe(3);
     expect(TRIAL_SUBSIDIZED_TAILOR_LIMIT).toBe(25);
-    expect(PRO_SUBSIDIZED_TAILOR_LIMIT).toBe(60);
+    expect(PRO_SUBSIDIZED_TAILOR_LIMIT).toBe(30);
   });
 });

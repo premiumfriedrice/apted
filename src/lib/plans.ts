@@ -35,7 +35,7 @@ export const FREE_TAILOR_LIMIT = 3;
 export const TRIAL_SUBSIDIZED_TAILOR_LIMIT =
   Number(process.env.TRIAL_SUBSIDIZED_TAILOR_LIMIT) || 25;
 export const PRO_SUBSIDIZED_TAILOR_LIMIT =
-  Number(process.env.PRO_SUBSIDIZED_TAILOR_LIMIT) || 60;
+  Number(process.env.PRO_SUBSIDIZED_TAILOR_LIMIT) || 30;
 
 export const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
 export const PRO_3MONTH_DURATION_MS =

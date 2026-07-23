@@ -97,7 +97,7 @@ export default function UpgradePage() {
   const trialDays = usage?.trialDaysLeft ?? null;
   // Drift-proof: every marketing number comes from the server constant, so the
   // copy can never disagree with the runtime cap when env vars retune it.
-  const proLimit = usage?.proSubsidizedLimit ?? 60;
+  const proLimit = usage?.proSubsidizedLimit ?? 30;
 
   return (
     <div className="mx-auto max-w-3xl">
