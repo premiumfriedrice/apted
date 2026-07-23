@@ -226,7 +226,7 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      <button onClick={onChoose} disabled={busy || disabled} className={`mt-md ${featured ? primaryBtnCls : secondaryBtnCls}`}>
+      <button onClick={onChoose} disabled={busy || disabled} className={`mt-md ${featured || !disabled ? primaryBtnCls : secondaryBtnCls}`}>
         {busy ? "Redirecting\u2026" : cta}
       </button>
     </div>
