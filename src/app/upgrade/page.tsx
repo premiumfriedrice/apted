@@ -134,7 +134,7 @@ export default function UpgradePage() {
               "Bring your own API key for unlimited tailoring (your provider\u2019s cost)",
               "Cancel anytime via Stripe portal",
             ]}
-            cta="Upgrade"
+            cta="Get Monthly Plan"
             featured={false}
             busy={busy === "pro_monthly"}
             onChoose={() => startCheckout("pro_monthly")}
@@ -151,7 +151,7 @@ export default function UpgradePage() {
               "No recurring billing, drops to Free after 90 days",
             ]}
             badge="Best for recruiting season"
-            cta="Buy now"
+            cta="Get 3-Month Plan"
             featured
             busy={busy === "pro_3month"}
             onChoose={() => startCheckout("pro_3month")}
