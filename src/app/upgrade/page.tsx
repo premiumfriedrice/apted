@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { isAuthConfigured } from "@/lib/auth-config";
 
@@ -73,23 +72,11 @@ export default function UpgradePage() {
   const proLimit = usage?.proSubsidizedLimit ?? 30;
   const freeLimit = usage?.freeTailorLimit ?? 3;
 
-  const router = useRouter();
-
   return (
     <div className="mx-auto max-w-6xl px-lg pb-xl pt-xl">
-      {/* Back to app */}
-      <button
-        type="button"
-        onClick={() => router.push("/")}
-        className="mb-md inline-flex items-center gap-1 text-label-md text-on-surface-variant transition-colors hover:text-on-surface"
-      >
-        <MaterialIcon name="arrow_back" className="text-[20px]" />
-        Back to app
-      </button>
-
-      <div className="mb-8 mt-lg">
-        <h2 className="font-headline-xl text-headline-xl text-primary">Upgrade</h2>
-      </div>
+      <h1 className="mb-8 text-center font-headline-xl text-headline-xl text-primary">
+        Plans to get you passed screening
+      </h1>
 
       {/* Pricing cards */}
       <div className="grid gap-md sm:grid-cols-2 lg:grid-cols-3">
