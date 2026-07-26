@@ -33,7 +33,7 @@ function resolveOrigin(requestOrigin: string | null): string {
   // This is required for credentialed requests (credentials: "include") and
   // is more secure than "*" for production.
   if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) return requestOrigin;
-  // Request origin not in the list — return the first configured origin as a
+  // Request origin not in the list - return the first configured origin as a
   // safe fallback (the browser will reject the response if it doesn't match
   // the request's origin, which is the desired behavior).
   return ALLOWED_ORIGINS[0];
@@ -60,8 +60,11 @@ export function middleware(req: NextRequest) {
   const expected = process.env.APTED_AUTH_TOKEN;
   // Better Auth's own endpoints (sign-in, sign-up, callback, get-session) must
   // be reachable before a session exists, so skip the bearer gate for them.
+  // The Stripe webhook is called by Stripe (not a logged-in user) and verifies
+  // its own signature via the raw body, so it must also bypass this gate (PRE-93).
   const isAuthEndpoint = req.nextUrl.pathname.startsWith("/api/auth/");
-  if (expected && !isAuthEndpoint) {
+  const isStripeWebhook = req.nextUrl.pathname === "/api/stripe/webhook";
+  if (expected && !isAuthEndpoint && !isStripeWebhook) {
     const auth = req.headers.get("authorization") ?? "";
     const m = auth.match(/^Bearer\s+(.+)$/i);
     if (!m || m[1] !== expected) {
