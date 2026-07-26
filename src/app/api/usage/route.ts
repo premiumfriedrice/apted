@@ -26,6 +26,7 @@
 // that can drift from the actual cap when env vars retune it.
 
 import { NextResponse } from "next/server";
+import { pool } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
 import {
   FREE_TAILOR_LIMIT,
@@ -46,6 +47,11 @@ export async function GET(req: Request) {
   const { plan, trialDaysLeft, proExpiresAt } = await getPlanInfo(userId);
   const byok = isProOrTrial(plan) && tailorUsesByokKey(userId);
   const tailorUsed = await getMonthlyUsage(userId);
+  // Whether the user has a real Stripe customer record. The upgrade page gates the
+  // 'Manage subscription' portal link on this so manually-granted Pro users (no
+  // stripe_customer_id) don't see a button that 404s the portal endpoint.
+  const custRow = await pool.query(`SELECT stripe_customer_id FROM "user" WHERE id = $1`, [userId]);
+  const hasStripeCustomer = !!custRow.rows[0]?.stripe_customer_id;
   // BYOK trial/pro → null (unlimited, their tokens). Subsidized pro/trial → the
   // fair-use cap. Free → 3 regardless of BYOK.
   const tailorLimit = isProOrTrial(plan) && byok ? null : tailorLimitForPlan(plan);
@@ -57,6 +63,7 @@ export async function GET(req: Request) {
     byok,
     tailorUsed,
     tailorLimit,
+    hasStripeCustomer,
     // Echoed for drift-proof marketing copy (see file header).
     proSubsidizedLimit: PRO_SUBSIDIZED_TAILOR_LIMIT,
     trialSubsidizedLimit: TRIAL_SUBSIDIZED_TAILOR_LIMIT,

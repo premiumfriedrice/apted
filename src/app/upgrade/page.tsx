@@ -14,6 +14,10 @@ type UsageResponse = {
   byok: boolean;
   tailorUsed: number;
   tailorLimit: number | null;
+  // True when the user has a real Stripe customer record. Gates the
+  // 'Manage subscription' portal link so manually-granted Pro users (no
+  // stripe_customer_id) don't see a button that 409s the portal endpoint.
+  hasStripeCustomer: boolean;
   // Echoed server constants so marketing copy interpolates the SAME value the
   // runtime enforces (no hardcoded number that drifts when env vars retune).
   proSubsidizedLimit: number;
@@ -33,6 +37,7 @@ export default function UpgradePage() {
 
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [busy, setBusy] = useState<Plan | null>(null);
+  const [portalBusy, setPortalBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -64,6 +69,25 @@ export default function UpgradePage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Checkout failed.");
       setBusy(null);
+    }
+  }
+
+  // Open the Stripe Customer Portal so a real Stripe customer can manage/cancel
+  // their subscription. Only callable when the user has a stripe_customer_id
+  // (i.e. purchased via Stripe, not manually granted in the DB).
+  async function openPortal() {
+    setError(null);
+    setPortalBusy(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || `Portal failed (HTTP ${res.status})`);
+      }
+      window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Portal failed.");
+      setPortalBusy(false);
     }
   }
 
@@ -108,6 +132,7 @@ export default function UpgradePage() {
           featured={false}
           busy={false}
           onChoose={() => {}}
+          onManage={() => {}}
           icon={<PlanSankeyIcon gradId="pi-free" stages={[20, 20, 0, 0, 0]} />}
         />
         <PricingCard
@@ -127,6 +152,8 @@ export default function UpgradePage() {
           featured={false}
           busy={busy === "pro_monthly"}
           onChoose={() => startCheckout("pro_monthly")}
+          manageLabel={plan === "pro_monthly" && usage?.hasStripeCustomer ? (portalBusy ? "Opening portal…" : "Manage subscription") : undefined}
+          onManage={openPortal}
           icon={<PlanSankeyIcon gradId="pi-monthly" stages={[10, 10, 7, 4, 2]} />}
         />
         <PricingCard
@@ -146,6 +173,8 @@ export default function UpgradePage() {
           featured
           busy={busy === "pro_3month"}
           onChoose={() => startCheckout("pro_3month")}
+          manageLabel={plan === "pro_3month" && usage?.hasStripeCustomer ? (portalBusy ? "Opening portal…" : "Manage subscription") : undefined}
+          onManage={openPortal}
           icon={<PlanSankeyIcon gradId="pi-pro3m" stages={[15, 15, 12, 10, 7]} />}
         />
       </div>
@@ -169,6 +198,8 @@ function PricingCard({
   icon,
   originalPrice,
   savings,
+  manageLabel,
+  onManage,
   busy,
   disabled,
   onChoose,
@@ -184,6 +215,8 @@ function PricingCard({
   icon?: React.ReactNode;
   originalPrice?: string;
   savings?: string;
+  manageLabel?: string;
+  onManage?: () => void;
   busy: boolean;
   disabled?: boolean;
   onChoose: () => void;
@@ -229,6 +262,15 @@ function PricingCard({
       <button onClick={onChoose} disabled={busy || disabled} className={`mt-lg ${featured || !disabled ? primaryBtnCls : secondaryBtnCls}`}>
         {busy ? "Redirecting\u2026" : cta}
       </button>
+      {manageLabel && onManage && (
+        <button
+          type="button"
+          onClick={onManage}
+          className="mt-sm text-body-sm text-on-surface-variant underline underline-offset-2 transition-colors hover:text-on-surface"
+        >
+          {manageLabel}
+        </button>
+      )}
     </div>
   );
 }
