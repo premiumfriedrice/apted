@@ -39,16 +39,36 @@ export const pool = new Pool({
   ssl: url ? { rejectUnauthorized: false } : undefined,
 });
 
-// Borrow a client from the shared pool, run fn, release on return/throw.
-// Eliminates the repetitive pool.connect()/client.release() boilerplate
-// across every API route (PRE-16).
+// Borrow a client from the shared pool, set the RLS user ID, run fn, release on return/throw.
+// The SET LOCAL ensures RLS policies see the correct user_id for this transaction.
+// When auth is disabled (local mode), user_id defaults to 'local' which matches the
+// backfilled rows from migration 0008.
 export async function withDb<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
+  userId?: string,
 ): Promise<T> {
   const client = await pool.connect();
   try {
+    if (userId) {
+      await client.query("SET LOCAL app.user_id = $1", [userId]);
+    }
     return await fn(client);
   } finally {
     client.release();
   }
+}
+
+// Set the RLS user ID on a raw pool client (for routes that use pool.query
+// directly instead of withDb). Call before any data queries.
+export async function setRlsUser(client: pg.PoolClient, userId: string): Promise<void> {
+  await client.query("SET LOCAL app.user_id = $1", [userId]);
+}
+
+// Set the RLS user ID for the current session (for routes that use pool.query
+// directly without borrowing a client). This sets it on the pool's default
+// connection. Less secure than per-client SET LOCAL, but needed for routes
+// that use pool.query() directly.
+export async function setRlsUserOnPool(userId: string): Promise<void> {
+  // SET only applies to the current session/connection in the pool.
+  await pool.query("SET app.user_id = $1", [userId]);
 }
