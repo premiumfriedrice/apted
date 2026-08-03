@@ -44,6 +44,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
     "Access-Control-Allow-Origin": resolveOrigin(origin),
     "Access-Control-Allow-Methods": ALLOWED_METHODS,
     "Access-Control-Allow-Headers": ALLOWED_HEADERS,
+    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Expose-Headers": EXPOSED_HEADERS,
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
