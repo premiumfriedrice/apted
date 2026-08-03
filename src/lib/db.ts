@@ -32,13 +32,7 @@ export function createPool(): pg.Pool {
 // API routes use this pool. It connects as the apted_app role (non-superuser)
 // so RLS policies are enforced. When DATABASE_URL_APP is set, we use it.
 // When it's not set (local dev, migrations, tests), we fall back to
-// DATABASE_URL (superuser) which bypasses RLS. This means:
-//
-//   - Local dev without DATABASE_URL_APP: RLS is bypassed (frictionless)
-//   - Production with DATABASE_URL_APP set: RLS is enforced per-user
-//
-// The pool sets app.user_id per transaction via withDb(fn, userId).
-// Routes that use pool.query() directly must call setRlsUserOnPool() first.
+// DATABASE_URL (superuser) which bypasses RLS.
 
 const appUrl = process.env.DATABASE_URL_APP ?? process.env.DATABASE_URL;
 if (!appUrl) {
@@ -53,13 +47,48 @@ export const pool = new Pool({
 // True when the pool is using the non-superuser apted_app role (RLS enforced).
 export const rlsEnabled = !!process.env.DATABASE_URL_APP;
 
-// Borrow a client from the shared pool, set the RLS user ID, run fn, release
-// on return/throw. The SET LOCAL ensures RLS policies see the correct
-// user_id for this transaction.
+// ── RLS-aware query helpers ──────────────────────────────────────────────
 //
-// When auth is disabled (local mode), user_id defaults to 'local' which
-// matches the backfilled rows from migration 0008. When RLS is not enforced
-// (no DATABASE_URL_APP), the SET LOCAL is harmless and ignored.
+// The core problem: pool.query() borrows a random connection per call. SET
+// LOCAL only lasts for the current transaction on that one connection. So
+// multiple pool.query() calls in a route may hit different connections, and
+// the RLS setting won't be present on all of them.
+//
+// Solution: withRls() borrows a single client, starts a transaction, sets
+// the RLS user ID, and returns a query function that runs on that same
+// client. The caller calls all queries via the returned `query` function,
+// then calls `done()` to commit and release.
+
+export interface RlsClient {
+  query: typeof pool.query;
+  done: () => Promise<void>;
+}
+
+// Borrow a client, set RLS user, return a query function + done callback.
+// Use this when a route needs multiple queries scoped to the same RLS user.
+//
+// Usage:
+//   const { query, done } = await withRls(userId);
+//   const r = await query("SELECT ... WHERE user_id = $1", [userId]);
+//   await done(); // commits + releases
+export async function withRls(userId: string): Promise<RlsClient> {
+  const client = await pool.connect();
+  await client.query("BEGIN");
+  await client.query("SET LOCAL app.user_id = $1", [userId]);
+  return {
+    query: client.query.bind(client) as typeof pool.query,
+    done: async () => {
+      try {
+        await client.query("COMMIT");
+      } finally {
+        client.release();
+      }
+    },
+  };
+}
+
+// withDb: borrow a client, optionally set RLS user, run fn, release.
+// For routes that already use withDb(fn, userId).
 export async function withDb<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
   userId?: string,
@@ -67,22 +96,47 @@ export async function withDb<T>(
   const client = await pool.connect();
   try {
     if (userId) {
+      await client.query("BEGIN");
       await client.query("SET LOCAL app.user_id = $1", [userId]);
     }
-    return await fn(client);
+    const result = await fn(client);
+    if (userId) {
+      await client.query("COMMIT");
+    }
+    return result;
+  } catch (e) {
+    if (userId) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+    throw e;
   } finally {
     client.release();
   }
 }
 
-// Set the RLS user ID on a raw pool client (for routes that use pool.query
-// directly instead of withDb). Call before any data queries.
+// Set the RLS user ID on a raw pool client (for routes that manage their
+// own client lifecycle via pool.connect()).
 export async function setRlsUser(client: pg.PoolClient, userId: string): Promise<void> {
+  await client.query("BEGIN");
   await client.query("SET LOCAL app.user_id = $1", [userId]);
 }
 
-// Set the RLS user ID for the current session (for routes that use pool.query
-// directly without borrowing a client). Sets it on the connection.
-export async function setRlsUserOnPool(userId: string): Promise<void> {
-  await pool.query("SET app.user_id = $1", [userId]);
+// Commit and release a client that was used with setRlsUser.
+export async function commitRls(client: pg.PoolClient): Promise<void> {
+  await client.query("COMMIT");
+}
+
+// ── Compatibility shim for existing routes ──────────────────────────────
+//
+// The old setRlsUserOnPool() doesn't work with pooled connections because
+// SET only applies to one connection. We keep it as a no-op for backward
+// compatibility — routes that use pool.query() directly should be migrated
+// to withRls() or withDb(). In local dev (no DATABASE_URL_APP), it's
+// truly a no-op since the superuser bypasses RLS.
+//
+// For production with RLS: routes using pool.query() directly after calling
+// this will NOT have RLS enforced. They need to be migrated to withRls().
+export async function setRlsUserOnPool(_userId: string): Promise<void> {
+  // No-op. RLS only works per-transaction via SET LOCAL, not per-pool.
+  // Routes must use withRls(userId) or withDb(fn, userId) for RLS.
 }
