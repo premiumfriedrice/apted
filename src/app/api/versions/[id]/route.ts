@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
@@ -69,6 +69,7 @@ function rowToJson(row: Record<string, unknown>) {
 export async function GET(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   const r = await pool.query(
     `${SELECT} WHERE v.id = $1 AND v.user_id = $2 GROUP BY v.id`,
@@ -81,6 +82,7 @@ export async function GET(req: Request, { params }: Ctx) {
 export async function PATCH(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   const body = await req.json();
   const fields: string[] = [];
@@ -142,6 +144,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 export async function DELETE(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   await pool.query("DELETE FROM resume_versions WHERE id = $1 AND user_id = $2", [id, userId]);
   return NextResponse.json({ ok: true });

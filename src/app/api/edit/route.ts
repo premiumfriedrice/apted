@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ZodError } from "zod";
-import { withDb } from "@/lib/db";
+import { withDb, setRlsUser, setRlsUserOnPool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateResume } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
@@ -21,6 +21,7 @@ const EditRequest = z.object({
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   let parsed: z.infer<typeof EditRequest>;
   try {
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
 
   try {
     return await withDb(async (client) => {
+      await setRlsUser(client, userId);
       const dr = await client.query(
         "SELECT id, job_description, content, history FROM drafts WHERE id = $1 AND user_id = $2",
         [parsed.draftId, userId],

@@ -15,6 +15,7 @@ const { mockQuery } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({
   pool: { query: mockQuery },
+  setRlsUserOnPool: vi.fn(async () => {}),
 }));
 
 import {

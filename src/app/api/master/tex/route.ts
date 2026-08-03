@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
@@ -12,6 +12,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   const [r, settings, pm] = await Promise.all([
     pool.query("SELECT content FROM master_resume WHERE user_id = $1", [userId]),

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { requireUserId } from "@/lib/auth";
 
@@ -10,6 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   const r = await pool.query(
     "SELECT id, job_description, content, history, created_at, updated_at FROM drafts WHERE id = $1 AND user_id = $2",
@@ -33,6 +34,7 @@ export async function GET(req: Request, { params }: Ctx) {
 export async function PATCH(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   const body = (await req.json()) as
     | { op: "undo" }

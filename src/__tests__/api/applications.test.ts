@@ -8,6 +8,7 @@ vi.mock("@/lib/db", () => ({
   pool: {
     query: mockQuery,
   },
+  setRlsUserOnPool: vi.fn(async () => {}),
 }));
 
 import { GET, POST } from "@/app/api/versions/[id]/applications/route";

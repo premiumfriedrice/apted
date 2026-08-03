@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockQuery = vi.fn();
 vi.mock("@/lib/db", () => ({
   pool: { query: (...args: unknown[]) => mockQuery(...args) },
+  setRlsUserOnPool: vi.fn(async () => {}),
   withDb: vi.fn(),
   strippedUrl: vi.fn((u: string) => u),
   createPool: vi.fn(),

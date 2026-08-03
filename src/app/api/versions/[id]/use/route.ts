@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { requireUserId } from "@/lib/auth";
 
@@ -10,6 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function POST(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   const r = await pool.query(
     `SELECT v.tailored_content, a.job_description

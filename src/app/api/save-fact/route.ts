@@ -4,7 +4,7 @@
 // for the UI's "Save this to your master resume?" prompt; richer merges can
 // happen in /master.
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { redactResume, injectResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
@@ -15,6 +15,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   const { sectionId, itemId, bulletText } = (await req.json()) as {
     sectionId?: string;

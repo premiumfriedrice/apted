@@ -8,6 +8,7 @@ vi.mock("@/lib/db", () => ({
   pool: {
     query: mockQuery,
   },
+  setRlsUserOnPool: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/resume", () => ({

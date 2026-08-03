@@ -17,6 +17,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const queryMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/db", () => ({
   pool: { query: queryMock },
+  setRlsUserOnPool: vi.fn(async () => {}),
   strippedUrl: vi.fn((u: string) => u),
   createPool: vi.fn(),
 }));

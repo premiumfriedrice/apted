@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { isOutcome, parseInterviewRound, parseRejectedAfterRound } from "@/lib/applications";
 import { requireUserId } from "@/lib/auth";
 
@@ -26,6 +26,7 @@ function rowToJson(row: Record<string, unknown>) {
 export async function GET(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
 
   // Ensure the version belongs to the user before listing its applications.
@@ -45,6 +46,7 @@ export async function GET(req: Request, { params }: Ctx) {
 export async function POST(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
 
   const body = await req.json();

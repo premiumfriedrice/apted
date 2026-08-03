@@ -13,7 +13,7 @@
 // Returns 404 when auth isn't configured (local mode has no users / sessions).
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const userId = session.user.id;
+  await setRlsUserOnPool(userId);
 
   const token = randomBytes(32).toString("hex");
   const now = new Date();

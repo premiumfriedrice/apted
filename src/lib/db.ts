@@ -16,8 +16,8 @@ export function strippedUrl(u: string): string {
   }
 }
 
-// Create a Pool from DATABASE_URL. Used by scripts that need a standalone pool
-// (migrate, seed, benchmark) rather than the shared singleton.
+// Create a Pool from DATABASE_URL (superuser). Used by scripts that need
+// DDL access: migrate, seed, benchmark. This role bypasses RLS.
 export function createPool(): pg.Pool {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required");
@@ -27,22 +27,39 @@ export function createPool(): pg.Pool {
   });
 }
 
-const url = process.env.DATABASE_URL;
-if (!url) {
+// ── Runtime pool (app role, RLS-enforced) ─────────────────────────────────
+//
+// API routes use this pool. It connects as the apted_app role (non-superuser)
+// so RLS policies are enforced. When DATABASE_URL_APP is set, we use it.
+// When it's not set (local dev, migrations, tests), we fall back to
+// DATABASE_URL (superuser) which bypasses RLS. This means:
+//
+//   - Local dev without DATABASE_URL_APP: RLS is bypassed (frictionless)
+//   - Production with DATABASE_URL_APP set: RLS is enforced per-user
+//
+// The pool sets app.user_id per transaction via withDb(fn, userId).
+// Routes that use pool.query() directly must call setRlsUserOnPool() first.
+
+const appUrl = process.env.DATABASE_URL_APP ?? process.env.DATABASE_URL;
+if (!appUrl) {
   console.warn("DATABASE_URL not set");
 }
 
-// Shared pool singleton for API routes. Use withDb() to borrow a client
-// so connect/release is handled automatically.
 export const pool = new Pool({
-  connectionString: url ? strippedUrl(url) : "",
-  ssl: url ? { rejectUnauthorized: false } : undefined,
+  connectionString: appUrl ? strippedUrl(appUrl) : "",
+  ssl: appUrl ? { rejectUnauthorized: false } : undefined,
 });
 
-// Borrow a client from the shared pool, set the RLS user ID, run fn, release on return/throw.
-// The SET LOCAL ensures RLS policies see the correct user_id for this transaction.
-// When auth is disabled (local mode), user_id defaults to 'local' which matches the
-// backfilled rows from migration 0008.
+// True when the pool is using the non-superuser apted_app role (RLS enforced).
+export const rlsEnabled = !!process.env.DATABASE_URL_APP;
+
+// Borrow a client from the shared pool, set the RLS user ID, run fn, release
+// on return/throw. The SET LOCAL ensures RLS policies see the correct
+// user_id for this transaction.
+//
+// When auth is disabled (local mode), user_id defaults to 'local' which
+// matches the backfilled rows from migration 0008. When RLS is not enforced
+// (no DATABASE_URL_APP), the SET LOCAL is harmless and ignored.
 export async function withDb<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
   userId?: string,
@@ -65,10 +82,7 @@ export async function setRlsUser(client: pg.PoolClient, userId: string): Promise
 }
 
 // Set the RLS user ID for the current session (for routes that use pool.query
-// directly without borrowing a client). This sets it on the pool's default
-// connection. Less secure than per-client SET LOCAL, but needed for routes
-// that use pool.query() directly.
+// directly without borrowing a client). Sets it on the connection.
 export async function setRlsUserOnPool(userId: string): Promise<void> {
-  // SET only applies to the current session/connection in the pool.
   await pool.query("SET app.user_id = $1", [userId]);
 }

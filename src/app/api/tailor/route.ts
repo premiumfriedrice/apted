@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ZodError } from "zod";
-import { withDb } from "@/lib/db";
+import { withDb, setRlsUser, setRlsUserOnPool } from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateResume, selectStructure } from "@/lib/llm";
 import { getProviderForFlow } from "@/lib/providers";
@@ -31,6 +31,7 @@ const TailorRequest = z.object({
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   let parsed: z.infer<typeof TailorRequest>;
   try {
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
 
   try {
     return await withDb(async (client) => {
+      await setRlsUser(client, userId);
       updateProgress(jobId, { phase: "analyzing", percent: 10, message: "Loading master resume…" });
       const mr = await client.query("SELECT content FROM master_resume WHERE user_id = $1", [userId]);
       if (!mr.rows[0]) {

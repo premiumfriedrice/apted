@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { generateInsights, getCachedInsights, saveInsights } from "@/lib/insights";
 import type { Application } from "@/lib/applications";
@@ -38,6 +38,7 @@ const SELECT = `
 export async function GET(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   const r = await pool.query(
     SELECT.replace("WHERE v.id = $1", "WHERE v.id = $1 AND v.user_id = $2"),

@@ -7,7 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
 import { createCheckoutSession, getStripe, priceIdForPlan } from "@/lib/stripe";
 
@@ -20,6 +20,7 @@ const Body = z.object({
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   if (!getStripe()) {
     return NextResponse.json(

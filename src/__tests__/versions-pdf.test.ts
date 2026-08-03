@@ -9,6 +9,7 @@ vi.mock("@/lib/db", () => ({
     query: (...args: unknown[]) => mockQuery(...args),
     connect: vi.fn(),
   },
+  setRlsUserOnPool: vi.fn(async () => {}),
   withDb: vi.fn(),
   strippedUrl: vi.fn((u: string) => u),
   createPool: vi.fn(),

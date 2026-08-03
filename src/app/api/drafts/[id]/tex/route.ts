@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { renderResume } from "@/lib/render";
 import { getUserSettings } from "@/lib/settings";
@@ -14,6 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: Request, { params }: Ctx) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const { id } = await params;
   const [r, settings, pm] = await Promise.all([
     pool.query("SELECT content FROM drafts WHERE id = $1 AND user_id = $2", [id, userId]),

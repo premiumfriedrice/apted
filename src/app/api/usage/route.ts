@@ -26,7 +26,7 @@
 // that can drift from the actual cap when env vars retune it.
 
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
 import {
   FREE_TAILOR_LIMIT,
@@ -43,6 +43,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   const { plan, trialDaysLeft, proExpiresAt } = await getPlanInfo(userId);
   const byok = isProOrTrial(plan) && tailorUsesByokKey(userId);

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { isOutcome, parseInterviewRound, parseRejectedAfterRound } from "@/lib/applications";
 import { requireUserId } from "@/lib/auth";
 
@@ -27,6 +27,7 @@ function rowToJson(row: Record<string, unknown>) {
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   const body = await req.json();
   const {
@@ -86,6 +87,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   const url = new URL(req.url);
   const outcome = url.searchParams.get("outcome");

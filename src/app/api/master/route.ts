@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { redactResume } from "@/lib/redact";
 import type { RedactionMap } from "@/lib/redact";
@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   const [mr, pm] = await Promise.all([
     pool.query("SELECT content, updated_at FROM master_resume WHERE user_id = $1", [userId]),
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
 
   const body = await req.json();
   const content = Resume.parse(body.content);

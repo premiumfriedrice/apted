@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
+import { pool, setRlsUserOnPool} from "@/lib/db";
 import { Resume } from "@/lib/resume";
 import { getRanker } from "@/lib/relevance";
 import { requireUserId } from "@/lib/auth";
@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await setRlsUserOnPool(userId);
   const body = await req.json();
   const { jobDescription } = body as { jobDescription?: string };
   if (!jobDescription?.trim()) {
