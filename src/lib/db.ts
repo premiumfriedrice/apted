@@ -74,7 +74,7 @@ export interface RlsClient {
 export async function withRls(userId: string): Promise<RlsClient> {
   const client = await pool.connect();
   await client.query("BEGIN");
-  await client.query("SET LOCAL app.user_id = $1", [userId]);
+  await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
   return {
     query: client.query.bind(client) as typeof pool.query,
     done: async () => {
@@ -97,7 +97,7 @@ export async function withDb<T>(
   try {
     if (userId) {
       await client.query("BEGIN");
-      await client.query("SET LOCAL app.user_id = $1", [userId]);
+      await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
     }
     const result = await fn(client);
     if (userId) {
@@ -118,7 +118,7 @@ export async function withDb<T>(
 // own client lifecycle via pool.connect()).
 export async function setRlsUser(client: pg.PoolClient, userId: string): Promise<void> {
   await client.query("BEGIN");
-  await client.query("SET LOCAL app.user_id = $1", [userId]);
+  await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
 }
 
 // Commit and release a client that was used with setRlsUser.
