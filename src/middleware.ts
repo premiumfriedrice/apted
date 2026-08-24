@@ -63,9 +63,13 @@ export function middleware(req: NextRequest) {
   // be reachable before a session exists, so skip the bearer gate for them.
   // The Stripe webhook is called by Stripe (not a logged-in user) and verifies
   // its own signature via the raw body, so it must also bypass this gate (PRE-93).
+  // When Better Auth is configured, ALL API routes use Better Auth session
+  // validation (via requireUserId in each route) — the legacy APTED_AUTH_TOKEN
+  // gate is only for local mode without auth.
   const isAuthEndpoint = req.nextUrl.pathname.startsWith("/api/auth/");
   const isStripeWebhook = req.nextUrl.pathname === "/api/stripe/webhook";
-  if (expected && !isAuthEndpoint && !isStripeWebhook) {
+  const authConfigured = process.env.BETTER_AUTH_SECRET || process.env.NEXT_PUBLIC_AUTH_ENABLED === "1";
+  if (expected && !isAuthEndpoint && !isStripeWebhook && !authConfigured) {
     const auth = req.headers.get("authorization") ?? "";
     const m = auth.match(/^Bearer\s+(.+)$/i);
     if (!m || m[1] !== expected) {
