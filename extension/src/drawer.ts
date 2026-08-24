@@ -6,7 +6,12 @@ import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, prefetchVersionPdf,
 import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
 import type { Msg, Reply } from "./messages";
 import type { Draft, Outcome, ScrapedJob, SimilarResume, Version, VersionListItem } from "./types";
-import { isConfirmationUrl, isSubmitButtonLabel } from "./submit-detection";
+import {
+  isConfirmationUrl,
+  isNativeFormSubmitControl,
+  isSubmitButtonLabel,
+  selectApplicationJobDescription,
+} from "./submit-detection";
 
 export const DRAWSER_WIDTH = 384;
 export const HANDLE_SIZE = 48;
@@ -2070,6 +2075,7 @@ export function createInitialState(): DrawerState {
   const SAVED_DRAFTS_KEY = "aptedSavedDrafts";
   const SAVED_DRAFT_TTL_MS = 10 * 60 * 1000;
   let saveInProgress = false;
+  let pendingSubmit = false;
 
   // isConfirmationUrl / isSubmitButtonLabel imported from ./submit-detection
   // so the heuristics can be unit-tested independently of the drawer.
@@ -2141,17 +2147,20 @@ export function createInitialState(): DrawerState {
     if (saveInProgress) return;
     const draft = state.draft;
     if (!draft) return; // user isn't using apted for this application
-    if (await isDraftSaved(draft.id)) return; // already saved this submission
+
+    // Set the synchronous guard before any async storage work so a burst of
+    // submit/click events cannot all pass the duplicate check.
     saveInProgress = true;
-    setStatus("Saving application…");
     const company = els.jdCompany.value.trim() || "Unknown company";
     const role = els.jdRole.value.trim() || "Unknown role";
     try {
+      if (await isDraftSaved(draft.id)) return; // already saved this submission
+      setStatus("Saving application…");
       await send({
         type: "auto-save-application",
         company,
         role,
-        jobDescription: draft.jobDescription || els.jdText.value,
+        jobDescription: selectApplicationJobDescription(els.jdText.value, draft.jobDescription),
         portalUrl: location.href,
         tailoredContent: draft.content,
       });
@@ -2842,25 +2851,32 @@ export function createInitialState(): DrawerState {
     "submit",
     (e) => {
       if (host.contains(e.target as Node)) return;
+      pendingSubmit = true;
       void autoSaveApplication();
+      // A later click in the same event burst should not invoke the fallback.
+      setTimeout(() => {
+        pendingSubmit = false;
+      }, 100);
     },
     { capture: true },
   );
-  // Fallback for JS-driven submissions that don't fire a real submit event:
-  // clicks on submit-type buttons or buttons whose label says "submit".
+  // Fallback for JS-driven submissions that don't fire a real submit event.
+  // Native form controls are handled by the submit listener; otherwise the
+  // label heuristic covers portals that submit entirely through JavaScript.
   document.addEventListener(
     "click",
     (e) => {
       const t = e.target as HTMLElement | null;
       if (!t || host.contains(t)) return;
-      const btn = t.closest("button, input[type='submit'], [role='button']") as
+      const btn = t.closest("button, input[type='submit'], input[type='image'], [role='button']") as
         | HTMLButtonElement
         | HTMLInputElement
         | HTMLElement
         | null;
       if (!btn) return;
+      if (pendingSubmit || isNativeFormSubmitControl(btn)) return;
       const typeAttr = (btn as HTMLButtonElement).type;
-      const label = (btn.textContent || "").trim().toLowerCase();
+      const label = ((btn as HTMLInputElement).value || btn.textContent || "").trim();
       if (typeAttr === "submit" || isSubmitButtonLabel(label)) {
         void autoSaveApplication();
       }
