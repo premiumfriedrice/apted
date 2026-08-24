@@ -10,6 +10,7 @@ import { tailorUserPrompt } from "@/lib/prompts/user";
 import { applyFilter } from "@/lib/structure";
 import { redactResume } from "@/lib/redact";
 import { requireUserId } from "@/lib/auth";
+import { ensureApiKeysLoaded } from "@/lib/api-keys";
 import { checkTailorLimit, recordUsage } from "@/lib/rate-limit";
 import {
   createProgress,
@@ -31,6 +32,7 @@ const TailorRequest = z.object({
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await ensureApiKeysLoaded(userId);
   await setRlsUserOnPool(userId);
 
   let parsed: z.infer<typeof TailorRequest>;

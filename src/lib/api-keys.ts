@@ -84,6 +84,16 @@ export function getCachedApiKeys(userId: string): ApiKeyMap {
   return cache.get(userId)!;
 }
 
+// Ensure the API keys for a user are loaded before the first provider call.
+// Call this at the start of any route that uses getProviderForFlow() to
+// avoid the cold-start race where getCachedApiKeys returns an empty map
+// before the background loadApiKeys() finishes.
+export async function ensureApiKeysLoaded(userId: string): Promise<void> {
+  if (!loaded.has(userId) || !cache.has(userId)) {
+    await loadApiKeys(userId);
+  }
+}
+
 // Full key map including actual values — used only server-side by the
 // provider factory and the test-connection endpoint. Never exposed to the
 // client; the api-keys GET endpoint uses getKeyStatus() instead.

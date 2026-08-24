@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getProviderForFlow } from "@/lib/providers";
 import { requireUserId } from "@/lib/auth";
+import { ensureApiKeysLoaded } from "@/lib/api-keys";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -35,6 +36,7 @@ function extractJson(text: string): string {
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await ensureApiKeysLoaded(userId);
 
   const body = await req.json();
   const { title: domTitle, company: domCompany, jobDescription, url, source } = body as {

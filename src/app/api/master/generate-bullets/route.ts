@@ -5,6 +5,7 @@ import { getProviderForFlow } from "@/lib/providers";
 import { generateBulletsUserPrompt } from "@/lib/prompts/user";
 import { Bullet } from "@/lib/resume";
 import { requireUserId } from "@/lib/auth";
+import { ensureApiKeysLoaded } from "@/lib/api-keys";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,7 @@ Return ONLY a JSON object with shape { "bullets": [...] }.`;
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await ensureApiKeysLoaded(userId);
 
   let body: unknown;
   try {

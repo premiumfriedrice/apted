@@ -8,6 +8,7 @@ import { getProviderForFlow } from "@/lib/providers";
 import { editUserPrompt } from "@/lib/prompts/user";
 import { redactResume } from "@/lib/redact";
 import { requireUserId } from "@/lib/auth";
+import { ensureApiKeysLoaded } from "@/lib/api-keys";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,7 @@ const EditRequest = z.object({
 export async function POST(req: Request) {
   const userId = await requireUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  await ensureApiKeysLoaded(userId);
   await setRlsUserOnPool(userId);
 
   let parsed: z.infer<typeof EditRequest>;
