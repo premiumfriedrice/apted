@@ -10,21 +10,42 @@ export function isConfirmationUrl(url: string): boolean {
 }
 
 // Button-label heuristic for JS-driven submissions that don't fire a real
-// `submit` event. Matches the final-step button verbs on the major job sites:
-//   - "Submit Application" (Greenhouse, Ashby, Workday)
-//   - "Apply" / "Submit application" (Lever, LinkedIn Easy Apply)
-//   - "Send Application"
-//
-// This deliberately accepts the LinkedIn "Easy Apply" false positive: opening
-// Easy Apply now records an `applied` row with the current draft. That tradeoff
-// is intentional â the record is harmless and correctable, and the per-draft
-// dedup in the drawer caps it at one save per draft (SAVED_DRAFTS_KEY, 10-min
-// TTL). "Confirm"-style mid-funnel buttons are NOT matched.
-const SUBMIT_VERBS = ["submit", "apply", "send"];
-const SUBMIT_VERB_RES = SUBMIT_VERBS.map((v) => new RegExp(`\\b${v}\\b`, "i"));
+// `submit` event. Generic "Apply" and "Submit" buttons are common on earlier
+// steps of multi-page application flows, so only match labels that identify the
+// final application action.
+const SUBMIT_PATTERNS = [
+  /submit\s+(your\s+)?application/i,
+  /apply\s+now/i,
+  /send\s+application/i,
+];
 
 export function isSubmitButtonLabel(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
-  return SUBMIT_VERB_RES.some((re) => re.test(t));
+  return SUBMIT_PATTERNS.some((re) => re.test(t));
+}
+
+/**
+ * Whether an element will cause a native form submit event when clicked.
+ * Clicks on these controls are handled by the document submit listener instead
+ * of the JS-driven click fallback, preventing one action from being saved twice.
+ */
+export function isNativeFormSubmitControl(element: HTMLElement): boolean {
+  if (!element.closest("form")) return false;
+
+  const tagName = element.tagName.toLowerCase();
+  if (tagName === "button") {
+    const type = element.getAttribute("type");
+    return type === null || type.toLowerCase() === "submit";
+  }
+  if (tagName === "input") {
+    const type = (element.getAttribute("type") ?? "text").toLowerCase();
+    return type === "submit" || type === "image";
+  }
+  return false;
+}
+
+/** Prefer the JD currently displayed for the page being submitted. */
+export function selectApplicationJobDescription(currentPageJd: string, draftJd: string): string {
+  return currentPageJd || draftJd || "";
 }
