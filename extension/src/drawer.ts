@@ -2338,15 +2338,11 @@ export function createInitialState(): DrawerState {
             jobDescription: jd,
             source: scraped.source,
           })) as { title: string; company: string; location: string; terms: string[] };
-          console.log("[apted] extract result:", extracted);
           // Only overwrite if the LLM returned non-empty values.
           if (extracted.company) els.jdCompany.value = extracted.company;
           if (extracted.title) els.jdRole.value = extracted.title;
           schedulePersist(0);
-        } catch (e) {
-          console.error("[apted] extract failed:", e instanceof Error ? e.message : String(e), e);
-          // Non-fatal: scraped values are already filled in.
-        }
+        } catch {
           // Non-fatal: scraped values are already filled in.
         }
       }

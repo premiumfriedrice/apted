@@ -174,7 +174,6 @@ async function apiFetch<T>(path: string, init: RequestInit & { json?: unknown })
     parsed = text;
   }
   if (!res.ok) {
-    console.error(`[apted] API ${path} failed: HTTP ${res.status}`, text);
     const errMsg =
       (parsed && typeof parsed === "object" && "error" in parsed
         ? String((parsed as { error: unknown }).error)
