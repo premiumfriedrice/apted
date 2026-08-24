@@ -108,5 +108,11 @@ USER INSTRUCTION
 ${args.instruction}
 
 TASK
-Apply the instruction to the current draft and return the new, complete Resume JSON. Preserve ids. If the user supplied a new real fact, add it and note in your reasoning that it should be offered to save to master.`;
+Apply the instruction to the current draft and return the new, complete Resume JSON.
+
+EDITING RULES
+- Do not rename sections, project names, job titles, or organizations unless the user explicitly asks.
+- Only modify bullet text and section ordering according to the user's instruction. Preserve all other content and structure unless the instruction explicitly requires a change.
+- Preserve all section titles, item titles, organization names, and project names exactly as they are.
+- Preserve ids. If the user supplied a new real fact, add it and note in your reasoning that it should be offered to save to master.`;
 }

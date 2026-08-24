@@ -472,6 +472,20 @@ describe("prompt builders produce zero PII with pre-redacted input", () => {
     expect(prompt).toContain("[ORG-0]");
   });
 
+  test("editUserPrompt tells the model to preserve names unless explicitly asked", () => {
+    const resume = makeFullResume();
+
+    const prompt = editUserPrompt({
+      master: resume,
+      current: resume,
+      instruction: "Lead with the apted project",
+    });
+
+    expect(prompt).toContain("Do not rename sections, project names, job titles, or organizations unless the user explicitly asks");
+    expect(prompt).toContain("Only modify bullet text and section ordering according to the user's instruction");
+    expect(prompt).toContain("Preserve all section titles, item titles, organization names, and project names exactly as they are");
+  });
+
   test("tailorUserPrompt redacts prior versions too when routes redact", () => {
     const master = redactResume(makeFullResume()).redacted;
     const priorVersionContent = {
