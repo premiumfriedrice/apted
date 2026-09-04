@@ -185,7 +185,11 @@ export function getProviderForFlow(userId: string, flow: Flow): Provider {
 // getTailorProvider returns an OpenCode provider configured with the tailor model
 // (Sonnet via OpenCode). Used for the main tailoring/editing pipeline.
 export function getTailorProvider(userId: string): Provider {
-  const model = process.env.OPENCODE_TAILOR_MODEL ?? "claude-sonnet-4-5";
+  // TEMP: OpenCode Zen's Claude upstream is returning 500s (verified
+  // 2026-08-24: claude-sonnet-4-5/haiku 500, gemini 500, deepseek 200 OK).
+  // Default to deepseek-v4-flash until OpenCode restores the Claude upstream.
+  // Remove this override (restore "claude-sonnet-4-5") once fixed.
+  const model = process.env.OPENCODE_TAILOR_MODEL ?? "deepseek-v4-flash";
   return buildOpenCodeProvider(userId, model);
 }
 
