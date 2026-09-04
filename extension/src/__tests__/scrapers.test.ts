@@ -97,11 +97,11 @@ describe("scrapeJob", () => {
     expect(result.jobDescription).toContain("Build infrastructure");
   });
 
-  // ── Title and company are intentionally empty (LLM fills them) ───────────
+  // ── Title and company from DOM (fallback when LLM unavailable) ───────
 
-  it("returns empty title and company for all sites", () => {
+  it("extracts title and company from Greenhouse DOM", () => {
     document.body.innerHTML = `
-      <h1>Software Engineer</h1>
+      <h1 class="app-title">Software Engineer</h1>
       <div class="company-name">Acme Corp</div>
       <main>
         <p>We are hiring. Build great things.</p>
@@ -116,8 +116,8 @@ describe("scrapeJob", () => {
     });
 
     const result = scrapeJob();
-    expect(result.title).toBe("");
-    expect(result.company).toBe("");
+    expect(result.title).toBe("Software Engineer");
+    expect(result.company).toBe("Acme Corp");
     expect(result.jobDescription).toBeTruthy();
   });
 
@@ -125,6 +125,7 @@ describe("scrapeJob", () => {
 
   it("uses generic fallback for unknown sites", () => {
     document.body.innerHTML = `
+      <h1>Full Stack Engineer</h1>
       <main>
         <p>We need a full-stack engineer.</p>
         <p>Remote first.</p>
@@ -140,7 +141,6 @@ describe("scrapeJob", () => {
     const result = scrapeJob();
     expect(result.source).toBe("generic");
     expect(result.jobDescription).toContain("We need a full-stack engineer");
-    expect(result.title).toBe("");
-    expect(result.company).toBe("");
+    expect(result.title).toBe("Full Stack Engineer");
   });
 });
