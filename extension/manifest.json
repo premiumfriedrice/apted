@@ -69,6 +69,19 @@
       ],
       "js": ["inject.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.linkedin.com/jobs/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://*.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://jobs.ashbyhq.com/*"
+      ],
+      "js": ["drawer.js"],
+      "run_at": "document_idle"
     }
   ]
 }

@@ -1,8 +1,9 @@
-// Tracker drawer — the v1 job-site surface (shadow DOM, framework-free).
+// Tracker drawer — the job-site surface (shadow DOM, framework-free).
 //
-// Mounted by drawer.ts when the tailoring flag is off. Shows the tracked-job
-// card for the posting the user is on (nothing is saved yet), the shared
-// pipeline board, and a logged-capture toast with 8 s Undo.
+// Mounted by drawer.ts. Shell: handle + slide-in drawer + toast with 8 s
+// Undo. Body: the SHARED tracker panel view (panel-view.ts — Sankey funnel
+// on top, current-job strip, tracking dialogue below) that also powers the
+// side panel.
 //
 // Submission detection combines three channels (see submit-detection.ts):
 //   - final submit control clicked (registry labels / native submit)
@@ -19,7 +20,7 @@ import {
   SUBMITTED_ABSENCE_MS,
   SuccessMonitor,
 } from "./submit-detection";
-import { pipelineStyles, renderPipeline, type PipelineActions, type PipelineState } from "./pipeline";
+import { mountPanelView, panelStyles, type PanelHandle } from "./panel-view";
 import type { Msg, Reply } from "./messages";
 import type { ScrapedJob } from "./types";
 
@@ -90,27 +91,15 @@ function styles(): string {
 
     .td-body {
       flex: 1; overflow-y: auto; overscroll-behavior: contain;
-      padding: 16px; background: #fff;
-      display: flex; flex-direction: column; gap: 12px;
+      padding: 12px; background: #fafafa;
     }
     .td-body::-webkit-scrollbar { width: 4px; }
     .td-body::-webkit-scrollbar-thumb { background: #c3c6d7; border-radius: 2px; }
 
-    .td-job-card {
-      border: 1px solid #e5e5e5; border-radius: 8px; padding: 10px 12px;
-      display: flex; flex-direction: column; gap: 3px;
-    }
-    .td-job-label {
-      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
-      text-transform: uppercase; color: #737373;
-    }
-    .td-job-title { font-size: 13px; font-weight: 500; }
-    .td-job-sub { font-size: 11px; color: #737373; }
-
     .td-toast {
       position: sticky; top: 0; z-index: 20;
       display: flex; align-items: center; gap: 10px;
-      margin: -16px -16px 0; padding: 10px 12px;
+      margin: -12px -12px 12px; padding: 10px 12px;
       background: #16a34a; color: #fff; border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
       opacity: 0; transform: translateY(-8px);
@@ -164,14 +153,14 @@ export function mountTrackerDrawer(): void {
   } as Partial<CSSStyleDeclaration>);
 
   const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `<style>${styles()}${pipelineStyles()}</style>
+  shadow.innerHTML = `<style>${styles()}${panelStyles()}</style>
     <button class="td-handle" title="Open apted Tracker" aria-label="Open apted Tracker">a</button>
     <div class="td-drawer">
       <div class="td-header">
         <h1 class="td-title">apted Tracker</h1>
         <span class="td-spacer"></span>
         <button class="td-icon-btn" id="td-settings" title="Settings" aria-label="Settings">
-          <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5zm7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.97l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/></svg>
+          <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" width="18" height="18"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5zm7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.97l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l-2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/></svg>
         </button>
         <button class="td-icon-btn" id="td-close" title="Minimize" aria-label="Minimize">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -185,21 +174,14 @@ export function mountTrackerDrawer(): void {
           </div>
           <button id="td-toast-undo" class="td-toast-undo" hidden>Undo</button>
         </div>
-        <div id="td-job-card" class="td-job-card" hidden>
-          <span class="td-job-label">Tracked job</span>
-          <span id="td-job-title" class="td-job-title"></span>
-          <span id="td-job-sub" class="td-job-sub">Not saved yet — apted logs it when you submit.</span>
-        </div>
-        <div id="td-pipeline"></div>
+        <div id="td-panel"></div>
       </div>
     </div>`;
 
   const $ = <T extends HTMLElement>(sel: string): T => shadow.querySelector(sel) as T;
   const handle = $<HTMLButtonElement>(".td-handle");
   const drawer = $<HTMLElement>(".td-drawer");
-  const pipelineEl = $<HTMLElement>("#td-pipeline");
-  const jobCard = $<HTMLElement>("#td-job-card");
-  const jobTitle = $<HTMLElement>("#td-job-title");
+  const panelEl = $<HTMLElement>("#td-panel");
   const toast = $<HTMLElement>("#td-toast");
   const toastHeadline = $<HTMLElement>("#td-toast-headline");
   const toastSub = $<HTMLElement>("#td-toast-sub");
@@ -214,7 +196,7 @@ export function mountTrackerDrawer(): void {
     handle.classList.toggle("td-handle--hidden", open);
     if (open) {
       void send({ type: "tracker-mark-active" }).catch(() => {});
-      void refreshPipeline();
+      void panel.refresh();
     }
     try {
       await chrome.storage.local.set({ [`aptedDrawerOpen:${location.hostname}`]: next });
@@ -238,73 +220,31 @@ export function mountTrackerDrawer(): void {
   });
   window.addEventListener("apted-open-drawer", () => void setOpen(true));
 
-  // ── pipeline ──────────────────────────────────────────────────────────────
+  // ── panel view (shared with the side panel: funnel + tracking dialogue) ──
 
-  const actions: PipelineActions = {
-    onConnect() {
-      void send({ type: "open-connect" }).catch(() => {});
-    },
-    onRetry() {
-      void send({ type: "tracker-flush" })
-        .catch(() => {})
-        .finally(() => void refreshPipeline());
-    },
-    async onOutcomeChange(app, outcome) {
+  const panel: PanelHandle = mountPanelView(panelEl, {
+    send,
+    scrape: async () => {
       try {
-        const r = await send<{ ok: boolean }>({
-          type: "tracker-set-outcome",
-          id: app.id,
-          outcome,
-        });
-        return r.ok;
+        const job = scrapeCurrentPage();
+        return { company: job.company, role: job.title };
       } catch {
-        return false;
+        return null;
       }
     },
-    async onApplySuggestion(s) {
-      try {
-        const r = await send<{ ok: boolean }>({ type: "tracker-apply-suggestion", suggestionId: s.id });
-        return r.ok;
-      } catch {
-        return false;
-      }
-    },
-    onDismissSuggestion(s) {
-      void send({ type: "tracker-dismiss-suggestion", suggestionId: s.id }).catch(() => {});
-    },
-  };
+  });
 
-  async function refreshPipeline(): Promise<void> {
-    try {
-      const state = await send<PipelineState>({ type: "tracker-state" });
-      renderPipeline(pipelineEl, state, actions);
-    } catch {
-      renderPipeline(
-        pipelineEl,
-        { status: "offline", applications: [], suggestions: [], queued: 0, updatedAt: null },
-        actions,
-      );
-    }
-  }
-
-  // Re-render when tracker state changes elsewhere (e.g. a Gmail suggestion
-  // or a capture in another tab), or when the auth token changes.
+  // Re-render when tracker state changes elsewhere (e.g. a capture in
+  // another tab), or when the auth token changes.
   chrome.storage.onChanged.addListener((changes, area) => {
     const relevant =
       (area === "local" &&
         (changes["aptedTrackerCache"] || changes["aptedSuggestions"])) ||
       (area === "sync" && changes["authToken"]);
-    if (relevant && open) void refreshPipeline();
+    if (relevant && open) void panel.refresh();
   });
 
-  // ── tracked-job card (scrape only; nothing is saved while browsing) ───────
-
-  function showJob(job: ScrapedJob): void {
-    const label = [job.company, job.title].filter(Boolean).join(" · ");
-    if (!label) return;
-    jobTitle.textContent = label;
-    jobCard.hidden = false;
-  }
+  // ── tracked job (scrape only; nothing is saved while browsing) ───────────
 
   let currentJob: ScrapedJob | null = null;
   async function scrapeAndShow(): Promise<void> {
@@ -313,7 +253,7 @@ export function mountTrackerDrawer(): void {
       const job = scrapeCurrentPage();
       if (!job.company && !job.title && !job.jobDescription) return;
       currentJob = job;
-      showJob(job);
+      panel.setJob({ company: job.company || undefined, role: job.title || undefined });
       const trackedObj = buildTrackedObj(location.href);
       void send({
         type: "tracker-save-lastjob",
@@ -424,7 +364,7 @@ export function mountTrackerDrawer(): void {
       showToast("Couldn't log application", "", undefined, true);
     }
     submitClicked = false; // consume the click; cooldown guards re-fires
-    if (open) void refreshPipeline();
+    if (open) void panel.refresh();
   }
 
   // Poll for the success-element channel (SPA flows without URL changes).
@@ -496,7 +436,7 @@ export function mountTrackerDrawer(): void {
     void send({ type: "tracker-undo", id })
       .then(() => {
         hideToast();
-        void refreshPipeline();
+        void panel.refresh();
       })
       .catch(() => {})
       .finally(() => {

@@ -13,63 +13,7 @@
       <span id="connection" class="connection" title="API base"></span>
       <button id="open-options" class="ghost">Settings</button>
     </header>
-
-    <div id="signedout" class="banner" hidden>
-      <span>Connect your apted account to sync your pipeline.</span>
-      <button id="connect" class="primary">Connect</button>
-    </div>
-
-    <section class="funnel panel">
-      <div class="row">
-        <h2>Application funnel</h2>
-        <div class="spacer"></div>
-        <span id="funnel-count" class="muted"></span>
-      </div>
-      <div id="funnel" class="funnel-body"></div>
-      <div id="funnel-info" class="funnel-info">
-        Hover a node or flow for details.
-      </div>
-    </section>
-
-    <section class="job panel">
-      <div class="row">
-        <h2>Current job</h2>
-        <div class="spacer"></div>
-        <button id="rescrape">Scrape tab</button>
-      </div>
-      <div class="row two">
-        <input id="jd-company" placeholder="Company" />
-        <input id="jd-role" placeholder="Role" />
-      </div>
-      <div class="row">
-        <div class="spacer"></div>
-        <button id="log-application" class="primary">Log application</button>
-      </div>
-    </section>
-
-    <section class="chat panel">
-      <div class="row">
-        <h2>Tracking</h2>
-      </div>
-      <div id="quick" class="chips">
-        <button class="chip" data-outcome="applied">Applied</button>
-        <button class="chip" data-outcome="interviewing">Interviewing</button>
-        <button class="chip" data-outcome="offer">Offer</button>
-        <button class="chip" data-outcome="rejected">Rejected</button>
-        <button class="chip" data-outcome="ghosted">Ghosted</button>
-      </div>
-      <div id="chat-log" class="chat-log"></div>
-      <form id="chat-form" class="chat-form">
-        <input
-          id="chat-input"
-          placeholder="stripe rejected me after round 2…"
-          autocomplete="off"
-        />
-        <button id="chat-send" type="submit" class="primary">Send</button>
-      </form>
-    </section>
-
-    <div id="status" class="status" aria-live="polite"></div>
+    <div id="panel-root"></div>
     <script src="sidepanel.js"></script>
   </body>
 </html>

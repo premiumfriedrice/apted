@@ -21,6 +21,7 @@ const entries = [
   { in: "src/sidepanel.ts", out: "sidepanel" },
   { in: "src/options.ts", out: "options" },
   { in: "src/inject.ts", out: "inject" },
+  { in: "src/drawer.ts", out: "drawer" },
 ];
 
 async function copyStatic() {
