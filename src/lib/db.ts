@@ -16,6 +16,20 @@ export function strippedUrl(u: string): string {
   }
 }
 
+// Local dev servers (localhost/127.0.0.1) don't speak SSL — only apply the
+// Supabase pooler SSL workaround to remote hosts.
+export function sslFor(u: string): boolean | { rejectUnauthorized: boolean } {
+  try {
+    const host = new URL(u).hostname;
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+      return false;
+    }
+  } catch {
+    // fall through to SSL
+  }
+  return { rejectUnauthorized: false };
+}
+
 // Create a Pool from DATABASE_URL (superuser). Used by scripts that need
 // DDL access: migrate, seed, benchmark. This role bypasses RLS.
 export function createPool(): pg.Pool {
@@ -23,7 +37,7 @@ export function createPool(): pg.Pool {
   if (!url) throw new Error("DATABASE_URL is required");
   return new Pool({
     connectionString: strippedUrl(url),
-    ssl: { rejectUnauthorized: false },
+    ssl: sslFor(url),
   });
 }
 
@@ -41,7 +55,7 @@ if (!appUrl) {
 
 export const pool = new Pool({
   connectionString: appUrl ? strippedUrl(appUrl) : "",
-  ssl: appUrl ? { rejectUnauthorized: false } : undefined,
+  ssl: appUrl ? sslFor(appUrl) : undefined,
 });
 
 // True when the pool is using the non-superuser apted_app role (RLS enforced).
