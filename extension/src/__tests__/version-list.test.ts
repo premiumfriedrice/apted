@@ -51,10 +51,11 @@ describe("mapVersionList", () => {
       { id: "v3", name: null, createdAt: "2026-07-10T00:00:00.000Z" },
     ] as unknown as ApiVersionRow[];
     const out = mapVersionList(rows);
-    expect(out[0].company).toBeNull();
-    expect(out[0].role).toBeNull();
-    expect(out[0].outcome).toBeNull();
-    expect(out[0].name).toBeNull();
+    const first = out[0]!;
+    expect(first.company).toBeNull();
+    expect(first.role).toBeNull();
+    expect(first.outcome).toBeNull();
+    expect(first.name).toBeNull();
   });
 
   it("maps multiple rows preserving order", () => {

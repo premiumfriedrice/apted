@@ -1,6 +1,6 @@
 import type { Settings } from "./types";
 
-const DEFAULTS: Settings = { apiBase: "https://apted.vercel.app", authToken: "", openMode: "popup" };
+const DEFAULTS: Settings = { apiBase: "https://apted.vercel.app", authToken: "", openMode: "popup", passiveTracking: true };
 
 export async function getSettings(): Promise<Settings> {
   const raw = await chrome.storage.sync.get(DEFAULTS);
@@ -8,6 +8,8 @@ export async function getSettings(): Promise<Settings> {
     apiBase: raw.apiBase || "https://apted.vercel.app",
     authToken: raw.authToken ?? "",
     openMode: raw.openMode === "window" ? "window" : "popup",
+    // Older installs predate the key; treat "explicitly false" as off.
+    passiveTracking: (raw.passiveTracking as boolean | undefined) !== false,
   };
 }
 

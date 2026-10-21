@@ -28,6 +28,13 @@
       <span class="hint" style="margin-top: -10px;">
         Recommended for Arc, which doesn't render the toolbar popup reliably. In Chrome, leave this off for the anchored popover.
       </span>
+      <label style="flex-direction: row; align-items: center; gap: 8px;">
+        <input id="passiveTracking" type="checkbox" style="width: auto;" />
+        <span style="color: var(--text);">Log applications submitted without apted open</span>
+      </label>
+      <span class="hint" style="margin-top: -10px;">
+        Passive tracking captures submissions on supported job boards even when you never open the apted drawer. Turn this off to only log applications you track actively with apted.
+      </span>
       <div class="actions">
         <button id="save" class="primary" type="submit">Save</button>
         <span id="status" class="hint" aria-live="polite"></span>

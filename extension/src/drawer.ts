@@ -2,6 +2,8 @@
 // Injects a handle + drawer into the page via shadow DOM.
 
 import { getSettings } from "./storage";
+import { TAILORING_ENABLED } from "./flags";
+import { mountTrackerDrawer } from "./tracker-drawer";
 import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, prefetchVersionPdf, suggestPdfFilename } from "./pdf";
 import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
 import type { Msg, Reply } from "./messages";
@@ -1579,6 +1581,11 @@ export function createInitialState(): DrawerState {
     console.log("[apted] not an extension context, skipping drawer injection");
     return;
   }
+  // v1 ships the tracker; the tailor drawer only mounts when the flag is on.
+  if (!TAILORING_ENABLED) {
+    mountTrackerDrawer();
+    return;
+  }
   console.log("[apted] injecting drawer on", location.hostname);
 
   // Inject @font-face globally so Outfit is available inside shadow DOM
@@ -1765,7 +1772,7 @@ export function createInitialState(): DrawerState {
       els.previewEmbed.src = withPdfToolbarSuppressed(objectUrl);
       showPreviewState("embed");
     } catch (e) {
-      clearTimeout(previewLoadingTimer);
+      clearTimeout(previewLoadingTimer ?? undefined);
       previewLoadingTimer = null;
       const msg = e instanceof Error ? e.message : String(e);
       els.previewErrorMsg.textContent = msg;

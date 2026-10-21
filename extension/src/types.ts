@@ -115,4 +115,6 @@ export type Settings = {
   apiBase: string;
   authToken: string;
   openMode: OpenMode;
+  /** Log applications the user submits without opening apted (passive tracking). */
+  passiveTracking: boolean;
 };

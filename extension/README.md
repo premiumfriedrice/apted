@@ -61,6 +61,15 @@ const corsHeaders = {
 
 If you set an auth token in options, your routes should check `Authorization: Bearer <token>`. This is the only mechanism the extension uses to tell the server which user is calling — no Anthropic key, no other credentials.
 
+## Connecting your account (v1 tracker)
+
+Signed-out surfaces (drawer / side panel) show a **Connect** CTA that opens `{API_BASE}/connect` in a new tab. After signing in on the web app, the **Connect extension** button fetches a long-lived extension token (`POST /api/auth/extension-token`) and hands it to the extension via `chrome.runtime.sendMessage(EXTENSION_ID, { type: "apted-connect", token })` — the `onMessageExternal` handler in `background.ts` stores it, and every surface flips to signed-in.
+
+**Dev / unpacked installs:** `chrome.runtime.sendMessage` from a web page can only reach a *published* extension id listed in the manifest's `externally_connectable`. With an unpacked dev build:
+
+1. Open `{API_BASE}/connect?ext=<your-unpacked-extension-id>` — the id is on the `chrome://extensions` card (or set `NEXT_PUBLIC_EXTENSION_ID` when deploying the web app).
+2. If messaging still fails (e.g. missing `externally_connectable` coverage for your dev API base), the connect page falls back to showing the token — copy it and paste it into the extension's **Options → Auth token** field. That fallback works everywhere, including local mode.
+
 ## Permissions
 
 Declared in `manifest.json`:

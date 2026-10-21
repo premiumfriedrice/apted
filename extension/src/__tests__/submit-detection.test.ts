@@ -3,8 +3,14 @@ import {
   isConfirmationUrl,
   isNativeFormSubmitControl,
   isSubmitButtonLabel,
+  isFinalSubmitLabel,
+  isSuccessElementVisible,
+  isSubmitted,
+  SuccessMonitor,
+  SUBMITTED_ABSENCE_MS,
   selectApplicationJobDescription,
 } from "../submit-detection";
+import { ATS_REGISTRY } from "../ats-registry";
 
 describe("isConfirmationUrl", () => {
   it("matches common confirmation page slugs", () => {
@@ -95,6 +101,137 @@ describe("isNativeFormSubmitControl", () => {
     button.type = "submit";
 
     expect(isNativeFormSubmitControl(button)).toBe(false);
+  });
+});
+
+describe("isFinalSubmitLabel (registry-driven)", () => {
+  const gh = ATS_REGISTRY.greenhouse;
+
+  it("matches an entry submit label case-insensitively", () => {
+    expect(isFinalSubmitLabel("Submit Application", gh)).toBe(true);
+    expect(isFinalSubmitLabel("submit application ", gh)).toBe(true);
+  });
+
+  it("never matches an explicit continue label even on the same entry", () => {
+    expect(isFinalSubmitLabel("Next", gh)).toBe(false);
+    expect(isFinalSubmitLabel("Continue", gh)).toBe(false);
+  });
+
+  it("falls back to the generic heuristic when no entry matches", () => {
+    expect(isFinalSubmitLabel("Apply Now", null)).toBe(true);
+    expect(isFinalSubmitLabel("Apply", null)).toBe(false);
+  });
+});
+
+describe("isSuccessElementVisible", () => {
+  it("detects a registry success selector in the DOM", () => {
+    document.body.innerHTML = `<div class="post-submission">Thanks!</div>`;
+    expect(isSuccessElementVisible(document, ATS_REGISTRY.greenhouse)).toBe(true);
+  });
+
+  it("is false when no selector matches or the entry has none", () => {
+    document.body.innerHTML = `<div>nothing here</div>`;
+    expect(isSuccessElementVisible(document, ATS_REGISTRY.greenhouse)).toBe(false);
+    expect(isSuccessElementVisible(document, ATS_REGISTRY.linkedin)).toBe(false);
+    expect(isSuccessElementVisible(document, null)).toBe(false);
+  });
+});
+
+describe("isSubmitted (absence-then-reappearance heuristic)", () => {
+  it("counts a submit click with a visible success element", () => {
+    expect(
+      isSubmitted({
+        successVisible: true,
+        submitClicked: true,
+        userInteracted: true,
+        absenceBeforeReappearMs: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("counts a reappeared success element after a long absence with interaction", () => {
+    expect(
+      isSubmitted({
+        successVisible: true,
+        submitClicked: false,
+        userInteracted: true,
+        absenceBeforeReappearMs: SUBMITTED_ABSENCE_MS,
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects a success element that was absent only briefly", () => {
+    expect(
+      isSubmitted({
+        successVisible: true,
+        submitClicked: false,
+        userInteracted: true,
+        absenceBeforeReappearMs: 200,
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects a passive reappearance without user interaction", () => {
+    expect(
+      isSubmitted({
+        successVisible: true,
+        submitClicked: false,
+        userInteracted: false,
+        absenceBeforeReappearMs: 5000,
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects when no success element is visible", () => {
+    expect(
+      isSubmitted({
+        successVisible: false,
+        submitClicked: true,
+        userInteracted: true,
+        absenceBeforeReappearMs: null,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("SuccessMonitor", () => {
+  const mk = (html: string) => {
+    document.body.innerHTML = html;
+    return document;
+  };
+
+  it("measures the absence duration before a reappearance", () => {
+    let t = 0;
+    const mon = new SuccessMonitor({
+      selectors: () => [".confirmation"],
+      clock: () => t,
+    });
+    const doc = mk(`<div class="confirmation">applied</div>`);
+    expect(mon.tick(doc)).toBe(true); // present initially
+    expect(mon.absenceMs).toBeNull();
+
+    doc.body.innerHTML = ""; // disappears
+    expect(mon.tick(doc)).toBe(false);
+    t += 2000; // absent for 2 s
+    expect(mon.tick(doc)).toBe(false);
+
+    doc.body.innerHTML = `<div class="confirmation">done</div>`; // reappears
+    expect(mon.tick(doc)).toBe(true);
+    expect(mon.absenceMs).toBe(2000);
+  });
+
+  it("stays null when the element was never visible or never went away", () => {
+    let t = 0;
+    const mon = new SuccessMonitor({ selectors: () => [".x"], clock: () => t });
+    expect(mon.tick(mk("<div>nothing</div>"))).toBe(false);
+    expect(mon.absenceMs).toBeNull();
+
+    const mon2 = new SuccessMonitor({ selectors: () => [".x"], clock: () => t });
+    const doc = mk(`<div class="x">always here</div>`);
+    mon2.tick(doc);
+    t += 5000;
+    mon2.tick(doc);
+    expect(mon2.absenceMs).toBeNull();
   });
 });
 

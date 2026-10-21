@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>apted Tracker</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+    <style>
+      .tp {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+      }
+      .tp-topbar .brand { font-weight: 700; font-size: 15px; letter-spacing: -0.02em; }
+    </style>
+  </head>
+  <body>
+    <header class="topbar tp-topbar">
+      <div class="brand">apted Tracker</div>
+      <div class="spacer"></div>
+      <button id="open-options" class="ghost">Settings</button>
+    </header>
+
+    <main class="tp" id="pipeline-root"></main>
+
+    <script src="tracker-panel.js"></script>
+  </body>
+</html>

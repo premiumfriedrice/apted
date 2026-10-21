@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // drawer said "Injected ✓" but nothing was filled.
 
 let injectedResult: unknown = undefined;
-const executeScriptMock = vi.fn(async ({ func, args }: { func?: Function; args?: unknown[] }) => {
+const executeScriptMock = vi.fn(async ({ func, args, target }: { func?: Function; args?: unknown[]; target?: { tabId: number } }) => {
   // Execute the injected func in this context so we can verify its return value.
   if (func) {
     injectedResult = await func(...(args ?? []));
@@ -17,14 +17,14 @@ const executeScriptMock = vi.fn(async ({ func, args }: { func?: Function; args?:
   return [injectedResult];
 });
 
-const getSourceTabMock = vi.fn(async () => ({ id: 1, url: "https://jobs.example.com" }));
+const getSourceTabMock = vi.fn(async (): Promise<{ id: number; url: string } | null> => ({ id: 1, url: "https://jobs.example.com" }));
 
-const storageGetMock = vi.fn(async () => ({}));
-const storageRemoveMock = vi.fn(async () => undefined);
+const storageGetMock = vi.fn(async (): Promise<Record<string, unknown>> => ({}));
+const storageRemoveMock = vi.fn(async (_keys?: string[]) => undefined);
 
 // jsdom doesn't have DataTransfer — stub it
 vi.stubGlobal("DataTransfer", class {
-  items: { add: vi.fn() } = { add: vi.fn() };
+  items = { add: vi.fn() };
   files: FileList = { length: 1, 0: new File([new Uint8Array(0)], "test.pdf", { type: "application/pdf" }) } as unknown as FileList;
 });
 
@@ -41,13 +41,10 @@ vi.stubGlobal("chrome", {
       get: storageGetMock,
       remove: storageRemoveMock,
     },
+    onChanged: { addListener: vi.fn() },
   },
   action: { setPopup: vi.fn() },
   windows: { get: vi.fn(), create: vi.fn(), update: vi.fn() },
-  storage: {
-    session: { get: storageGetMock, remove: storageRemoveMock },
-    onChanged: { addListener: vi.fn() },
-  },
   tabs: { query: vi.fn(), get: vi.fn() },
 });
 

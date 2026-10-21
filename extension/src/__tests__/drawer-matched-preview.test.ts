@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// These tests drive the TAILOR drawer IIFE, which v1 feature-flags off in
+// favor of the tracker drawer — force it on here.
+vi.mock("../flags", () => ({ TAILORING_ENABLED: true }));
+
 // Integration-style test: drive the real drawer IIFE in jsdom to reproduce
 // what happens when a user clicks a matched resume card — does the preview
 // block actually become visible and sit under the matched card?

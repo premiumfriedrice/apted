@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import bgSrc from "../background.ts?raw";
+import msgSrc from "../messages.ts?raw";
 import type { Msg } from "../messages";
 
 // Regression guard for the SW message router. A previous bug deleted the
@@ -10,11 +10,10 @@ import type { Msg } from "../messages";
 // broke. This asserts every message type the drawer/sidepanel can send has a
 // matching case in the router.
 
-const bgSrc = readFileSync(resolve(__dirname, "../background.ts"), "utf8");
+const bgSrcMatch = bgSrc; // ?raw import of background.ts
 
 // Collect every `type: "x"` literal from the Msg union in messages.ts.
-const msgSrc = readFileSync(resolve(__dirname, "../messages.ts"), "utf8");
-const msgTypes = Array.from(msgSrc.matchAll(/type:\s*"([a-z-]+)"/g)).map((m) => m[1]);
+const msgTypes = Array.from(msgSrc.matchAll(/type:\s*"([a-z-]+)"/g)).map((m) => m[1]!);
 
 // "open-drawer" is intentionally not handled by the SW (it's sent FROM the
 // SW to content scripts); background.ts explicitly throws if it arrives.

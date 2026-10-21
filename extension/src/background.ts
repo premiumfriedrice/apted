@@ -1,5 +1,7 @@
 import { scrapeJob } from "./scrapers";
-import { getSettings } from "./storage";
+import { ATS_REGISTRY } from "./ats-registry";
+import * as tracker from "./tracker";
+import { getSettings, setSettings } from "./storage";
 import type { FetchPdfResult, Msg } from "./messages";
 import type { Draft, ScrapedJob, SimilarResume, Version } from "./types";
 import { mapVersionList, type ApiVersionRow } from "./version-list";
@@ -123,24 +125,6 @@ chrome.commands.onCommand.addListener((command) => {
   if (command === "open-apted") void openDrawerOnActiveTab();
 });
 
-// Omnibox: type "apted" + space in the URL bar to invoke. Anything after the
-// space is treated as the JD (so you can paste a one-liner JD inline if you
-// have one). Hitting Enter with no extra text just opens the drawer on the
-// active tab (or falls back to the popup window).
-chrome.omnibox.onInputChanged.addListener((_text, suggest) => {
-  suggest([]);
-});
-chrome.omnibox.setDefaultSuggestion({
-  description: "Open apted — tailor your resume to the active tab's JD",
-});
-chrome.omnibox.onInputEntered.addListener(async (text) => {
-  const jd = text.trim();
-  if (jd) {
-    await chrome.storage.session.set({ pendingJd: jd });
-  }
-  await openDrawerOnActiveTab();
-});
-
 chrome.windows.onRemoved.addListener(async (closedId) => {
   const { aptedWindowId } = await chrome.storage.session.get({ aptedWindowId: null });
   if (aptedWindowId === closedId) {
@@ -253,6 +237,7 @@ async function scrapeActiveTab(): Promise<ScrapedJob> {
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: scrapeJob,
+    args: [ATS_REGISTRY],
   });
   const result = results[0]?.result;
   if (!result) throw new Error("Scrape returned nothing — try Re-scrape after the page finishes loading.");
@@ -507,34 +492,93 @@ async function handle(msg: Msg): Promise<unknown> {
     // somehow does, respond with an error rather than silently dropping.
     case "open-drawer":
       throw new Error("open-drawer should not be sent to background");
+
+    // ── Tracker (PRE-88) ──────────────────────────────────────────────────
+    case "tracker-state":
+      return tracker.getTrackerState();
+
+    case "tracker-log-application":
+      return tracker.logApplication(msg.capture);
+
+    case "tracker-undo":
+      return { ok: await tracker.undoLog(msg.id) };
+
+    case "tracker-set-outcome":
+      return { ok: await tracker.setOutcome(msg.id, msg.outcome, msg.interviewRound) };
+
+    case "tracker-apply-suggestion":
+      return { ok: await tracker.applySuggestion(msg.suggestionId) };
+
+    case "tracker-dismiss-suggestion":
+      await tracker.dismissSuggestion(msg.suggestionId);
+      return { ok: true };
+
+    case "tracker-save-lastjob":
+      await tracker.saveLastJob(msg);
+      return { ok: true };
+
+    case "tracker-mark-active":
+      await tracker.markActive();
+      return { ok: true };
+
+    case "gmail-suggest": {
+      // Per-message-id memory first: never prompt twice for one email.
+      if (await tracker.isGmailMessageSeen(msg.email.messageId)) return { ok: true };
+      await tracker.rememberGmailMessage(msg.email.messageId);
+      // Suggestions need an account to be actionable; signed-out emails are
+      // remembered-and-skipped (v1).
+      if (await tracker.isSignedIn()) {
+        await tracker.handleGmailEmail(msg.email, msg.classification);
+      }
+      return { ok: true };
+    }
+
+    case "open-connect": {
+      // Open {API_BASE}/connect in a new tab for the connect-page handoff.
+      const { apiBase } = await getSettings();
+      const base = (apiBase || "https://apted.vercel.app").replace(/\/+$/, "");
+      await chrome.tabs.create({ url: `${base}/connect` });
+      return { ok: true };
+    }
+
+    case "tracker-flush":
+      return { ok: true, remaining: await tracker.flushQueue() };
   }
 }
 
-// Context menu entries: a page-context "Open apted" plus a selection-context
-// "Tailor with apted" that stashes the highlighted text as the JD for the
-// next side-panel open. Registered on install / startup (idempotent).
-function setupContextMenus(): void {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: "apted-open",
-      title: "Open apted",
-      contexts: ["page", "action"],
-    });
-    chrome.contextMenus.create({
-      id: "apted-tailor-selection",
-      title: "Tailor with apted",
-      contexts: ["selection"],
-    });
-  });
-}
-chrome.runtime.onInstalled.addListener(setupContextMenus);
-chrome.runtime.onStartup.addListener(setupContextMenus);
+// Any service-worker wake is a chance to drain the offline capture queue
+// (capped exponential backoff lives in tracker.ts).
+void tracker.flushQueue();
 
-chrome.contextMenus.onClicked.addListener(async (info) => {
-  if (info.menuItemId === "apted-tailor-selection" && info.selectionText) {
-    await chrome.storage.session.set({ pendingJd: info.selectionText });
+// Connect-page handoff: the web app's /connect page (signed in) fetches a
+// long-lived extension token and delivers it via
+// chrome.runtime.sendMessage(EXTENSION_ID, { type: "apted-connect", token })
+// from an externally_connectable origin. Store the token and ack; surfaces
+// listen for authToken changes and flip to signed-in.
+chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
+  const m = msg as { type?: string; token?: unknown };
+  if (m?.type === "apted-connect") {
+    const token = typeof m.token === "string" ? m.token.trim() : "";
+    const origin = typeof sender.origin === "string" ? sender.origin : "";
+    void (async () => {
+      try {
+        if (!token) throw new Error("missing token");
+        // Restrict the handoff to the configured API base origin (the
+        // manifest's externally_connectable matches cover the default).
+        const { apiBase } = await getSettings();
+        const base = (apiBase || "https://apted.vercel.app").replace(/\/+$/, "");
+        if (origin && origin !== base) throw new Error(`unexpected origin: ${origin}`);
+        const settings = await getSettings();
+        await setSettings({ ...settings, authToken: token });
+        sendResponse({ ok: true });
+      } catch (e) {
+        sendResponse({ ok: false, error: e instanceof Error ? e.message : String(e) });
+      }
+    })();
+    return true; // async response
   }
-  await openDrawerOnActiveTab();
+  sendResponse({ ok: false, error: "unknown message" });
+  return false;
 });
 
 chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {

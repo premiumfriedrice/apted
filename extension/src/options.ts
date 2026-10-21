@@ -5,6 +5,7 @@ const $ = <T extends HTMLElement>(id: string): T =>
 
 const authToken = $<HTMLInputElement>("authToken");
 const openModeWindow = $<HTMLInputElement>("openModeWindow");
+const passiveTracking = $<HTMLInputElement>("passiveTracking");
 const status = $("status");
 const form = $<HTMLFormElement>("form");
 
@@ -17,6 +18,7 @@ void (async () => {
   const s = await getSettings();
   authToken.value = s.authToken;
   openModeWindow.checked = s.openMode === "window";
+  passiveTracking.checked = s.passiveTracking;
 })();
 
 form.addEventListener("submit", async (e) => {
@@ -27,6 +29,7 @@ form.addEventListener("submit", async (e) => {
     apiBase: "https://apted.vercel.app",
     authToken: token,
     openMode: openModeWindow.checked ? "window" : "popup",
+    passiveTracking: passiveTracking.checked,
   });
   setStatus("Saved.", "ok");
 });

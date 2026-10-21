@@ -1,0 +1,120 @@
+{
+  "greenhouse": {
+    "name": "Greenhouse",
+    "urlPatterns": [
+      "https://boards.greenhouse.io/*",
+      "https://job-boards.greenhouse.io/*",
+      "https://*.greenhouse.io/*"
+    ],
+    "trackedObjTemplate": "greenhouse:{{company}}/{{reqId}}",
+    "trackedObjPath": { "company": 0, "reqId": 2 },
+    "jdSelectors": [
+      "#content",
+      ".content",
+      "#app_body",
+      "[data-testid='job-description']",
+      "main"
+    ],
+    "roleSelectors": ["h1.app-title", "h1"],
+    "companySelectors": [".company-name", ".header-brand a", "[data-testid='company-name']"],
+    "successSelectors": [
+      ".post-submission",
+      ".application-confirmation",
+      "[data-testid='application-confirmation']"
+    ],
+    "submitLabels": ["submit application"],
+    "continueLabels": ["next", "continue"]
+  },
+  "lever": {
+    "name": "Lever",
+    "urlPatterns": ["https://jobs.lever.co/*"],
+    "trackedObjTemplate": "lever:{{company}}/{{jobId}}",
+    "trackedObjPath": { "company": 0, "jobId": 1 },
+    "jdSelectors": [
+      ".section-wrapper.page-full-width",
+      ".section.page-centered",
+      ".posting",
+      "[data-qa='job-description']",
+      "main"
+    ],
+    "roleSelectors": [".posting-headline h2", ".posting-headline h1", "h2", "h1"],
+    "companySelectors": [".main-header-text", ".main-header a", ".logo a"],
+    "companyPathSegment": 0,
+    "successSelectors": [".application-success", "[data-qa='success']"],
+    "submitLabels": ["submit application"],
+    "continueLabels": ["next", "continue"]
+  },
+  "workday": {
+    "name": "Workday",
+    "urlPatterns": ["https://*.myworkdayjobs.com/*"],
+    "trackedObjTemplate": "workday:{{company}}/{{jobId}}",
+    "trackedObjSubdomain": ["company"],
+    "trackedObjRegex": { "jobId": "/job/([0-9]+)" },
+    "companySubdomainStoplist": [
+      "www", "jobs", "careers", "workday", "myworkdayjobs",
+      "wd102", "wd1", "wd2", "wd3"
+    ],
+    "jdSelectors": [
+      "[data-automation-id='jobPostingDescription']",
+      "[data-automation-id='postingDescription']",
+      "[data-automation-id='description']",
+      "[data-testid='job-description']"
+    ],
+    "roleSelectors": [
+      "[data-automation-id='jobPostingHeader']",
+      "h2[data-automation-id='jobPostingHeader']",
+      "h1[data-automation-id='jobPostingHeader']",
+      "h1"
+    ],
+    "companySelectors": [],
+    "successSelectors": ["[data-automation-id='successfulSubmission']"],
+    "submitLabels": ["submit application", "submit"],
+    "continueLabels": ["next", "continue"]
+  },
+  "ashby": {
+    "name": "Ashby",
+    "urlPatterns": ["https://jobs.ashbyhq.com/*"],
+    "trackedObjTemplate": "ashbyhq:{{company}}/{{jobId}}",
+    "trackedObjPath": { "company": 0, "jobId": 1 },
+    "jdSelectors": [
+      "[data-testid='job-description']",
+      "[data-testid='description']",
+      "[data-qa='job-description']",
+      "main",
+      "article"
+    ],
+    "roleSelectors": ["h1[data-testid='job-title']", "h1"],
+    "companySelectors": ["[data-testid='company-name']", "a[href^='/jobs']", "header a"],
+    "companyPathSegment": 0,
+    "successSelectors": ["[data-testid='application-success']", ".application-success"],
+    "submitLabels": ["submit application", "submit"],
+    "continueLabels": ["next", "continue"]
+  },
+  "linkedin": {
+    "name": "LinkedIn",
+    "urlPatterns": ["https://*.linkedin.com/jobs/*"],
+    "trackedObjTemplate": "linkedin:{{jobId}}",
+    "trackedObjRegex": { "jobId": "/jobs/view/([0-9]+)" },
+    "jdSelectors": [
+      ".jobs-description__content .jobs-description-content__text",
+      ".jobs-description__content",
+      "#job-details",
+      ".jobs-description__container",
+      ".jobs-box__html-content",
+      "[data-test-id='job-description']"
+    ],
+    "roleSelectors": [
+      ".job-details-jobs-unified-top-card__job-title h1",
+      ".jobs-unified-top-card__job-title h1",
+      "h1"
+    ],
+    "companySelectors": [
+      ".job-details-jobs-unified-top-card__company-name a",
+      ".jobs-unified-top-card__company-name a",
+      ".job-details-jobs-unified-top-card__primary-description a"
+    ],
+    "successSelectors": [],
+    "submitLabels": ["submit application"],
+    "continueLabels": ["next", "continue", "apply"]
+  }
+}

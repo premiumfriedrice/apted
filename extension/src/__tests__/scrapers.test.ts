@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { scrapeJob } from "../scrapers";
+import { ATS_REGISTRY } from "../ats-registry";
 
 describe("scrapeJob", () => {
   beforeEach(() => {
@@ -23,7 +24,7 @@ describe("scrapeJob", () => {
       writable: true,
     });
 
-    const result = scrapeJob();
+    const result = scrapeJob(ATS_REGISTRY);
     expect(result.source).toBe("linkedin");
     expect(result.jobDescription).toContain("Build scalable systems");
   });
@@ -41,7 +42,7 @@ describe("scrapeJob", () => {
       writable: true,
     });
 
-    const result = scrapeJob();
+    const result = scrapeJob(ATS_REGISTRY);
     expect(result.source).toBe("greenhouse");
     expect(result.jobDescription).toContain("Design beautiful interfaces");
   });
@@ -58,7 +59,7 @@ describe("scrapeJob", () => {
       writable: true,
     });
 
-    const result = scrapeJob();
+    const result = scrapeJob(ATS_REGISTRY);
     expect(result.source).toBe("lever");
     expect(result.jobDescription).toContain("Design APIs and services");
   });
@@ -75,7 +76,7 @@ describe("scrapeJob", () => {
       writable: true,
     });
 
-    const result = scrapeJob();
+    const result = scrapeJob(ATS_REGISTRY);
     expect(result.source).toBe("workday");
     expect(result.jobDescription).toContain("Apply ML to real-world problems");
   });
@@ -92,7 +93,7 @@ describe("scrapeJob", () => {
       writable: true,
     });
 
-    const result = scrapeJob();
+    const result = scrapeJob(ATS_REGISTRY);
     expect(result.source).toBe("ashby");
     expect(result.jobDescription).toContain("Build infrastructure");
   });
@@ -115,7 +116,7 @@ describe("scrapeJob", () => {
       writable: true,
     });
 
-    const result = scrapeJob();
+    const result = scrapeJob(ATS_REGISTRY);
     expect(result.title).toBe("Software Engineer");
     expect(result.company).toBe("Acme Corp");
     expect(result.jobDescription).toBeTruthy();
@@ -138,7 +139,7 @@ describe("scrapeJob", () => {
       writable: true,
     });
 
-    const result = scrapeJob();
+    const result = scrapeJob(ATS_REGISTRY);
     expect(result.source).toBe("generic");
     expect(result.jobDescription).toContain("We need a full-stack engineer");
     expect(result.title).toBe("Full Stack Engineer");

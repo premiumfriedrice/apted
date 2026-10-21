@@ -1,9 +1,17 @@
-// scrapeJob runs in the active tab's page context via chrome.scripting.executeScript({ func }).
-// It MUST be self-contained — no module-level identifiers from the bundle survive serialization.
+// scrapeJob runs in a page context (either bundled into a content script or
+// serialized by chrome.scripting.executeScript({ func, args }) — the registry
+// is passed as an ARG so the function body stays fully self-contained: no
+// module-level identifiers survive func serialization.
+//
+// Per-site extraction (JD / role / company selectors) is driven by the ATS
+// registry (ats-registry.json); anything unmatched falls through to the
+// generic largest-text-block extractor.
 
+import { ATS_REGISTRY } from "./ats-registry";
+import type { AtsEntry, AtsRegistry } from "./ats-registry";
 import type { ScrapedJob } from "./types";
 
-export function scrapeJob(): ScrapedJob {
+export function scrapeJob(registry: AtsRegistry): ScrapedJob {
   const host = location.host.toLowerCase();
   const url = location.href;
 
@@ -32,7 +40,7 @@ export function scrapeJob(): ScrapedJob {
     };
     walk(clone);
     return out
-      .replace(/[ \t ]+/g, " ")
+      .replace(/[ \t ]+/g, " ")
       .replace(/[ \t]*\n[ \t]*/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
@@ -40,8 +48,49 @@ export function scrapeJob(): ScrapedJob {
 
   const firstMatch = (sels: string[]): Element | null => {
     for (const s of sels) {
-      const el = document.querySelector(s);
+      let el: Element | null = null;
+      try {
+        el = document.querySelector(s);
+      } catch {
+        continue; // invalid selector in the registry — skip it
+      }
       if (el && (el.textContent ?? "").trim()) return el;
+    }
+    return null;
+  };
+
+  // Minimal matcher for the registry's "https://host/path" wildcard patterns.
+  // Kept inline (not imported) so scrapeJob survives func serialization.
+  const matchesPattern = (pattern: string, u: string): boolean => {
+    const pm = pattern.match(/^(\*|https?|file|ftp):\/\/([^/]*)(\/.*)?$/);
+    if (!pm) return false;
+    const scheme = pm[1] ?? "";
+    const hostPat = (pm[2] ?? "").toLowerCase();
+    const pathPat = pm[3] ?? "/*";
+    let parsed: URL;
+    try {
+      parsed = new URL(u);
+    } catch {
+      return false;
+    }
+    if (scheme !== "*" && parsed.protocol.replace(":", "") !== scheme) return false;
+    const h = parsed.hostname.toLowerCase();
+    if (hostPat !== "*") {
+      if (hostPat.startsWith("*.")) {
+        const suffix = hostPat.slice(1);
+        if (!(h.endsWith(suffix) || h === hostPat.slice(2))) return false;
+      } else if (h !== hostPat) {
+        return false;
+      }
+    }
+    const pathRe = "^" + pathPat.split("*").map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$";
+    return new RegExp(pathRe).test(parsed.pathname + parsed.search);
+  };
+
+  const matchEntry = (u: string): AtsEntry | null => {
+    for (const key of Object.keys(registry) as (keyof AtsRegistry)[]) {
+      const e = registry[key];
+      if (e && e.urlPatterns.some((p) => matchesPattern(p, u))) return e;
     }
     return null;
   };
@@ -51,109 +100,43 @@ export function scrapeJob(): ScrapedJob {
   let title = "";
   let company = "";
 
-  // ── Site-specific JD extraction ──────────────────────────────────────────
-  // JD text comes from DOM selectors. Title/company come from cheap DOM
-  // heuristics as a FALLBACK when the LLM extract endpoint is unavailable —
-  // the LLM values are still preferred and overwrite these when they succeed.
+  const entry = matchEntry(url);
+  if (entry) {
+    source = host.endsWith("linkedin.com")
+      ? "linkedin"
+      : host.includes("greenhouse")
+        ? "greenhouse"
+        : host.endsWith("lever.co")
+          ? "lever"
+          : host.includes("myworkdayjobs") || host.includes("workday")
+            ? "workday"
+            : host.endsWith("ashbyhq.com")
+              ? "ashby"
+              : "generic";
+    jd = blockText(firstMatch(entry.jdSelectors));
+    title = norm(firstMatch(entry.roleSelectors));
+    company = norm(firstMatch(entry.companySelectors)).replace(/^at\s+/i, "");
 
-  if (host.endsWith("linkedin.com")) {
-    source = "linkedin";
-    jd = blockText(
-      firstMatch([
-        ".jobs-description__content .jobs-description-content__text",
-        ".jobs-description__content",
-        "#job-details",
-        ".jobs-description__container",
-        ".jobs-box__html-content",
-        "[data-test-id='job-description']",
-      ]),
-    );
-    title = norm(
-      firstMatch([
-        ".job-details-jobs-unified-top-card__job-title h1",
-        ".jobs-unified-top-card__job-title h1",
-        "h1",
-      ]),
-    );
-    company = norm(
-      firstMatch([
-        ".job-details-jobs-unified-top-card__company-name a",
-        ".jobs-unified-top-card__company-name a",
-        ".job-details-jobs-unified-top-card__primary-description a",
-      ]),
-    );
-  } else if (host.endsWith("greenhouse.io")) {
-    source = "greenhouse";
-    jd = blockText(
-      firstMatch(["#content", ".content", "#app_body", "[data-testid='job-description']", "main"]),
-    );
-    title = norm(firstMatch(["h1.app-title", "h1"]));
-    company = norm(firstMatch([".company-name", ".header-brand a", "[data-testid='company-name']"])).replace(/^at\s+/i, "");
-    if (!company) {
+    // Registry-driven company fallbacks.
+    if (!company && entry.companyPathSegment !== undefined) {
+      const seg = location.pathname.split("/").filter(Boolean)[entry.companyPathSegment];
+      if (seg) {
+        company = decodeURIComponent(seg)
+          .replace(/[-_]+/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
+    if (!company && entry.companySubdomainStoplist) {
+      const sub = host.split(".")[0] ?? "";
+      if (sub && !entry.companySubdomainStoplist.includes(sub.toLowerCase())) {
+        company = sub.charAt(0).toUpperCase() + sub.slice(1);
+      }
+    }
+    // Doc-title fallback: "... — Company" / "Company | Careers" tails.
+    if (!company && document.title) {
       const parts = document.title.split(/[-–—|]/);
       const last = parts[parts.length - 1]?.trim();
-      if (last) company = last;
-    }
-  } else if (host.endsWith("lever.co")) {
-    source = "lever";
-    jd = blockText(
-      firstMatch([
-        ".section-wrapper.page-full-width",
-        ".section.page-centered",
-        ".posting",
-        "[data-qa='job-description']",
-        "main",
-      ]),
-    );
-    title = norm(firstMatch([".posting-headline h2", ".posting-headline h1", "h2", "h1"]));
-    company =
-      norm(firstMatch([".main-header-text", ".main-header a", ".logo a"])) ||
-      (location.pathname.split("/").filter(Boolean)[0] || "");
-  } else if (host.endsWith("myworkdayjobs.com") || host.endsWith("workday.com")) {
-    source = "workday";
-    jd = blockText(
-      firstMatch([
-        "[data-automation-id='jobPostingDescription']",
-        "[data-automation-id='postingDescription']",
-        "[data-automation-id='description']",
-        "[data-testid='job-description']",
-      ]),
-    );
-    title = norm(
-      firstMatch([
-        "[data-automation-id='jobPostingHeader']",
-        "h2[data-automation-id='jobPostingHeader']",
-        "h1[data-automation-id='jobPostingHeader']",
-        "h1",
-      ]),
-    );
-    const sub = host.split(".")[0] ?? "";
-    const GENERIC_SUBDOMAINS = new Set(["www", "jobs", "careers", "workday", "myworkdayjobs", "wd102", "wd1", "wd2", "wd3"]);
-    company = sub && !GENERIC_SUBDOMAINS.has(sub) ? sub.charAt(0).toUpperCase() + sub.slice(1) : "";
-    if (!company && document.title) {
-      const m = document.title.match(/at\s+([^-|]+)/i);
-      if (m) company = m[1]?.trim() ?? "";
-    }
-  } else if (host.endsWith("ashbyhq.com")) {
-    source = "ashby";
-    jd = blockText(
-      firstMatch([
-        "[data-testid='job-description']",
-        "[data-testid='description']",
-        "[data-qa='job-description']",
-        "main",
-        "article",
-      ]),
-    );
-    title = norm(firstMatch(["h1[data-testid='job-title']", "h1"]));
-    // Ashby URLs: https://jobs.ashbyhq.com/company-name/job-id
-    const pathParts = (location.pathname ?? "").split("/").filter(Boolean);
-    const rawSlug = pathParts[0] ?? "";
-    company = rawSlug
-      ? rawSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-      : "";
-    if (!company) {
-      company = norm(firstMatch(["[data-testid='company-name']", "a[href^='/jobs']", "header a"]));
+      if (last && parts.length > 1) company = last;
     }
   }
 
@@ -173,4 +156,10 @@ export function scrapeJob(): ScrapedJob {
   }
 
   return { url, title, company, jobDescription: jd, source };
+}
+
+// Bundled (content-script) wrapper: same scrape, registry injected directly.
+// NOT safe for executeScript({ func }) — use scrapeJob + args there.
+export function scrapeCurrentPage(): ScrapedJob {
+  return scrapeJob(ATS_REGISTRY);
 }

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "package": "node build.mjs && node scripts/make-icons.mjs && node scripts/package.mjs",
+    "icons": "node scripts/make-icons.mjs",
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

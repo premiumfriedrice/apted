@@ -1,10 +1,46 @@
 import type { Draft, Outcome, Resume, ScrapedJob, SimilarResume, Version, VersionListItem } from "./types";
+import type { PipelineSuggestion, PipelineState, Outcome as PipelineOutcome } from "./pipeline";
 
 export type ExtractedFields = {
   title: string;
   company: string;
   location: string;
   terms: string[];
+};
+
+// A captured job-application submission, assembled by a content script and
+// POSTed by the service worker.
+export type Capture = {
+  company?: string;
+  role?: string;
+  jobDescription?: string;
+  portalUrl?: string;
+  trackedObj?: string | null;
+  capturedAt: string;
+  source: string;
+  /** True when the user actively used apted on this tab (drawer opened). */
+  active: boolean;
+};
+
+export type LogResult =
+  | { kind: "logged"; id: string }
+  | { kind: "duplicate"; id: string | null }
+  | { kind: "queued" }
+  | { kind: "skipped" };
+
+// Gmail email as extracted by the gmail.ts content script.
+export type GmailEmail = {
+  messageId: string;
+  sender: string;
+  senderName: string;
+  subject: string;
+  body: string;
+};
+
+export type GmailClassification = {
+  outcome: "applied" | "rejected" | "interviewing" | "offer" | null;
+  subjectMatch: boolean;
+  atsSender: boolean;
 };
 
 export type Msg =
@@ -39,7 +75,18 @@ export type Msg =
   | { type: "get-version"; versionId: string }
   | { type: "list-versions" }
   | { type: "open-drawer" }
-  | { type: "open-options" };
+  | { type: "open-options" }
+  | { type: "tracker-state" }
+  | { type: "tracker-log-application"; capture: Capture }
+  | { type: "tracker-undo"; id: string }
+  | { type: "tracker-set-outcome"; id: string; outcome: PipelineOutcome; interviewRound?: number | null }
+  | { type: "tracker-apply-suggestion"; suggestionId: string }
+  | { type: "tracker-dismiss-suggestion"; suggestionId: string }
+  | { type: "tracker-save-lastjob"; company?: string; role?: string; jobDescription?: string; portalUrl?: string; trackedObj?: string | null; source: string }
+  | { type: "tracker-mark-active" }
+  | { type: "open-connect" }
+  | { type: "gmail-suggest"; email: GmailEmail; classification: GmailClassification }
+  | { type: "tracker-flush" };;
 
 // The PDF endpoint returns binary; we shuttle it across the MV3 SW boundary
 // as base64 since Blob isn't reliably structured-cloneable through
@@ -66,6 +113,17 @@ export type MsgResultMap = {
   "list-versions": VersionListItem[];
   "auto-save-application": Version;
   "open-drawer": { ok: true };
+  "tracker-state": PipelineState;
+  "tracker-log-application": LogResult;
+  "tracker-undo": { ok: true };
+  "tracker-set-outcome": { ok: true };
+  "tracker-apply-suggestion": { ok: true };
+  "tracker-dismiss-suggestion": { ok: true };
+  "tracker-save-lastjob": { ok: true };
+  "tracker-mark-active": { ok: true };
+  "open-connect": { ok: true };
+  "gmail-suggest": { ok: true };
+  "tracker-flush": { ok: true };
 };
 
 export type Reply<T> = { ok: true; data: T } | { ok: false; error: string };

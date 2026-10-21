@@ -185,7 +185,7 @@ function createEntry(blob: Blob, etag: string): CacheEntry {
   };
 }
 
-function createEntryFromResult(result: Extract<FetchPdfResult, { kind: "data" }>): CacheEntry {
+function createEntryFromResult(result: Extract<FetchPdfResult, { kind: "ok" }>): CacheEntry {
   const blob = base64ToBlob(result.base64, result.mime);
   return createEntry(blob, result.etag);
 }
