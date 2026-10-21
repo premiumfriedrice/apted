@@ -200,6 +200,21 @@ the gap).
   supported sites? Prefer to avoid `tabs`/`webRequest`/`webNavigation`.
 - Store listing copy draft.
 
+## REVERT BEFORE STORE SUBMISSION (temporary dev wiring, 2026-10-21)
+
+The extension is currently pointed at the local dev store for the active
+work run:
+
+- `extension/src/storage.ts`: default `apiBase` is `http://localhost:3000`
+  (`DEV_API_BASE`) — revert to `PROD_API_BASE` (`https://apted.vercel.app`).
+- `extension/manifest.json`: `host_permissions` includes
+  `http://localhost:3000/*` — remove it.
+- Then the connect-page login dialogue is the path again (`isSignedIn`
+  already treats localhost as signed-in; keep that for local dev).
+- Mock data lives in local Postgres on :5433 (`apted` DB, seeded via
+  `DATABASE_URL=postgres://localhost:5433/apted npm run db:seed-mock`);
+  the dev server on :3000 runs with that same `DATABASE_URL`.
+
 ## Appendix: Simplify Copilot 3.1.9 study (REA-assisted)
 
 Analyzed via REA (`npx rea-agents analyze-javascript-application`, registered
