@@ -88,8 +88,17 @@ async function api<T>(path: string, init: RequestInit & { json?: unknown }): Pro
 }
 
 export async function isSignedIn(): Promise<boolean> {
-  const { authToken } = await getSettings();
-  return !!authToken;
+  const { authToken, apiBase } = await getSettings();
+  if (authToken) return true;
+  // Local-mode servers run with auth disabled (no BETTER_AUTH_SECRET) and
+  // accept unauthenticated calls — treat them as signed in so the panel
+  // syncs immediately in local dev instead of showing the Connect banner.
+  try {
+    const host = new URL((apiBase || "").replace(/\/+$/, "")).hostname;
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
 }
 
 // ── applications cache / pipeline state ──────────────────────────────────────
@@ -100,6 +109,7 @@ type ApiApplicationRow = {
   role: string;
   outcome: Outcome;
   interviewRound: number | null;
+  rejectedAfterRound: number | null;
   portalUrl: string | null;
   createdAt: string;
 };
@@ -111,6 +121,7 @@ function toPipelineApp(row: ApiApplicationRow): PipelineApplication {
     role: row.role,
     outcome: row.outcome,
     interviewRound: row.interviewRound,
+    rejectedAfterRound: row.rejectedAfterRound,
     portalUrl: row.portalUrl,
     createdAt: row.createdAt,
   };
@@ -390,6 +401,31 @@ export async function undoLog(id: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// ── tracking dialogue ────────────────────────────────────────────────────────
+
+export type TrackResult = { reply: string; summary: string[] };
+
+/**
+ * Free-text tracking update ("stripe rejected me after round 2"). The server
+ * route parses the text into ops (create/update) via the LLM and applies
+ * them; we refresh the pipeline cache so the next tracker-state is fresh.
+ */
+export async function trackApplication(
+  text: string,
+  context: { company?: string; role?: string },
+): Promise<TrackResult> {
+  const result = await api<TrackResult>("/api/applications/track", {
+    method: "POST",
+    json: { text, currentCompany: context.company, currentRole: context.role },
+  });
+  try {
+    await refreshCache();
+  } catch {
+    /* cache refresh is best-effort; ops were applied server-side */
+  }
+  return result;
 }
 
 // ── suggestions (Gmail + captures) ────────────────────────────────────────────

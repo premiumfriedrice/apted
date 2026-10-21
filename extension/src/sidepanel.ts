@@ -1,8 +1,26 @@
+// apted Tracker side panel — Sankey funnel on top, tracking dialogue below.
+//
+// The panel never fetches: every network call goes through the service
+// worker via chrome.runtime.sendMessage (tracker.ts owns the API client).
+//
+// Surfaces:
+//   - Funnel: Sankey of all applications (stats computed client-side from
+//     the tracker state cache; same math as the web app).
+//   - Current job: company/role scraped from the active tab; "Log
+//     application" records it against the account.
+//   - Tracking dialogue: free-text updates ("stripe rejected me after
+//     round 2") parsed server-side into ops; quick chips for the common
+//     outcomes on the current job.
+
 import { getSettings } from "./storage";
-import { clearPdfCache, fetchPdfForPreview, getDraftPdfBlob, suggestPdfFilename } from "./pdf";
-import { clearSession, readSession, writeSession, type StoredChatTurn } from "./session";
-import type { Msg, Reply } from "./messages";
-import type { Draft, Outcome, ScrapedJob, SimilarResume, Version } from "./types";
+import {
+  computeFunnelStats,
+  renderSankey,
+  type FunnelStats,
+  type HoverInfo,
+} from "./sankey";
+import type { Msg, MsgResultMap, Reply } from "./messages";
+import type { Outcome, PipelineApplication, PipelineState } from "./pipeline";
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -13,392 +31,219 @@ const $ = <T extends HTMLElement>(id: string): T => {
 const els = {
   connection: $("connection"),
   openOptions: $<HTMLButtonElement>("open-options"),
+  signedOut: $("signedout"),
+  connect: $<HTMLButtonElement>("connect"),
+  funnel: $("funnel"),
+  funnelCount: $("funnel-count"),
+  funnelInfo: $("funnel-info"),
   rescrape: $<HTMLButtonElement>("rescrape"),
   jdCompany: $<HTMLInputElement>("jd-company"),
   jdRole: $<HTMLInputElement>("jd-role"),
-  jdText: $<HTMLTextAreaElement>("jd-text"),
-  tailor: $<HTMLButtonElement>("tailor"),
-  newTailor: $<HTMLButtonElement>("new-tailor"),
-  undo: $<HTMLButtonElement>("undo"),
-  saveVersion: $<HTMLButtonElement>("save-version"),
-  downloadPdf: $<HTMLButtonElement>("download-pdf"),
-  preview: $("preview"),
-  previewEmpty: $("preview-empty"),
-  previewLoading: $("preview-loading"),
-  previewError: $("preview-error"),
-  previewErrorMsg: $("preview-error-msg"),
-  previewRetry: $<HTMLButtonElement>("preview-retry"),
-  previewEmbed: $<HTMLIFrameElement>("preview-embed"),
-  dragChip: $<HTMLSpanElement>("drag-chip"),
-  dragChipLabel: $("drag-chip-label"),
+  logApplication: $<HTMLButtonElement>("log-application"),
+  quick: $("quick"),
   chatLog: $("chat-log"),
   chatForm: $<HTMLFormElement>("chat-form"),
   chatInput: $<HTMLInputElement>("chat-input"),
   chatSend: $<HTMLButtonElement>("chat-send"),
   status: $("status"),
-  saveDialog: $<HTMLDialogElement>("save-dialog"),
-  saveForm: $<HTMLFormElement>("save-form"),
-  saveCompany: $<HTMLInputElement>("save-company"),
-  saveRole: $<HTMLInputElement>("save-role"),
-  saveOutcome: $<HTMLSelectElement>("save-outcome"),
-  similarSection: $("similar-section"),
-  similarList: $("similar-list"),
 };
 
-type State = {
-  draft: Draft | null;
-  jobDescription: string;
-  chat: StoredChatTurn[];
-  pdfObjectUrl: string | null;
-  pdfForDraftUpdatedAt: string | null;
-  pdfLoading: boolean;      // true while fetching PDF for the preview
-  restoring: boolean;        // suppress session writes during initial hydration
-};
-
-const state: State = {
-  draft: null,
-  jobDescription: "",
-  chat: [],
-  pdfObjectUrl: null,
-  pdfForDraftUpdatedAt: null,
-  pdfLoading: false,
-  restoring: false,
-};
-
-// Debounce frequent writes (input events on the JD form) so we don't slam
-// chrome.storage on every keystroke. setDraft / appendTurn go through this
-// too — fine, those are infrequent.
-let persistTimer: number | null = null;
-function schedulePersist(delayMs = 250): void {
-  if (state.restoring) return;
-  if (persistTimer !== null) clearTimeout(persistTimer);
-  persistTimer = setTimeout(() => {
-    persistTimer = null;
-    void writeSession({
-      url: location.href,
-      jd: els.jdText.value,
-      company: els.jdCompany.value,
-      role: els.jdRole.value,
-      draftId: state.draft?.id ?? null,
-      chat: state.chat,
-    });
-  }, delayMs) as unknown as number;
+async function send<K extends keyof MsgResultMap>(
+  msg: Extract<Msg, { type: K }>,
+): Promise<MsgResultMap[K]> {
+  const reply = (await chrome.runtime.sendMessage(msg)) as Reply<MsgResultMap[K]>;
+  if (!reply || !reply.ok) throw new Error(reply?.error ?? "no reply from background");
+  return reply.data;
 }
 
-function invalidatePdf(): void {
-  if (state.pdfObjectUrl) {
-    URL.revokeObjectURL(state.pdfObjectUrl);
-  }
-  state.pdfObjectUrl = null;
-  state.pdfForDraftUpdatedAt = null;
-  clearPdfCache();
-  els.previewEmbed.hidden = true;
-}
+// ── state ───────────────────────────────────────────────────────────────────
 
-// ── Similar resumes (PRE-47) ───────────────────────────────────────────
+let trackerState: PipelineState | null = null;
+let updateFunnel: ((next: FunnelStats) => void) | null = null;
 
-function renderSimilarResumes(similar: SimilarResume[]): void {
-  if (!similar?.length) {
-    els.similarSection.hidden = true;
-    return;
-  }
-  els.similarSection.hidden = false;
-  els.similarList.innerHTML = similar
-    .map(
-      (s) => `
-      <div class="similar-item">
-        <span class="similar-score">${s.score}%</span>
-        <span class="similar-text">${escHtml(s.role)} <span class="similar-company">@ ${escHtml(s.company)}</span></span>
-      </div>`,
-    )
-    .join("");
-}
+// ── status toast ────────────────────────────────────────────────────────────
 
-function escHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (ch) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;",
-    '"': "&quot;", "'": "&#39;",
-  } as Record<string, string>)[ch] ?? ch);
-}
-
-function showPreviewState(kind: "empty" | "loading" | "error" | "embed"): void {
-  els.previewEmpty.hidden = kind !== "empty";
-  els.previewLoading.hidden = kind !== "loading";
-  els.previewError.hidden = kind !== "error";
-  els.previewEmbed.hidden = kind !== "embed";
-}
-
-async function refreshPdfPreview(): Promise<void> {
-  if (!state.draft) {
-    showPreviewState("empty");
-    return;
-  }
-
-  const d = state.draft;
-  showPreviewState("loading");
-  state.pdfLoading = true;
-
-  try {
-    const { objectUrl, changed } = await fetchPdfForPreview({
-      draftId: d.id,
-      draftUpdatedAt: d.updatedAt,
-    });
-
-    if (!changed && state.pdfObjectUrl === objectUrl) {
-      // Same bytes, same URL — nothing to repaint.
-      showPreviewState("embed");
-      return;
-    }
-
-    // New object URL or first load.
-    if (state.pdfObjectUrl && state.pdfObjectUrl !== objectUrl) {
-      URL.revokeObjectURL(state.pdfObjectUrl);
-    }
-    state.pdfObjectUrl = objectUrl;
-    state.pdfForDraftUpdatedAt = d.updatedAt;
-
-    els.previewEmbed.src = objectUrl;
-    showPreviewState("embed");
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    els.previewErrorMsg.textContent = msg;
-    showPreviewState("error");
-  } finally {
-    state.pdfLoading = false;
-  }
-}
-
-function send<K extends Msg["type"]>(msg: Extract<Msg, { type: K }>): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(msg, (reply: Reply<unknown>) => {
-      const err = chrome.runtime.lastError;
-      if (err) return reject(new Error(err.message));
-      if (!reply) return reject(new Error("No response from background."));
-      if (!reply.ok) return reject(new Error(reply.error));
-      resolve(reply.data);
-    });
-  });
-}
-
-function setStatus(text: string, kind: "" | "ok" | "error" = ""): void {
+let statusTimer: number | undefined;
+function flashStatus(text: string): void {
   els.status.textContent = text;
-  els.status.className = "status" + (kind ? " " + kind : "");
+  els.status.classList.add("show");
+  if (statusTimer) clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => els.status.classList.remove("show"), 2400);
 }
 
-function setDraft(draft: Draft | null): void {
-  // When draft is cleared or replaced with a different one, drop the cached
-  // PDF so the preview fetches fresh bytes.
-  if (!draft) {
-    invalidatePdf();
-  } else if (!state.draft || state.draft.id !== draft.id) {
-    // Different draft (or first draft) — clear the old preview. The new
-    // preview will be fetched by refreshPdfPreview() below.
-    invalidatePdf();
-  }
-  // When the same draft has a newer updatedAt (edit finished), we keep the
-  // current PDF embed visible while refreshPdfPreview() revalidates with
-  // etag. If the server returns 304 the preview doesn't flicker; if new
-  // bytes arrive we swap the embed src.
-  state.draft = draft;
-  void refreshPdfPreview();
-  // Publish the current draft to chrome.storage.local so the content-script
-  // drag chip on job sites knows there's a draft ready to drop. Content
-  // scripts can't share JS state with the side panel; storage is the bridge.
-  if (draft) {
-    void chrome.storage.local.set({
-      aptedCurrentDraft: {
-        id: draft.id,
-        updatedAt: draft.updatedAt,
-        company: els.jdCompany.value.trim() || undefined,
-        role: els.jdRole.value.trim() || undefined,
-      },
+// ── funnel ──────────────────────────────────────────────────────────────────
+
+function renderFunnel(state: PipelineState): void {
+  const stats = computeFunnelStats(state.applications);
+  els.funnelCount.textContent =
+    stats.total === 0 ? "" : `${stats.total} application${stats.total === 1 ? "" : "s"}`;
+  if (!updateFunnel) {
+    updateFunnel = renderSankey(els.funnel, stats, (info: HoverInfo) => {
+      els.funnelInfo.innerHTML = info
+        ? `<strong>${info.label}</strong>: ${info.value} <span class="muted">(${info.pct})</span>`
+        : "Hover a node or flow for details.";
     });
   } else {
-    void chrome.storage.local.remove("aptedCurrentDraft");
-  }
-  const hasDraft = !!draft;
-  els.chatInput.disabled = !hasDraft;
-  els.chatSend.disabled = !hasDraft;
-  els.saveVersion.disabled = !hasDraft;
-  els.downloadPdf.disabled = !hasDraft;
-  els.undo.disabled = !hasDraft || !(draft?.history?.length);
-
-  // Drag chip visibility and label (PRE-43).
-  // Shows the PDF filename when a draft is ready. Clicking it fills the
-  // nearest file input on the job page (drag from sidepanel doesn't work
-  // because Chrome closes the panel on drag-out).
-  if (hasDraft) {
-    const filename = suggestPdfFilename({
-      id: draft.id,
-      company: els.jdCompany.value.trim() || undefined,
-      role: els.jdRole.value.trim() || undefined,
-    });
-    els.dragChipLabel.textContent = filename;
-    els.dragChip.hidden = false;
-  } else {
-    els.dragChip.hidden = true;
-  }
-
-  schedulePersist();
-}
-
-async function doDownloadPdf(): Promise<void> {
-  if (!state.draft) return;
-  const d = state.draft;
-  const original = els.downloadPdf.textContent;
-  setStatus("Preparing PDF…");
-  els.downloadPdf.disabled = true;
-  els.downloadPdf.textContent = "Preparing…";
-  try {
-    const { blob } = await getDraftPdfBlob({
-      draftId: d.id,
-      draftUpdatedAt: d.updatedAt,
-    });
-    // Cache the object URL so the drag chip / future affordances can reuse it.
-    if (state.pdfObjectUrl) URL.revokeObjectURL(state.pdfObjectUrl);
-    const url = URL.createObjectURL(blob);
-    state.pdfObjectUrl = url;
-    state.pdfForDraftUpdatedAt = d.updatedAt;
-    const filename = suggestPdfFilename({
-      id: d.id,
-      company: els.jdCompany.value.trim() || undefined,
-      role: els.jdRole.value.trim() || undefined,
-    });
-    // Programmatic download: build an anchor, click it, drop it. Same dialog
-    // as a real link but the button stays a button.
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // After a successful download, the PDF blob is cached in pdf.ts.
-    // Update the preview embed to match in case it wasn't showing yet.
-    if (!state.pdfObjectUrl || state.pdfObjectUrl !== url) {
-      if (state.pdfObjectUrl) URL.revokeObjectURL(state.pdfObjectUrl);
-      state.pdfObjectUrl = url;
-      state.pdfForDraftUpdatedAt = d.updatedAt;
-      els.previewEmbed.src = url;
-      showPreviewState("embed");
-    }
-    setStatus("Downloaded " + filename, "ok");
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    setStatus("PDF failed: " + msg, "error");
-  } finally {
-    els.downloadPdf.disabled = !state.draft;
-    els.downloadPdf.textContent = original ?? "Download PDF";
+    updateFunnel(stats);
   }
 }
 
-function appendTurn(who: "you" | "apted", text: string): void {
+// ── chat log ────────────────────────────────────────────────────────────────
+
+function appendMsg(who: "you" | "apted", text: string, summary?: string[]): void {
   const div = document.createElement("div");
-  div.className = "turn " + who;
-  div.innerHTML = `<span class="who">${who}</span><span></span>`;
-  div.lastElementChild!.textContent = text;
-  els.chatLog.appendChild(div);
+  div.className = `msg ${who}`;
+  div.textContent = text;
+  if (summary?.length) {
+    const s = document.createElement("div");
+    s.className = "summary";
+    s.textContent = summary.join(" · ");
+    div.append(s);
+  }
+  els.chatLog.append(div);
   els.chatLog.scrollTop = els.chatLog.scrollHeight;
-  state.chat.push({ who, text });
-  schedulePersist();
 }
 
-async function refreshConnection(): Promise<void> {
-  const s = await getSettings();
-  if (!s.apiBase) {
-    els.connection.textContent = "not configured";
-    els.connection.title = "Open Settings to set API_BASE.";
+// ── state refresh ───────────────────────────────────────────────────────────
+
+async function refresh(): Promise<void> {
+  try {
+    const state = await send({ type: "tracker-state" });
+    trackerState = state;
+    els.signedOut.hidden = state.status !== "signed-out";
+    renderFunnel(state);
+  } catch (e) {
+    flashStatus(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ── current job ─────────────────────────────────────────────────────────────
+
+function currentCompany(): string {
+  return els.jdCompany.value.trim();
+}
+function currentRole(): string {
+  return els.jdRole.value.trim();
+}
+
+async function scrapeTab(): Promise<void> {
+  try {
+    const job = await send({ type: "scrape" });
+    if (job.company) els.jdCompany.value = job.company;
+    if (job.title) els.jdRole.value = job.title;
+    if (job.company || job.title) flashStatus("Scraped the active tab");
+  } catch {
+    /* not a job page — leave inputs as-is */
+  }
+}
+
+/** Find the user's application for the current company (case-insensitive). */
+function findCurrentApp(apps: PipelineApplication[]): PipelineApplication | null {
+  const q = currentCompany().toLowerCase();
+  if (!q) return null;
+  return apps.find((a) => a.company.toLowerCase() === q) ?? null;
+}
+
+async function logCurrent(): Promise<void> {
+  const company = currentCompany();
+  const role = currentRole();
+  if (!company) {
+    flashStatus("Add a company first (Scrape tab or type it)");
     return;
   }
-  try {
-    const host = new URL(s.apiBase).host;
-    els.connection.textContent = host;
-    els.connection.title = s.apiBase;
-  } catch {
-    els.connection.textContent = "invalid API_BASE";
+  const result = await send({
+    type: "tracker-log-application",
+    capture: {
+      company,
+      role: role || "Unknown Role",
+      jobDescription: "",
+      capturedAt: new Date().toISOString(),
+      source: "panel",
+      active: true,
+    },
+  });
+  if (result.kind === "logged") {
+    appendMsg("apted", `Logged ${company} — ${role || "Unknown Role"} as applied.`);
+    await refresh();
+  } else if (result.kind === "queued") {
+    appendMsg("apted", `Logged ${company} locally — will sync when you connect.`);
+  } else if (result.kind === "duplicate") {
+    appendMsg("apted", `${company} is already in your pipeline.`);
+  } else {
+    appendMsg("apted", `Skipped logging ${company}.`);
   }
 }
 
-async function doScrape(): Promise<void> {
-  setStatus("Scraping active tab…");
-  try {
-    const scraped = (await send({ type: "scrape" })) as ScrapedJob;
-    els.jdText.value = scraped.jobDescription;
-    state.jobDescription = scraped.jobDescription;
-    if (!els.jdCompany.value) els.jdCompany.value = scraped.company;
-    if (!els.jdRole.value) els.jdRole.value = scraped.title;
-    // Programmatic input changes don't fire the input event, so the input
-    // listener wouldn't capture the scrape into the session. Persist directly.
-    schedulePersist(0);
-    setStatus(`Scraped from ${scraped.source}. Extracting fields…`, "ok");
+// ── quick chips ─────────────────────────────────────────────────────────────
 
-    // Extract company/role/location via LLM for better accuracy.
-    const jd = scraped.jobDescription;
-    if (jd.trim()) {
-      try {
-        const extracted = (await send({
-          type: "extract",
-          url: scraped.url,
-          title: scraped.title,
-          company: scraped.company,
-          jobDescription: jd,
-          source: scraped.source,
-        })) as { title: string; company: string; location: string; terms: string[] };
-        if (extracted.company && !els.jdCompany.value) els.jdCompany.value = extracted.company;
-        if (extracted.title && !els.jdRole.value) els.jdRole.value = extracted.title;
-        schedulePersist(0);
-        setStatus("Extracted fields.", "ok");
-      } catch {
-        // Non-fatal: scraped values are already filled in.
-        setStatus(`Scraped from ${scraped.source}.`, "ok");
+async function quickOutcome(outcome: Outcome): Promise<void> {
+  const apps = trackerState?.applications ?? [];
+  const company = currentCompany();
+  const existing = findCurrentApp(apps);
+  try {
+    if (existing) {
+      const ok = await send({
+        type: "tracker-set-outcome",
+        id: existing.id,
+        outcome,
+        interviewRound: outcome === "interviewing" ? Math.max(existing.interviewRound ?? 0, 0) + 1 : undefined,
+      });
+      if (!ok) throw new Error("update failed");
+      appendMsg("apted", `Marked ${existing.company} as ${outcome}.`);
+    } else if (company) {
+      // Not logged yet: create it with the chosen outcome.
+      const result = await send({
+        type: "tracker-log-application",
+        capture: {
+          company,
+          role: currentRole() || "Unknown Role",
+          jobDescription: "",
+          capturedAt: new Date().toISOString(),
+          source: "panel",
+          active: true,
+        },
+      });
+      if (result.kind === "logged" || result.kind === "duplicate") {
+        const id = result.kind === "logged" ? result.id : null;
+        if (id) {
+          await send({
+            type: "tracker-set-outcome",
+            id,
+            outcome,
+            interviewRound: outcome === "interviewing" ? 1 : undefined,
+          });
+        }
+        appendMsg("apted", `Logged ${company} as ${outcome}.`);
+      } else {
+        appendMsg("apted", `Logged ${company} locally — will sync when you connect.`);
       }
     } else {
-      setStatus(`Scraped from ${scraped.source}.`, "ok");
+      flashStatus("Scrape or type a company first");
+      return;
     }
+    await refresh();
   } catch (e) {
-    setStatus(errMsg(e), "error");
+    flashStatus(e instanceof Error ? e.message : String(e));
   }
 }
 
-async function doTailor(): Promise<void> {
-  const jd = els.jdText.value.trim();
-  if (!jd) {
-    setStatus("Paste or scrape a job description first.", "error");
-    return;
-  }
-  state.jobDescription = jd;
-  setStatus("Tailoring… this can take 10–30s.");
-  els.tailor.disabled = true;
-  try {
-    const draft = (await send({ type: "tailor", jobDescription: jd })) as Draft;
-    setDraft(draft);
-    renderSimilarResumes(draft.similarResumes ?? []);
-    appendTurn("apted", "First-pass tailor ready.");
-    setStatus("Done.", "ok");
-  } catch (e) {
-    setStatus(errMsg(e), "error");
-  } finally {
-    els.tailor.disabled = false;
-  }
-}
+// ── tracking dialogue ───────────────────────────────────────────────────────
 
-async function doEdit(instruction: string): Promise<void> {
-  if (!state.draft) return;
-  appendTurn("you", instruction);
-  setStatus("Editing…");
-  els.chatInput.disabled = true;
+async function submitTrack(text: string): Promise<void> {
   els.chatSend.disabled = true;
+  els.chatInput.disabled = true;
   try {
-    const draft = (await send({
-      type: "edit",
-      draftId: state.draft.id,
-      instruction,
-    })) as Draft;
-    setDraft(draft);
-    appendTurn("apted", "Draft updated.");
-    setStatus("Done.", "ok");
+    appendMsg("you", text);
+    const result = await send({
+      type: "track",
+      text,
+      company: currentCompany() || undefined,
+      role: currentRole() || undefined,
+    });
+    appendMsg("apted", result.reply, result.summary);
+    await refresh();
   } catch (e) {
-    appendTurn("apted", "Error: " + errMsg(e));
-    setStatus(errMsg(e), "error");
+    appendMsg("apted", e instanceof Error ? e.message : "Something went wrong.");
   } finally {
     els.chatInput.disabled = false;
     els.chatSend.disabled = false;
@@ -406,255 +251,35 @@ async function doEdit(instruction: string): Promise<void> {
   }
 }
 
-async function doUndo(): Promise<void> {
-  if (!state.draft) return;
-  setStatus("Undoing…");
-  try {
-    const draft = (await send({ type: "undo", draftId: state.draft.id })) as Draft;
-    setDraft(draft);
-    setStatus("Reverted.", "ok");
-  } catch (e) {
-    setStatus(errMsg(e), "error");
-  }
-}
+// ── wiring ──────────────────────────────────────────────────────────────────
 
-async function doSaveVersion(): Promise<void> {
-  if (!state.draft) return;
-  els.saveCompany.value = els.jdCompany.value.trim();
-  els.saveRole.value = els.jdRole.value.trim();
-  els.saveDialog.showModal();
-}
+els.openOptions.addEventListener("click", () => send({ type: "open-options" }).catch(() => {}));
+els.connect.addEventListener("click", () => send({ type: "open-connect" }).catch(() => {}));
+els.rescrape.addEventListener("click", () => void scrapeTab());
+els.logApplication.addEventListener("click", () => void logCurrent());
 
-async function onSaveDialogClose(): Promise<void> {
-  if (els.saveDialog.returnValue !== "confirm") return;
-  if (!state.draft) return;
-  const company = els.saveCompany.value.trim();
-  const role = els.saveRole.value.trim();
-  if (!company || !role) {
-    setStatus("Company and role are required.", "error");
-    return;
-  }
-  setStatus("Saving version…");
-  try {
-    const version = (await send({
-      type: "save-version",
-      company,
-      role,
-      jobDescription: state.draft.jobDescription,
-      tailoredContent: state.draft.content,
-      outcome: els.saveOutcome.value as Outcome,
-    })) as Version;
-    setStatus(`Saved as version ${version.id}.`, "ok");
-  } catch (e) {
-    setStatus(errMsg(e), "error");
-  }
-}
-
-function errMsg(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
-
-// Restore the JD form, chat log, and draft from the persisted session if one
-// exists within the TTL window. Returns true when something was restored.
-async function restoreFromSession(): Promise<boolean> {
-  const snap = await readSession();
-  if (!snap) return false;
-
-  state.restoring = true;
-  try {
-    els.jdText.value = snap.jd;
-    els.jdCompany.value = snap.company;
-    els.jdRole.value = snap.role;
-    state.jobDescription = snap.jd;
-
-    // Replay chat into the DOM and into state.chat.
-    state.chat = [];
-    els.chatLog.innerHTML = "";
-    for (const t of snap.chat) appendTurn(t.who, t.text);
-
-    if (snap.draftId) {
-      try {
-        const draft = (await send({ type: "get-draft", draftId: snap.draftId })) as
-          | Draft
-          | { notFound: true };
-        if ("notFound" in draft) {
-          // Draft was deleted server-side — keep the JD form, drop the draft
-          // from the snapshot so next reload doesn't try the dead id again.
-          setStatus("Previous draft is no longer available; JD restored.", "ok");
-          await writeSession({
-            url: location.href,
-            jd: snap.jd,
-            company: snap.company,
-            role: snap.role,
-            draftId: null,
-            chat: snap.chat,
-          });
-        } else {
-          setDraft(draft);
-          setStatus("Session restored.", "ok");
-        }
-      } catch (e) {
-        // Any network error during restore: don't leave the user looking at a
-        // half-restored session. Drop the draftId from the snapshot so the
-        // next open starts clean from this point, but keep JD + chat so the
-        // user doesn't lose their notes.
-        setStatus("Couldn't load previous draft: " + errMsg(e), "error");
-        try {
-          await writeSession({
-            url: location.href,
-            jd: snap.jd,
-            company: snap.company,
-            role: snap.role,
-            draftId: null,
-            chat: snap.chat,
-          });
-        } catch {
-          /* ignore — best-effort cleanup */
-        }
-      }
-    } else {
-      setStatus("Session restored.", "ok");
-    }
-    return true;
-  } finally {
-    state.restoring = false;
-  }
-}
-
-// Start a fresh tailor for the SAME job. Keep the JD/company/role so the
-// user can re-tailor without re-scraping; clear only the draft + chat. The
-// session is rewritten (not wiped) so it survives reloads on the same URL.
-async function newTailor(): Promise<void> {
-  state.restoring = true;
-  try {
-    state.chat = [];
-    els.chatLog.innerHTML = "";
-    setDraft(null);
-    invalidatePdf();
-    els.previewEmbed.src = "";
-    showPreviewState("empty");
-    els.similarSection.hidden = true;
-    await writeSession({
-      url: location.href,
-      jd: els.jdText.value,
-      company: els.jdCompany.value,
-      role: els.jdRole.value,
-      draftId: null,
-      chat: state.chat,
-    });
-    setStatus("Cleared draft. JD kept. Click Tailor to start again.", "ok");
-  } finally {
-    state.restoring = false;
-  }
-}
-
-// Wire up.
-els.openOptions.addEventListener("click", () => chrome.runtime.openOptionsPage());
-els.rescrape.addEventListener("click", () => void doScrape());
-els.tailor.addEventListener("click", () => void doTailor());
-els.undo.addEventListener("click", () => void doUndo());
-els.saveVersion.addEventListener("click", () => void doSaveVersion());
-els.downloadPdf.addEventListener("click", () => void doDownloadPdf());
-els.newTailor.addEventListener("click", () => void newTailor());
-els.previewRetry.addEventListener("click", () => void refreshPdfPreview());
-
-// ── PDF chip: click fills the nearest file input on the job page (PRE-43) ──
-// Drag from the sidepanel doesn't work because Chrome closes the panel on
-// drag-out. Instead, clicking the chip sends the PDF to the inject script
-// via session storage, which fills the nearest <input type=file>.
-els.dragChip.addEventListener("click", async () => {
-  if (!state.draft) return;
-  const original = els.dragChip.textContent;
-  els.dragChip.textContent = "Attaching…";
-  try {
-    const { blob } = await getDraftPdfBlob({
-      draftId: state.draft.id,
-      draftUpdatedAt: state.draft.updatedAt,
-    });
-    const filename = suggestPdfFilename({
-      id: state.draft.id,
-      company: els.jdCompany.value.trim() || undefined,
-      role: els.jdRole.value.trim() || undefined,
-    });
-    // Convert to base64 and stash in session storage.
-    const buf = await blob.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let bin = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) {
-      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000) as unknown as number[]);
-    }
-    await chrome.storage.session.set({
-      aptedDragPdfB64: btoa(bin),
-      aptedDragPdfFilename: filename,
-    });
-    // Tell the inject script to fill the nearest file input.
-    await chrome.runtime.sendMessage({ type: "fill-nearest-input" });
-    setStatus("PDF attached to form!", "ok");
-  } catch (e) {
-    setStatus("Could not attach PDF: " + (e instanceof Error ? e.message : String(e)), "error");
-  } finally {
-    els.dragChip.textContent = original;
-  }
+els.quick.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>("button[data-outcome]");
+  if (!btn?.dataset.outcome) return;
+  void quickOutcome(btn.dataset.outcome as Outcome);
 });
 
-// Persist on form-field changes. Debounced inside schedulePersist so we
-// don't slam storage on every keystroke.
-els.jdText.addEventListener("input", () => schedulePersist(500));
-els.jdCompany.addEventListener("input", () => schedulePersist(500));
-els.jdRole.addEventListener("input", () => schedulePersist(500));
-els.saveDialog.addEventListener("close", () => void onSaveDialogClose());
 els.chatForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const v = els.chatInput.value.trim();
-  if (!v) return;
+  const text = els.chatInput.value.trim();
+  if (!text) return;
   els.chatInput.value = "";
-  void doEdit(v);
+  void submitTrack(text);
 });
-
-chrome.storage.onChanged.addListener((_changes, area) => {
-  if (area === "sync") void refreshConnection();
-});
-
-void refreshConnection();
-showPreviewState("empty");
 
 void (async () => {
-  // 1) Context menu "Tailor with apted" wins over everything — that's an
-  //    explicit "tailor THIS new selection" intent. Discard the session.
-  try {
-    const stored = await chrome.storage.session.get({ pendingJd: null });
-    if (stored.pendingJd) {
-      await clearSession();
-      const jd = String(stored.pendingJd);
-      els.jdText.value = jd;
-      state.jobDescription = jd;
-      await chrome.storage.session.remove("pendingJd");
-      setStatus("JD loaded from your selection. Click Tailor to start.", "ok");
-      return;
-    }
-  } catch {
-    /* ignore — fall through */
-  }
-
-  // 2) Try to restore the prior session (within 6h TTL).
-  try {
-    if (await restoreFromSession()) return;
-  } catch {
-    /* ignore — fall through to auto-scrape */
-  }
-
-  // 3) Otherwise, auto-scrape the user's actual browsing tab on supported sites.
-  try {
-    const win = await chrome.windows.getLastFocused({
-      populate: true,
-      windowTypes: ["normal"],
-    });
-    const tab = win.tabs?.find((t) => t.active);
-    const url = tab?.url ?? "";
-    if (/linkedin\.com|greenhouse\.io|lever\.co|myworkdayjobs\.com|workday\.com/.test(url)) {
-      await doScrape();
-    }
-  } catch {
-    /* ignore */
-  }
+  const { apiBase } = await getSettings();
+  els.connection.textContent = apiBase?.replace(/^https?:\/\//, "") ?? "";
+  await refresh();
+  appendMsg(
+    "apted",
+    "Tell me what happened with your applications — e.g. \"stripe rejected me after round 2\" or \"just applied to Linear\".",
+  );
+  // Best-effort auto-scrape when opened on a job page.
+  void scrapeTab();
 })();

@@ -76,6 +76,7 @@ export type Msg =
   | { type: "list-versions" }
   | { type: "open-drawer" }
   | { type: "open-options" }
+  | { type: "track"; text: string; company?: string; role?: string }
   | { type: "tracker-state" }
   | { type: "tracker-log-application"; capture: Capture }
   | { type: "tracker-undo"; id: string }
@@ -113,6 +114,7 @@ export type MsgResultMap = {
   "list-versions": VersionListItem[];
   "auto-save-application": Version;
   "open-drawer": { ok: true };
+  "track": { reply: string; summary: string[] };
   "tracker-state": PipelineState;
   "tracker-log-application": LogResult;
   "tracker-undo": { ok: true };

@@ -19,19 +19,14 @@ const common = {
 const entries = [
   { in: "src/background.ts", out: "background" },
   { in: "src/sidepanel.ts", out: "sidepanel" },
-  { in: "src/tracker-panel.ts", out: "tracker-panel" },
   { in: "src/options.ts", out: "options" },
   { in: "src/inject.ts", out: "inject" },
-  { in: "src/autofill.ts", out: "autofill" },
-  { in: "src/drawer.ts", out: "drawer" },
-  { in: "src/gmail.ts", out: "gmail" },
 ];
 
 async function copyStatic() {
   await Promise.all([
     cp("manifest.json", `${outdir}/manifest.json`),
     cp("src/sidepanel.html", `${outdir}/sidepanel.html`),
-    cp("src/tracker-panel.html", `${outdir}/tracker-panel.html`),
     cp("src/sidepanel.css", `${outdir}/sidepanel.css`),
     cp("src/options.html", `${outdir}/options.html`),
     cp("fonts", `${outdir}/fonts`, { recursive: true, force: true }),

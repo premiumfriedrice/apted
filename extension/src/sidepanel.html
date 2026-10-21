@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>apted</title>
+    <title>apted Tracker</title>
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
@@ -11,13 +11,29 @@
       <div class="brand">apted</div>
       <div class="spacer"></div>
       <span id="connection" class="connection" title="API base"></span>
-      <button id="new-tailor" class="ghost" title="Clear the current session and start a new tailor">New</button>
       <button id="open-options" class="ghost">Settings</button>
     </header>
 
-    <section class="jd panel">
+    <div id="signedout" class="banner" hidden>
+      <span>Connect your apted account to sync your pipeline.</span>
+      <button id="connect" class="primary">Connect</button>
+    </div>
+
+    <section class="funnel panel">
       <div class="row">
-        <h2>Job description</h2>
+        <h2>Application funnel</h2>
+        <div class="spacer"></div>
+        <span id="funnel-count" class="muted"></span>
+      </div>
+      <div id="funnel" class="funnel-body"></div>
+      <div id="funnel-info" class="funnel-info">
+        Hover a node or flow for details.
+      </div>
+    </section>
+
+    <section class="job panel">
+      <div class="row">
+        <h2>Current job</h2>
         <div class="spacer"></div>
         <button id="rescrape">Scrape tab</button>
       </div>
@@ -25,83 +41,33 @@
         <input id="jd-company" placeholder="Company" />
         <input id="jd-role" placeholder="Role" />
       </div>
-      <textarea
-        id="jd-text"
-        rows="6"
-        placeholder="Paste a job description, or click Scrape tab."
-      ></textarea>
       <div class="row">
         <div class="spacer"></div>
-        <button id="tailor" class="primary">Tailor</button>
+        <button id="log-application" class="primary">Log application</button>
       </div>
-    </section>
-
-    <section class="preview panel">
-      <div class="row">
-        <h2>Preview</h2>
-        <div class="spacer"></div>
-        <button id="download-pdf" disabled>Download PDF</button>
-        <button id="undo" disabled>Undo</button>
-        <button id="save-version" disabled>Save as version</button>
-      </div>
-      <div id="preview" class="preview-body">
-        <div id="preview-empty" class="empty">No draft yet. Tailor a JD to get started.</div>
-        <div id="preview-loading" class="preview-state" hidden>
-          <div class="spinner"></div>
-          <span>Compiling PDF…</span>
-        </div>
-        <div id="preview-error" class="preview-state" hidden>
-          <p id="preview-error-msg"></p>
-          <button id="preview-retry" class="primary">Retry</button>
-        </div>
-        <iframe id="preview-embed" title="Resume preview" hidden></iframe>
-        <span id="drag-chip" class="drag-chip" hidden title="Click to attach PDF to job application form">
-          <span class="drag-chip-glyph">PDF</span>
-          <span id="drag-chip-label">resume.pdf</span>
-        </span>
-      </div>
-    </section>
-
-    <section id="similar-section" class="panel" hidden>
-      <h2>Similar resumes</h2>
-      <div id="similar-list" class="similar-list"></div>
     </section>
 
     <section class="chat panel">
+      <div class="row">
+        <h2>Tracking</h2>
+      </div>
+      <div id="quick" class="chips">
+        <button class="chip" data-outcome="applied">Applied</button>
+        <button class="chip" data-outcome="interviewing">Interviewing</button>
+        <button class="chip" data-outcome="offer">Offer</button>
+        <button class="chip" data-outcome="rejected">Rejected</button>
+        <button class="chip" data-outcome="ghosted">Ghosted</button>
+      </div>
       <div id="chat-log" class="chat-log"></div>
       <form id="chat-form" class="chat-form">
         <input
           id="chat-input"
-          placeholder="lead with the AI project · cut the GPA · strengthen bullet 3"
+          placeholder="stripe rejected me after round 2…"
           autocomplete="off"
-          disabled
         />
-        <button id="chat-send" type="submit" class="primary" disabled>Send</button>
+        <button id="chat-send" type="submit" class="primary">Send</button>
       </form>
     </section>
-
-    <dialog id="save-dialog">
-      <form method="dialog" id="save-form">
-        <h3>Save as version</h3>
-        <label>Company<input id="save-company" required /></label>
-        <label>Role<input id="save-role" required /></label>
-        <label>
-          Outcome
-          <select id="save-outcome">
-            <option value="draft">draft</option>
-            <option value="applied">applied</option>
-            <option value="interview">interview</option>
-            <option value="offer">offer</option>
-            <option value="rejected">rejected</option>
-          </select>
-        </label>
-        <div class="row dialog-actions">
-          <button value="cancel" type="reset">Cancel</button>
-          <div class="spacer"></div>
-          <button id="save-confirm" value="confirm" class="primary">Save</button>
-        </div>
-      </form>
-    </dialog>
 
     <div id="status" class="status" aria-live="polite"></div>
     <script src="sidepanel.js"></script>

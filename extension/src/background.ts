@@ -497,6 +497,9 @@ async function handle(msg: Msg): Promise<unknown> {
     case "tracker-state":
       return tracker.getTrackerState();
 
+    case "track":
+      return tracker.trackApplication(msg.text, { company: msg.company, role: msg.role });
+
     case "tracker-log-application":
       return tracker.logApplication(msg.capture);
 

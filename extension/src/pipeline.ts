@@ -35,6 +35,8 @@ export type PipelineApplication = {
   role: string;
   outcome: Outcome;
   interviewRound: number | null;
+  /** Present when the application came back rejected (0 = pre-interview). */
+  rejectedAfterRound?: number | null;
   portalUrl: string | null;
   createdAt: string;
 };
