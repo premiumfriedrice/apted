@@ -49,7 +49,12 @@ function buildAuth() {
   const db = new Kysely({ dialect: new PostgresDialect({ pool }) });
   return betterAuth({
     secret: process.env.BETTER_AUTH_SECRET!,
-    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    // When BETTER_AUTH_URL is unset, let Better Auth infer the base URL from
+    // the request headers (x-forwarded-host etc.) — correct on Vercel AND in
+    // local dev. A hard fallback to http://localhost:3000 makes production
+    // believe it lives on localhost, which is a footgun for the social
+    // sign-in flow (empty 500s on /api/auth/sign-in/social).
+    baseURL: process.env.BETTER_AUTH_URL || undefined,
     database: { db, type: "postgres" },
     emailAndPassword: { enabled: true },
     // Cookie sessions for browsers; bearer plugin layers bearer-token
