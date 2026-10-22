@@ -229,7 +229,7 @@ async function getLastJob(): Promise<{
 
 // ── capture logging ──────────────────────────────────────────────────────────
 
-async function postCapture(capture: Capture): Promise<{ id: string }> {
+async function postCapture(capture: Capture, outcome: "applied" | "draft" = "applied"): Promise<{ id: string }> {
   if (capture.company && capture.role) {
     const row = await api<{ id: string }>("/api/applications", {
       method: "POST",
@@ -237,7 +237,7 @@ async function postCapture(capture: Capture): Promise<{ id: string }> {
         company: capture.company,
         role: capture.role,
         jobDescription: capture.jobDescription ?? "",
-        outcome: "applied",
+        outcome,
         portalUrl: capture.portalUrl ?? null,
       },
     });
@@ -304,11 +304,55 @@ export async function logApplication(capture: Capture): Promise<LogResult> {
   capture = merged;
 
   const trackedObj = capture.trackedObj || null;
+
+  // ── fill-phase capture: the user is filling out the application form.
+  // Log it as a DRAFT now; the submit capture upgrades it to "applied".
+  // Drafts need a company to be worth a row — otherwise wait for submit.
+  if (capture.inProgress) {
+    if (!capture.company) return { kind: "skipped" };
+    if (trackedObj) {
+      const map = await getTrackedMap();
+      const prev = map[trackedObj];
+      // Already tracked at any rank — never duplicate a fill-phase log.
+      if (prev) return { kind: "duplicate", id: prev.id };
+      await markTrackedObj(trackedObj, RANK_ANALYTIC_ONLY, null);
+    }
+    try {
+      const { id } = await postCapture(
+        { ...capture, role: capture.role || "Unknown Role" },
+        "draft",
+      );
+      if (trackedObj) await markTrackedObj(trackedObj, RANK_ANALYTIC_ONLY, id);
+      void refreshCache().catch(() => {});
+      return { kind: "logged", id };
+    } catch {
+      // Fill-phase context is ephemeral — don't queue it; the submit
+      // capture (or a later fill) will land the real record.
+      return { kind: "skipped" };
+    }
+  }
+
+  // ── submit capture ──
   if (trackedObj) {
     const map = await getTrackedMap();
     const prev = map[trackedObj];
     if (prev && prev.rank >= RANK_SUBMITTED) {
       return { kind: "duplicate", id: prev.id };
+    }
+    // A fill-phase draft exists for this job — upgrade it to "applied"
+    // instead of creating a second row.
+    if (prev && prev.id && prev.rank < RANK_SUBMITTED) {
+      try {
+        await api(`/api/applications/${encodeURIComponent(prev.id)}`, {
+          method: "PATCH",
+          json: { outcome: "applied" },
+        });
+        await markTrackedObj(trackedObj, RANK_SUBMITTED, prev.id);
+        void refreshCache().catch(() => {});
+        return { kind: "logged", id: prev.id };
+      } catch {
+        /* fall through to a fresh POST */
+      }
     }
     // Mark BEFORE the network call so a burst of submit events can't all
     // pass the dedupe check.

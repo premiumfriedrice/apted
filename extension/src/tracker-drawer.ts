@@ -269,6 +269,98 @@ export function mountTrackerDrawer(): void {
     }
   }
 
+  // ── fill-phase auto-tracking ─────────────────────────────────────────────
+  //
+  // While the user FILLS OUT an application form on a recognized job page,
+  // log the application as a draft right away (the submit capture upgrades
+  // it to "applied"). Heuristic: interaction with enough distinct form
+  // fields — a lower bar on URLs that are already the apply flow.
+
+  const APPLY_URL_RE = /\/apply|\/application\/|jobapplication|apply\.aspx/i;
+  const FILL_FIELDS_NEEDED = APPLY_URL_RE.test(location.pathname + location.search) ? 1 : 3;
+  const fillFields = new Set<HTMLElement>();
+  let fillFired = false;
+
+  function maybeTrackFill(): void {
+    if (fillFired || fillFields.size < FILL_FIELDS_NEEDED) return;
+    fillFired = true; // once per page load; SW dedupe guards navigations
+    void trackFill();
+  }
+
+  async function trackFill(): Promise<void> {
+    // Only on recognized job context — a posting we scraped, or an
+    // ATS-registry match for this page.
+    const job = currentJob;
+    if (!job && !atsMatch) return;
+    const trackedObj =
+      buildTrackedObj(location.href) ?? (job ? buildTrackedObj(job.url) : null);
+    const fields = atsMatch
+      ? extractFieldsFromDoc(atsMatch.entry, document, location.href)
+      : { company: "", role: "" };
+    const company = job?.company || fields.company || "";
+    if (!company) return; // can't identify the employer — wait for submit
+    const capture = {
+      company,
+      role: job?.title || fields.role || "Unknown Role",
+      jobDescription: job?.jobDescription || undefined,
+      portalUrl: job?.url || location.href,
+      trackedObj: trackedObj ?? undefined,
+      capturedAt: new Date().toISOString(),
+      source: job?.source ?? atsMatch?.key ?? "generic",
+      active: open,
+      inProgress: true,
+    };
+    try {
+      const result = await send<{ kind: string; id?: string }>({
+        type: "tracker-log-application",
+        capture,
+      });
+      if (result.kind === "logged") {
+        showToast(
+          "Tracking this application",
+          "Saved as draft — it becomes applied when you submit",
+          undefined,
+          true,
+        );
+      }
+    } catch {
+      /* fill-phase tracking is best-effort */
+    }
+  }
+
+  document.addEventListener(
+    "input",
+    (e) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || host.contains(t)) return;
+      if (
+        !(t instanceof HTMLInputElement) &&
+        !(t instanceof HTMLSelectElement) &&
+        !(t instanceof HTMLTextAreaElement)
+      ) {
+        return;
+      }
+      if (t.type === "search") return; // job-board search boxes aren't applications
+      fillFields.add(t);
+      userInteracted = true;
+      maybeTrackFill();
+    },
+    { capture: true },
+  );
+  document.addEventListener(
+    "change",
+    (e) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || host.contains(t)) return;
+      if (t instanceof HTMLSelectElement) {
+        fillFields.add(t);
+        userInteracted = true;
+        maybeTrackFill();
+      }
+    },
+    { capture: true },
+  );
+
   // ── submission detection ──────────────────────────────────────────────────
 
   let submitClicked = false;

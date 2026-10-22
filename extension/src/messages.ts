@@ -20,6 +20,9 @@ export type Capture = {
   source: string;
   /** True when the user actively used apted on this tab (drawer opened). */
   active: boolean;
+  /** True while the user is FILLING OUT the form — logs as a draft that the
+   *  submit capture later upgrades to "applied". */
+  inProgress?: boolean;
 };
 
 export type LogResult =
