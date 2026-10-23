@@ -6,7 +6,6 @@
   "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
   "optional_host_permissions": ["<all_urls>"],
   "host_permissions": [
-    "http://localhost:3000/*",
     "https://*.linkedin.com/jobs/*",
     "https://boards.greenhouse.io/*",
     "https://job-boards.greenhouse.io/*",
