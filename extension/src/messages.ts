@@ -46,6 +46,21 @@ export type GmailClassification = {
   atsSender: boolean;
 };
 
+// Profile data for the autofill feature (from the apted account's master
+// resume contact + a compiled master PDF for file inputs).
+export type AutofillProfile = {
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  links: Array<{ label: string; href: string }>;
+};
+
+export type AutofillData = {
+  profile: AutofillProfile | null;
+  pdfB64: string | null;
+};
+
 export type Msg =
   | { type: "scrape" }
   | { type: "extract"; url: string; title: string; company: string; jobDescription: string; source: string }
@@ -80,6 +95,7 @@ export type Msg =
   | { type: "open-drawer" }
   | { type: "open-options" }
   | { type: "track"; text: string; company?: string; role?: string }
+  | { type: "autofill-profile" }
   | { type: "tracker-state" }
   | { type: "tracker-log-application"; capture: Capture }
   | { type: "tracker-undo"; id: string }
@@ -118,6 +134,7 @@ export type MsgResultMap = {
   "auto-save-application": Version;
   "open-drawer": { ok: true };
   "track": { reply: string; summary: string[] };
+  "autofill-profile": AutofillData;
   "tracker-state": PipelineState;
   "tracker-log-application": LogResult;
   "tracker-undo": { ok: true };

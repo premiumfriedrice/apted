@@ -451,6 +451,91 @@ export async function undoLog(id: string): Promise<boolean> {
 
 export type TrackResult = { reply: string; summary: string[] };
 
+// ── autofill profile (master resume contact + compiled PDF) ───────────────
+
+let autofillPdfCache: { b64: string; ts: number } | null = null;
+const AUTOFILL_PDF_TTL_MS = 5 * 60_000;
+
+function bytesToB64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let out = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    out += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(out);
+}
+
+export async function getAutofillData(): Promise<{
+  profile: {
+    name: string;
+    title: string;
+    email: string;
+    phone: string;
+    links: Array<{ label: string; href: string }>;
+  } | null;
+  pdfB64: string | null;
+}> {
+  // Master resume content (contact block).
+  let profile: {
+    name: string;
+    title: string;
+    email: string;
+    phone: string;
+    links: Array<{ label: string; href: string }>;
+  } | null = null;
+  try {
+    const master = await api<{
+      content?: {
+        contact?: {
+          name?: string;
+          title?: string;
+          email?: string;
+          phone?: string;
+          links?: Array<{ label?: string; href?: string }>;
+        };
+      };
+    }>("/api/master", { method: "GET" });
+    const c = master?.content?.contact;
+    if (c) {
+      profile = {
+        name: c.name ?? "",
+        title: c.title ?? "",
+        email: c.email ?? "",
+        phone: c.phone ?? "",
+        links: (c.links ?? [])
+          .filter((l) => l?.href)
+          .map((l) => ({ label: l.label ?? "", href: l.href ?? "" })),
+      };
+    }
+  } catch {
+    /* profile is best-effort; PDF may still work */
+  }
+
+  // Compiled master PDF (cached — compilation is expensive).
+  let pdfB64: string | null = null;
+  if (
+    autofillPdfCache &&
+    Date.now() - autofillPdfCache.ts < AUTOFILL_PDF_TTL_MS
+  ) {
+    pdfB64 = autofillPdfCache.b64;
+  } else {
+    try {
+      const { apiBase, authToken } = await getSettings();
+      const base = (apiBase || "https://apted.vercel.app").replace(/\/+$/, "");
+      const headers: Record<string, string> = {};
+      if (authToken) headers["authorization"] = `Bearer ${authToken}`;
+      const res = await fetch(base + "/api/master/pdf", { headers });
+      if (res.ok) pdfB64 = bytesToB64(await res.arrayBuffer());
+      if (pdfB64) autofillPdfCache = { b64: pdfB64, ts: Date.now() };
+    } catch {
+      /* PDF attach is optional */
+    }
+  }
+
+  return { profile, pdfB64 };
+}
+
 /**
  * Free-text tracking update ("stripe rejected me after round 2"). The server
  * route parses the text into ops (create/update) via the LLM and applies

@@ -22,6 +22,7 @@ const entries = [
   { in: "src/options.ts", out: "options" },
   { in: "src/inject.ts", out: "inject" },
   { in: "src/drawer.ts", out: "drawer" },
+  { in: "src/autofill.ts", out: "autofill" },
 ];
 
 async function copyStatic() {

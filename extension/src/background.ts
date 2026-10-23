@@ -500,6 +500,9 @@ async function handle(msg: Msg): Promise<unknown> {
     case "track":
       return tracker.trackApplication(msg.text, { company: msg.company, role: msg.role });
 
+    case "autofill-profile":
+      return tracker.getAutofillData();
+
     case "tracker-log-application":
       return tracker.logApplication(msg.capture);
 
